@@ -53,32 +53,35 @@ $(function($) {
         });
     };
 
-
     maputils.createLabeledMarker = function(latLng, label, map, options) {
+		// To add the marker to the map, use the 'map' property
         var unselectedIcon =
             'http://maps.gstatic.com/mapfiles/markers2/marker_blank.png';
         var selectedIcon =
             'http://maps.google.com/intl/en_us/mapfiles/ms/micons/blue.png';
+        
         var markerOpts = {
             title: '' + label,
             draggable: true,
-            position: latLng,
-            map: map,
-            icon: new google.maps.MarkerImage(unselectedIcon),
-            labelContent: label,
-            labelAnchor: new google.maps.Point(20, 30),
-            labelClass: 'labels',
-            raiseOnDrag: false
-        };
-        markerOpts = _.extend(markerOpts, options);
-        var marker = new MarkerWithLabel(markerOpts);
+		    position: latLng,
+		    map: map,
+		    title:"Hello World!",
+		    icon: new google.maps.MarkerImage(unselectedIcon),
+		    label: label,
+		    raiseOnDrag: false
+		};
+		markerOpts = _.extend(markerOpts, options);
+		
+		var marker = new google.maps.Marker(markerOpts);
         google.maps.event.addListener(marker, 'selected_changed', function() {
             marker.setIcon(marker.get('selected') ?
                            selectedIcon :
                            unselectedIcon);
         });
+		
         return marker;
     };
+    
 
     maputils.locationSearchBar = function(search_bar, map) {
         // expecting search_bar to either be a selector string or a

@@ -210,7 +210,7 @@ class Overlay(models.Model):
     lastModifiedTime = models.DateTimeField()
     name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
-    imageSourceUrl = models.URLField(blank=True, verify_exists=False)
+    imageSourceUrl = models.URLField(blank=True) #, verify_exists=False)
     imageData = models.ForeignKey(ImageData, null=True, blank=True,
                                   related_name='currentOverlays',
                                   on_delete=models.SET_NULL)
@@ -231,7 +231,8 @@ class Overlay(models.Model):
                                   verbose_name='Source image creation date')
     rights = models.CharField(max_length=255, blank=True,
                               verbose_name='Copyright information')
-    license = models.URLField(verify_exists=False, blank=True,
+    #license = models.URLField(verify_exists=False, blank=True,
+    license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
 
