@@ -311,6 +311,7 @@ $(function($) {
             (google.maps.event.addListenerOnce
              (this.gmap, 'idle', _.bind(function() {
                  this.drawMarkers();
+                 this.drawCenterPointMarker.apply(this);
                  this.trigger('gmap_loaded');
                  if (this.options.debug) this.debugInstrumentation.apply(this);
              }, this)));
@@ -330,6 +331,7 @@ $(function($) {
                 coords.push([i, center.lng()]);
             }
             var map = this.gmap;
+            /*
             _.each(coords, function(coord) {
                 var marker = new google.maps.Marker({
                     position: new google.maps.LatLng(coord[0], coord[1]),
@@ -337,6 +339,7 @@ $(function($) {
                     map: map
                 });
             });
+			*/
 
             // Display a rectangle for the image bounds according to the model.
             var rect = new google.maps.Rectangle({map: this.gmap});
@@ -374,6 +377,20 @@ $(function($) {
             }, this);
             return this._drawMarkers(latLons);
         },
+
+
+		drawCenterPointMarker: function() {
+            window.imageMap = this.gmap;
+            var center = this.gmap.getCenter();     
+            var centerPoint = this.model.get('centerPoint');  
+            var lon = centerPoint["lon"];
+            var lat = centerPoint["lat"];   
+            centerPtLabel = "lon: " + lon + ",  lat: " + lat;
+            var marker = maputils.createLabeledMarker(center,
+                                          centerPtLabel,
+                                          this.gmap);
+		},
+
 
         updateTiepointFromMarker: function(index, marker) {
             var coords = latLonToPixel(marker.getPosition());
@@ -1177,6 +1194,8 @@ $(function($) {
             }
             if (json['status'] == 'success') {
                 var overlay = new app.models.Overlay({key: json.id});
+                //TODO: from here i can grab the center point. 
+                
                 app.overlays.add(overlay);
                 overlay.fetch({ 'success': function() {
                     app.router.navigate('overlay/' + json['id'] + '/edit',

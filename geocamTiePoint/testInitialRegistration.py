@@ -115,8 +115,13 @@ def rotMatrixFromCameraToEcef(longitude, camPoseEcef):
     rotMatrix = np.matrix([c1, c2, c3])
     return np.transpose(rotMatrix)
     
+    
+def pointToTuple(point):
+    """converts geom3 point object to a tuple"""
+    pointTuple = (float(point.x), float(point.y), float(point.z)) 
+    return pointTuple
 
-#TODO: ALGORITHM
+
 # TODO: http://gis.stackexchange.com/questions/20780/point-of-intersection-for-a-ray-and-earths-surface
 def imageCoordToEcef(cameraLonLatAlt, pixelCoord, opticalCenter, focalLength):
     """
@@ -142,10 +147,16 @@ def imageCoordToEcef(cameraLonLatAlt, pixelCoord, opticalCenter, focalLength):
     
     if t != None:
         # convert t to ecef coords
-        return ray.start + t*ray.dir
+        ecefCoords = ray.start + t*ray.dir
+        return pointToTuple(ecefCoords)
     else: 
         return None
 
+
+def getCenterPointCoordinates(image):
+    imageCoords = [image.width / 2.0, image.height / 2.0]
+    return imageCoordToEcef(image.cameraLonLatAlt, imageCoords, image.opticalCenter, image.focalLength)
+    
 
 def getBboxFromImageCorners(image):
     """
@@ -162,6 +173,10 @@ def getBboxFromImageCorners(image):
     corner2_ecef = imageCoordToEcef(image.cameraLonLatAlt, corner2, image.opticalCenter, image.focalLength)
     corner3_ecef = imageCoordToEcef(image.cameraLonLatAlt, corner3, image.opticalCenter, image.focalLength)
     corner4_ecef = imageCoordToEcef(image.cameraLonLatAlt, corner4, image.opticalCenter, image.focalLength)
+    print corner1_ecef
+    print corner2_ecef
+    print corner3_ecef
+    print corner4_ecef
     return [corner1_ecef, corner2_ecef, corner3_ecef, corner4_ecef]
         
 """
@@ -191,7 +206,7 @@ These are needed when there is meta data and we are generating
 #####################################################
 
 def main():    
-    imageName = settings.DATA_DIR + "geocamTiePoint/overlay_images/ISS039-E-1640.JPG"    
+    imageName = settings.DATA_DIR + "geocamTiePoint/overlay_images/ISS_Small.JPG"    
     issLongitude = -87.4
     issLatitude = 29.3
     issAltitude = 409000
@@ -201,15 +216,13 @@ def main():
     
     issImage = IssImage(imageName, longLatAlt, focalLength, sensorSize)
     corners = getBboxFromImageCorners(issImage)
+    centerPoint = getCenterPointCoordinates(issImage)
+    print "centerpoint" + str(transformEcefToLonLatAlt(centerPoint))
     
-    
-    print "Four image corners in ECEF:"
-    print corners
-    
-    # sanity check
-    print "Corner " + str(transformEcefToLonLatAlt(corners[0])) + "should equal to 29degrees 45'23.36 N, 89degrees56'52.85W "
-    print "Corner " + str(transformEcefToLonLatAlt(corners[1])) + "should equal to 29 50 29 82N , 90 21 55 40W "
-    print "Corner " + str(transformEcefToLonLatAlt(corners[2])) + "should equal to 30degrees 01'03.43N, 89 51 44 15W  "
-    print "Corner " + str(transformEcefToLonLatAlt(corners[3])) + "should equal to 30 06 31 28N, 90 17 04 01 W"
+    # Sanity check
+#     print "Corner0 " + str(transformEcefToLonLatAlt(corners[0])) + " should equal to 29degrees 45'23.36 N, 89degrees56'52.85W "
+#     print "Corner1 " + str(transformEcefToLonLatAlt(corners[1])) + " should equal to 29 50 29 82N , 90 21 55 40W "
+#     print "Corner2 " + str(transformEcefToLonLatAlt(corners[2])) + " should equal to 30degrees 01'03.43N, 89 51 44 15W  "
+#     print "Corner3 " + str(transformEcefToLonLatAlt(corners[3])) + " should equal to 30 06 31 28N, 90 17 04 01 W"
      
 main()
