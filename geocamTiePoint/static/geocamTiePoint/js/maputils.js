@@ -53,8 +53,31 @@ $(function($) {
         });
     };
 
+
+	function copyToClipboard(text) {
+	  window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+	}
+
+    maputils.createCenterPointMarker = function(latLng, label, map, options) {
+        var markerOpts = {
+            title: "center pt",
+            draggable: false,
+		    position: latLng,
+		    map: map,
+		    label: label,
+		    raiseOnDrag: false
+		};
+		markerOpts = _.extend(markerOpts, options);
+		var marker = new google.maps.Marker(markerOpts);
+		google.maps.event.addListener(marker, 'click', function() {
+			console.log('copy center pt');
+			copyToClipboard(label);
+		});
+        return marker;
+    };
+
+
     maputils.createLabeledMarker = function(latLng, label, map, options) {
-		// To add the marker to the map, use the 'map' property
         var unselectedIcon =
             'http://maps.gstatic.com/mapfiles/markers2/marker_blank.png';
         var selectedIcon =
@@ -65,7 +88,6 @@ $(function($) {
             draggable: true,
 		    position: latLng,
 		    map: map,
-		    title:"Hello World!",
 		    icon: new google.maps.MarkerImage(unselectedIcon),
 		    label: label,
 		    raiseOnDrag: false

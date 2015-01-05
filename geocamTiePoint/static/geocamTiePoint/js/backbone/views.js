@@ -383,12 +383,12 @@ $(function($) {
             window.imageMap = this.gmap;
             var center = this.gmap.getCenter();     
             var centerPoint = this.model.get('centerPoint');  
-            var lon = centerPoint["lon"];
-            var lat = centerPoint["lat"];   
-            centerPtLabel = "lon: " + lon + ",  lat: " + lat;
-            var marker = maputils.createLabeledMarker(center,
-                                          centerPtLabel,
-                                          this.gmap);
+            var lon = centerPoint["lon"].toFixed(2);
+            var lat = centerPoint["lat"].toFixed(2);   
+            centerPtLabel = "lon, lat: ("+lon+", "+lat+")";
+            var marker = maputils.createCenterPointMarker(center,
+			                                          centerPtLabel,
+			                                          this.gmap);
 		},
 
 
