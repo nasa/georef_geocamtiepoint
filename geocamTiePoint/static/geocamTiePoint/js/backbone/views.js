@@ -190,7 +190,9 @@ $(function($) {
                 var marker = this.markers.pop();
                 if (marker.get('selected')) selected_idx = this.markers.length;
                 marker.setMap(null);
+                $(".map-marker-label").remove() 
             }
+            
             var markers = this.markers = [];
             _.each(latlons_in_gmap_space, function(latLon, index) {
                 if (! _.any(_.values(latLon), _.isNull)) {

@@ -70,7 +70,6 @@ $(function($) {
 		markerOpts = _.extend(markerOpts, options);
 		var marker = new google.maps.Marker(markerOpts);
 		google.maps.event.addListener(marker, 'click', function() {
-			console.log('copy center pt');
 			copyToClipboard(label);
 		});
         return marker;
