@@ -234,7 +234,6 @@ def overlayNewJSON(request):
                         # what did the user even do
                         return ErrorJSONResponse("No image url or mission id in returned form data")
                     imageUrl = constructImageUrl(mission, roll, frame, imageSmallOrLarge)
-                    print imageUrl
                 # we have a url, try to download it
                 try:
                     response = urllib2.urlopen(imageUrl)
@@ -254,7 +253,7 @@ def overlayNewJSON(request):
                     return ErrorJSONResponse("The submitted file is larger than the maximum allowed size.  Maximum size is %d bytes." % settings.MAX_IMPORT_FILE_SIZE)
                 imageFB = StringIO(response.read())
                 imageType = response.headers['Content-Type']
-                imageName = form.cleaned_data['imageUrl'].split('/')[-1]
+                imageName = imageUrl.split('/')[-1]
                 response.close()
             overlay = createImageDataObject(request.user, image, imageName, imageFB, imageType)
             # respond with json
