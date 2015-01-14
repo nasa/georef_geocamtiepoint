@@ -1030,7 +1030,6 @@ $(function($) {
         '[Size < 2 MB. Acceptable formats: JPEG, PDF, PNG, and others]';
 
     app.views.NewOverlayView = app.views.View.extend({
-
         template:
         '<div id="new_overlay_view">' +
             '<h3>Create a New Overlay: Import Overlay Image</h3>' +
@@ -1039,6 +1038,8 @@ $(function($) {
             '<a href="#fileUpload">Upload</a></li>' +
             '  <li data-target="#urlSubmit"><a href="#urlSubmit">' +
             'From a URL</a></li>' +
+            '  <li data-target="#imageIdSubmit"><a href="#imageIdSubmit">' +
+            'From an ID </a></li>' +
             '</ul>' +
             ' ' +
             '<div class="tab-content">' +
@@ -1076,6 +1077,45 @@ $(function($) {
                     '</div>' +
                     '</form>' +
                 '</div>' +
+                '<div class="tab-pane" id="imageIdSubmit">' + 
+                	'<form encytype="multipart/form-data" ' + 
+                		'id="imageIdForm">' + 
+                    '<div id="uploadControlGroup" class="control-group">' +
+                        '<label>Mission' +
+	                        '<span class="import-requirements">' +
+	                        '[required]' + 
+	                        '</span>' + 
+                        '</label>' +
+                        '<input type="text" id="mission" ' +
+                          'style="width: 10%"/>' +
+                        '<label>Roll' +
+	                        '<span class="import-requirements">' +
+	                        '[required]' + 
+	                        '</span>' + 
+                        '</label>' +
+                        '<input type="text" id="roll" value="E" ' +
+                          'style="width: 10%"/>' +
+                        '<label>Frame' +
+	                        '<span class="import-requirements">' +
+	                        '[required]' + 
+	                        '</span>' + 
+                          '</label>' +
+                        '<input type="text" id="frame" ' +
+                          'style="width: 10%"/>' +
+                        '<div style="padding-bottom: 10px;">' +
+                        	'<div style="padding-left: 2px;">' +
+                        	'<input type="radio" name="imageSize" value="small" checked> Small' + 
+                        	'</div>' +
+                        	'<div style="padding-left: 2px;">' +
+                        	'<input type="radio" name="imageSize" value="large"> Large' + 
+                        	'</div>' +
+                        '</div>' +
+                        '<input class="btn newOverlayFormSubmitButton"' +
+                           ' type="button" value="Submit" />' +
+                        window.csrf_token +
+                    '</div>' +
+                	'</form>' + 
+                '</div>' + 
             '</div>' +
             '<div id="formErrorContainer"></div>' +
         '</div>',
@@ -1134,6 +1174,18 @@ $(function($) {
             });
             if (form.find('input#imageUrl').val()) {
                 data.append('imageUrl', form.find('input#imageUrl')[0].value);
+            }
+            if (form.find('input#mission').val()) {
+                data.append('mission', form.find('input#mission')[0].value);
+            }
+            if (form.find('input#roll').val()) {
+                data.append('roll', form.find('input#roll')[0].value);
+            }
+            if (form.find('input#frame').val()) {
+                data.append('frame', form.find('input#frame')[0].value);
+            }
+            if (form.find('input[name="imageSize"]:checked').val()) {
+                data.append('imageSize', form.find('input[name="imageSize"]:checked')[0].value);
             }
             var csrftoken = (app.views.NewOverlayView.prototype.getCookie
                              ('csrftoken'));
@@ -1196,8 +1248,6 @@ $(function($) {
             }
             if (json['status'] == 'success') {
                 var overlay = new app.models.Overlay({key: json.id});
-                //TODO: from here i can grab the center point. 
-                
                 app.overlays.add(overlay);
                 overlay.fetch({ 'success': function() {
                     app.router.navigate('overlay/' + json['id'] + '/edit',

@@ -10,6 +10,7 @@ import logging
 import time
 import rfc822
 import urllib2
+from fileinput import filename
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -34,6 +35,7 @@ from geocamTiePoint import models, forms, settings
 from geocamTiePoint.models import Overlay, QuadTree
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
+import re
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -129,6 +131,71 @@ class FieldFileLike(object):
         self.content_type = content_type
 
 
+
+def createImageDataObject(author, image, imageName, imageFB, imageType):
+    """
+    Creates a imageData Object and an overlay object from the information 
+    gathered from an uploaded image.
+    """
+    imageData = models.ImageData(contentType=imageType)
+    bits = imageFB.read()
+    if imageType in PDF_MIME_TYPES:
+        if not settings.PDF_IMPORT_ENABLED:
+            return ErrorJSONResponse("PDF images are no longer supported.")
+
+        # convert PDF to raster image
+        pngData = pdf.convertPdf(bits)
+        imageData.image.save('dummy.png', ContentFile(pngData), save=False)
+        imageData.contentType = 'image/png'
+    else:
+        try:
+            image = PIL.Image.open(StringIO(bits))
+        except Exception as e:  # pylint: disable=W0703
+            logging.error("PIL failed to open image: " + str(e))
+            return ErrorJSONResponse("There was a problem reading the image.")
+        if image.mode != 'RGBA':
+            # add alpha channel to image for better
+            # transparency handling later
+            image = image.convert('RGBA')
+            out = StringIO()
+            image.save(out, format='png')
+            convertedBits = out.getvalue()
+            logging.info('converted image to RGBA')
+            imageData.image.save('dummy.png', ContentFile(convertedBits),
+                                 save=False)
+            imageData.contentType = 'image/png'
+        else:
+            imageData.image.save('dummy.png', ContentFile(bits), save=False)
+            imageData.contentType = imageType
+
+    # create and save new empty overlay so we can refer to it
+    # this causes a ValueError if the user isn't logged in
+    overlay = models.Overlay(author=author,
+                             isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
+    overlay.save()
+    imageData.overlay = overlay
+    imageData.save()
+
+    if image is None:
+        image = PIL.Image.open(imageData.image.file)
+
+    # fill in overlay info
+    overlay.name = imageName
+    overlay.imageData = imageData
+    overlay.extras.points = []
+    overlay.extras.imageSize = image.size
+    overlay.save()
+
+    # generate initial quad tree
+    overlay.generateUnalignedQuadTree()
+    return overlay
+
+
+def constructImageUrl(mission, roll, frame, imageSize):
+    rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/" 
+    return  rootUrl + imageSize + "/" + mission + "/" + mission + "-" + roll + "-" + frame + ".jpg"
+
+        
 @transaction.commit_on_success
 def overlayNewJSON(request):
     if request.method == 'POST':
@@ -141,6 +208,7 @@ def overlayNewJSON(request):
             imageFB = None
             imageType = None
             imageName = None
+            
             # test to see if there is an image file
             if imageRef:
                 # file takes precedence over image url
@@ -153,25 +221,34 @@ def overlayNewJSON(request):
                     return ErrorJSONResponse("Your overlay image is %s MB, larger than the maximum allowed size of %s MB."
                                              % (toMegaBytes(imageSize),
                                                 toMegaBytes(settings.MAX_IMPORT_FILE_SIZE)))
-
             else:
                 # no image, proceed to check for url
-                if not form.cleaned_data['imageUrl']:
-                    # what did the user even do
-                    return ErrorJSONResponse("No image url in returned form data")
+                imageUrl = form.cleaned_data['imageUrl']
+                if not imageUrl:
+                    # no image url, proceed to check for mission, roll, and frame
+                    mission = form.cleaned_data['mission']
+                    roll = form.cleaned_data['roll']
+                    frame = form.cleaned_data['frame']
+                    imageSmallOrLarge = form.cleaned_data['imageSize']
+                    if not (mission and roll and frame): 
+                        # what did the user even do
+                        return ErrorJSONResponse("No image url or mission id in returned form data")
+                    imageUrl = constructImageUrl(mission, roll, frame, imageSmallOrLarge)
+                    print imageUrl
                 # we have a url, try to download it
                 try:
-                    response = urllib2.urlopen(form.cleaned_data['imageUrl'])
+                    response = urllib2.urlopen(imageUrl)
                 except urllib2.HTTPError as e:
                     return ErrorJSONResponse("There was a problem fetching the image at this URL.")
                 if response.code != 200:
                     return ErrorJSONResponse("There was a problem fetching the image at this URL.")
+                
                 if not validOverlayContentType(response.headers.get('content-type')):
                     # we didn't receive an image,
                     # or we did and the server didn't say so.
-                    # either way we're not going to deal with it
                     logging.error("Non-image content-type:" + response.headers['Content-Type'].split('/')[0])
                     return ErrorJSONResponse("The file at this URL does not seem to be an image.")
+                
                 imageSize = int(response.info().get('content-length'))
                 if imageSize > settings.MAX_IMPORT_FILE_SIZE:
                     return ErrorJSONResponse("The submitted file is larger than the maximum allowed size.  Maximum size is %d bytes." % settings.MAX_IMPORT_FILE_SIZE)
@@ -179,65 +256,13 @@ def overlayNewJSON(request):
                 imageType = response.headers['Content-Type']
                 imageName = form.cleaned_data['imageUrl'].split('/')[-1]
                 response.close()
-
-            imageData = models.ImageData(contentType=imageType)
-
-            bits = imageFB.read()
-            if imageType in PDF_MIME_TYPES:
-                if not settings.PDF_IMPORT_ENABLED:
-                    return ErrorJSONResponse("PDF images are no longer supported.")
-
-                # convert PDF to raster image
-                pngData = pdf.convertPdf(bits)
-                imageData.image.save('dummy.png', ContentFile(pngData), save=False)
-                imageData.contentType = 'image/png'
-            else:
-                try:
-                    image = PIL.Image.open(StringIO(bits))
-                except Exception as e:  # pylint: disable=W0703
-                    logging.error("PIL failed to open image: " + str(e))
-                    return ErrorJSONResponse("There was a problem reading the image.")
-                if image.mode != 'RGBA':
-                    # add alpha channel to image for better
-                    # transparency handling later
-                    image = image.convert('RGBA')
-                    out = StringIO()
-                    image.save(out, format='png')
-                    convertedBits = out.getvalue()
-                    logging.info('converted image to RGBA')
-                    imageData.image.save('dummy.png', ContentFile(convertedBits),
-                                         save=False)
-                    imageData.contentType = 'image/png'
-                else:
-                    imageData.image.save('dummy.png', ContentFile(bits), save=False)
-                    imageData.contentType = imageType
-
-            # create and save new empty overlay so we can refer to it
-            # this causes a ValueError if the user isn't logged in
-            overlay = models.Overlay(author=request.user,
-                                     isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
-            overlay.save()
-            imageData.overlay = overlay
-            imageData.save()
-
-            if image is None:
-                image = PIL.Image.open(imageData.image.file)
-
-            # fill in overlay info
-            overlay.name = imageName
-            overlay.imageData = imageData
-            overlay.extras.points = []
-            overlay.extras.imageSize = image.size
-            overlay.save()
-
-            # generate initial quad tree
-            overlay.generateUnalignedQuadTree()
-
+            overlay = createImageDataObject(request.user, image, imageName, imageFB, imageType)
             # respond with json
             data = {'status': 'success', 'id': overlay.key}
             return HttpResponse(json.dumps(data))
     else:
         return HttpResponseNotAllowed(('POST'))
+
 
 
 @csrf_exempt
