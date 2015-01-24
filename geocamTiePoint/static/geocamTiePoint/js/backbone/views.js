@@ -384,9 +384,8 @@ $(function($) {
 		drawCenterPointMarker: function() {
             window.imageMap = this.gmap;
             var center = this.gmap.getCenter();     
-            var centerPoint = this.model.get('centerPoint');  
-            var lon = centerPoint["lon"].toFixed(2);
-            var lat = centerPoint["lat"].toFixed(2);   
+            var lon = this.model.get('centerPointLon').toFixed(2);
+            var lat = this.model.get('centerPointLat').toFixed(2);   
             centerPtLabel = "lon, lat: ("+lon+", "+lat+")";
             var marker = maputils.createCenterPointMarker(center,
 			                                          centerPtLabel,
@@ -983,7 +982,7 @@ $(function($) {
                 '{{#if last}}disabled="true"{{/if}}>&gt;&gt;</a>' +
             '</div>' +
             '<embed id="videoEmbed" width="560" height="315" ' +
-              'src="http://www.youtube.com/v/' +
+              'src="https://www.youtube.com/v/' +
               '{{videoId}}?version=3&enablejsapi=1">' +
             '</embed>' +
             '<div class="videoCaption">{{captionText}}</div>' +

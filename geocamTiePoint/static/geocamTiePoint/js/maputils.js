@@ -78,9 +78,9 @@ $(function($) {
 
     maputils.createLabeledMarker = function(latLng, label, map, options) {
         var unselectedIcon =
-            'http://maps.gstatic.com/mapfiles/markers2/marker_blank.png';
+            'https://maps.gstatic.com/mapfiles/markers2/marker_blank.png';
         var selectedIcon =
-            'http://maps.google.com/intl/en_us/mapfiles/ms/micons/blue.png';
+            'https://maps.google.com/intl/en_us/mapfiles/ms/micons/blue.png';
         
         var markerOpts = {
             title: '' + label,

@@ -10,6 +10,7 @@ import logging
 import time
 import rfc822
 import urllib2
+
 from fileinput import filename
 try:
     from cStringIO import StringIO
@@ -35,6 +36,7 @@ from geocamTiePoint import models, forms, settings
 from geocamTiePoint.models import Overlay, QuadTree
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
+from geocamUtil import registration as register
 import re
 
 if settings.USING_APP_ENGINE:
@@ -129,16 +131,16 @@ class FieldFileLike(object):
     def __init__(self, f, content_type):
         self.file = f
         self.content_type = content_type
+    
 
-
-
-def createImageDataObject(author, image, imageName, imageFB, imageType):
+def createOverlay(author, imageName, imageFB, imageType):
     """
-    Creates a imageData Object and an overlay object from the information 
+    Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
     imageData = models.ImageData(contentType=imageType)
     bits = imageFB.read()
+    image = None
     if imageType in PDF_MIME_TYPES:
         if not settings.PDF_IMPORT_ENABLED:
             return ErrorJSONResponse("PDF images are no longer supported.")
@@ -185,17 +187,80 @@ def createImageDataObject(author, image, imageName, imageFB, imageType):
     overlay.extras.points = []
     overlay.extras.imageSize = image.size
     overlay.save()
-
+    
     # generate initial quad tree
     overlay.generateUnalignedQuadTree()
     return overlay
 
 
 def constructImageUrl(mission, roll, frame, imageSize):
+    """
+    Helper that constructs a image url from mission, roll, frame, and image size (small / large)
+    """
     rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/" 
     return  rootUrl + imageSize + "/" + mission + "/" + mission + "-" + roll + "-" + frame + ".jpg"
 
-        
+
+def getImageDataFromImageUrl(imageUrl):
+    """
+    Given a url to an image, get imageSize, imageFB, 
+    imageType, and imageName needed for constructing the overlay. 
+    """
+    imageId = None  # mission-roll-frame
+    # if url is from eol website, extract the image id.
+    if ("eol.jsc.nasa.gov" in imageUrl) or ("eo-web.jsc.nasa.gov" in imageUrl):
+        imageName = imageUrl.split("/")[-1]  # get the image id (last elem in list)
+        imageId = imageName.split('.')[0]
+    
+    # we have a url, try to download it
+    try:
+        response = urllib2.urlopen(imageUrl)
+    except urllib2.HTTPError as e:
+        return ErrorJSONResponse("There was a problem fetching the image at this URL.")
+    if response.code != 200:
+        return ErrorJSONResponse("There was a problem fetching the image at this URL.")
+     
+    if not validOverlayContentType(response.headers.get('content-type')):
+        # we didn't receive an image,
+        # or we did and the server didn't say so.
+        logging.error("Non-image content-type:" + response.headers['Content-Type'].split('/')[0])
+        return ErrorJSONResponse("The file at this URL does not seem to be an image.")
+     
+    imageSize = int(response.info().get('content-length'))
+    if imageSize > settings.MAX_IMPORT_FILE_SIZE:
+        return ErrorJSONResponse("The submitted file is larger than the maximum allowed size. " +
+                                 "Maximum size is %d bytes." % settings.MAX_IMPORT_FILE_SIZE)
+    imageFB = StringIO(response.read())
+    imageType = response.headers['Content-Type']
+    imageName = imageUrl.split('/')[-1]
+    response.close()
+    return imageName, imageFB, imageType, imageId
+
+
+def createOverlayFromUrl(request, mission, roll, frame, size):
+    """
+    HttpRequest sent, which then constructs a url to pull the image
+    from. It converts the image into an overlay and saves it to the database.
+    At the end, it renders the overlay edit page. 
+    """
+    imageUrl = None
+    imageName = None
+    imageFB = None
+    imageType = None
+    overlay = None
+    
+    imageUrl = constructImageUrl(mission, roll, frame, size)
+    try: 
+        imageName, imageFB, imageType, imageId = getImageDataFromImageUrl(imageUrl)
+    except:
+        return ErrorJSONResponse("The image you requested is not available.")
+
+    overlay = createOverlay(request.user, imageName, imageFB, imageType)
+    #TODO: reroute to edit page.
+    data = {'status': 'success', 'id': overlay.key}
+    return HttpResponse(json.dumps(data))
+
+
 @transaction.commit_on_success
 def overlayNewJSON(request):
     if request.method == 'POST':
@@ -208,7 +273,12 @@ def overlayNewJSON(request):
             imageFB = None
             imageType = None
             imageName = None
-            
+            mission = None
+            roll = None
+            frame = None
+            centerPointLat = None
+            centerPointLon = None
+ 
             # test to see if there is an image file
             if imageRef:
                 # file takes precedence over image url
@@ -230,32 +300,31 @@ def overlayNewJSON(request):
                     roll = form.cleaned_data['roll']
                     frame = form.cleaned_data['frame']
                     imageSmallOrLarge = form.cleaned_data['imageSize']
+                    # if user didn't input anything, error.
                     if not (mission and roll and frame): 
                         # what did the user even do
                         return ErrorJSONResponse("No image url or mission id in returned form data")
+                    # get image url from mission roll frame input
                     imageUrl = constructImageUrl(mission, roll, frame, imageSmallOrLarge)
-                # we have a url, try to download it
-                try:
-                    response = urllib2.urlopen(imageUrl)
-                except urllib2.HTTPError as e:
-                    return ErrorJSONResponse("There was a problem fetching the image at this URL.")
-                if response.code != 200:
-                    return ErrorJSONResponse("There was a problem fetching the image at this URL.")
-                
-                if not validOverlayContentType(response.headers.get('content-type')):
-                    # we didn't receive an image,
-                    # or we did and the server didn't say so.
-                    logging.error("Non-image content-type:" + response.headers['Content-Type'].split('/')[0])
-                    return ErrorJSONResponse("The file at this URL does not seem to be an image.")
-                
-                imageSize = int(response.info().get('content-length'))
-                if imageSize > settings.MAX_IMPORT_FILE_SIZE:
-                    return ErrorJSONResponse("The submitted file is larger than the maximum allowed size.  Maximum size is %d bytes." % settings.MAX_IMPORT_FILE_SIZE)
-                imageFB = StringIO(response.read())
-                imageType = response.headers['Content-Type']
-                imageName = imageUrl.split('/')[-1]
-                response.close()
-            overlay = createImageDataObject(request.user, image, imageName, imageFB, imageType)
+                # get the image data from the imageUrl
+                imageName, imageFB, imageType, imageId = getImageDataFromImageUrl(imageUrl)
+                # if mission wasn't set by the user, get it from imageId in url.
+                if not mission:  
+                    if imageId: 
+                        mission, roll, frame = imageId.split('-')
+                        frame = frame.split('.')[0]
+            overlay = createOverlay(request.user, imageName, imageFB, imageType)
+            width, height = overlay.extras.imageSize
+            # is mission is set, get the center point coords of image.
+            if mission:
+                centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
+                centerPointLat = centerPtDict["lat"]
+                centerPointLon = centerPtDict["lon"]
+            
+            overlay.centerPointLat = centerPointLat
+            overlay.centerPointLon = centerPointLon 
+            overlay.save()
+            
             # respond with json
             data = {'status': 'success', 'id': overlay.key}
             return HttpResponse(json.dumps(data))

@@ -12,7 +12,6 @@ urlpatterns = patterns(
     'geocamTiePoint.views',
 
     ## New Workflow ##
-
     url(r'^b/$', 'backbone',
         {}, 'geocamTiePoint_backbone'),
 
@@ -28,6 +27,10 @@ urlpatterns = patterns(
 
     url(r'^overlay/(?P<key>\d+)/generateExport/$', 'overlayGenerateExport',
         {}, 'geocamTiePoint_overlayGenerateExport'),
+                       
+    ## for integrating with Catalog ## 
+    url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', 'createOverlayFromUrl', 
+        {}, 'geocamTiePoint_createOverlayFromUrl'),
 
     # duplicate url that starts with 'backend' so we can set 'login: admin'
     # on the backend version of the view.
@@ -73,4 +76,5 @@ urlpatterns = patterns(
 
     url(r'^gc/(?:(?P<dryRun>\d+)/)?$', 'garbageCollect',
         {}, 'geocamTiePoint_garbageCollect'),
+    
 )

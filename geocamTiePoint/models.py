@@ -27,8 +27,6 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 
 from geocamUtil import anyjson as json
-from geocamUtil import registration as register
-from geocamUtil.geomath import transformEcefToLonLatAlt
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
 
 from geocamTiePoint import quadTree, transform, settings
@@ -233,10 +231,11 @@ class Overlay(models.Model):
                                   verbose_name='Source image creation date')
     rights = models.CharField(max_length=255, blank=True,
                               verbose_name='Copyright information')
-    #license = models.URLField(verify_exists=False, blank=True,
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
+    centerPointLat = models.FloatField(null=True, blank=True)
+    centerPointLon = models.FloatField(null=True, blank=True)
 
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
@@ -245,29 +244,9 @@ class Overlay(models.Model):
     extras = ExtrasDotField()
 
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerPointLat', 'centerPointLon')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform')
-
-    #TODO: finish this
-    def getCenterPoint(self):
-        # image fields
-        width, height = self.extras.imageSize
-        opticalCenter = (int(width / 2.0) , int(height / 2.0))
-        
-        # sensor metadata fields    
-        issLongitude = -87.4
-        issLatitude = 29.3
-        issAltitude = 409000    
-        longLatAlt = (issLongitude, issLatitude, issAltitude)
-        initialFocalLength = 0.4
-        sensorSize = (.036,.0239)
-        focalLength = register.getAccurateFocalLengths([width, height], initialFocalLength, sensorSize)
-        
-        centerCoords = [width / 2.0, height / 2.0]
-        centerPointEcef = register.imageCoordToEcef(longLatAlt, centerCoords, opticalCenter, focalLength)       
-        centerPointLonLatAlt = transformEcefToLonLatAlt(centerPointEcef)
-        return {"lon": centerPointLonLatAlt[0], "lat": centerPointLonLatAlt[1], "alt": centerPointLonLatAlt[2]}
 
 
     def getAlignedTilesUrl(self):
@@ -290,8 +269,6 @@ class Overlay(models.Model):
             val = getattr(self, key, None)
             if val not in ('', None):
                 result[key] = val
-
-        result['centerPoint'] = self.getCenterPoint()
 
         # conversions
         result['lastModifiedTime'] = (result['lastModifiedTime']
