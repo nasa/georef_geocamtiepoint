@@ -49,6 +49,13 @@ input#locationSearch {
 	font-weight: bold;
 }
 
+.centerpoint-label{
+    position: absolute;
+	color: blue;
+	font-size: 16px;
+	font-weight: bold;
+}
+
 .vsplitbar,.splitter-bar-vertical{
     width: 14px;
     background: #ccc;
