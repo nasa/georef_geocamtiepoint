@@ -256,9 +256,19 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
         return ErrorJSONResponse("The image you requested is not available.")
 
     overlay = createOverlay(request.user, imageName, imageFB, imageType)
-    #TODO: reroute to edit page.
-    data = {'status': 'success', 'id': overlay.key}
-    return HttpResponse(json.dumps(data))
+    width, height = overlay.extras.imageSize
+    if mission:
+        centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
+        centerPointLat = centerPtDict["lat"]
+        centerPointLon = centerPtDict["lon"]            
+        overlay.centerPointLat = centerPointLat
+        overlay.centerPointLon = centerPointLon 
+        overlay.save()
+
+    #TODO: Figure out a more elegant way to do this...    
+    redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
+    print "redirectUrl %s" % redirectUrl
+    return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
 
 @transaction.commit_on_success
