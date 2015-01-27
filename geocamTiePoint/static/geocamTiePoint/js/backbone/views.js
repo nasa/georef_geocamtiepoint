@@ -982,7 +982,7 @@ $(function($) {
                 '{{#if last}}disabled="true"{{/if}}>&gt;&gt;</a>' +
             '</div>' +
             '<embed id="videoEmbed" width="560" height="315" ' +
-              'src="https://www.youtube.com/v/' +
+              'src="//www.youtube.com/v/' +
               '{{videoId}}?version=3&enablejsapi=1">' +
             '</embed>' +
             '<div class="videoCaption">{{captionText}}</div>' +
