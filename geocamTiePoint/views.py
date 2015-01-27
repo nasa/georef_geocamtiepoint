@@ -133,7 +133,8 @@ class FieldFileLike(object):
         self.content_type = content_type
     
 
-def createOverlay(author, imageName, imageFB, imageType):
+@transaction.commit_on_success
+def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     """
     Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
@@ -185,7 +186,15 @@ def createOverlay(author, imageName, imageFB, imageType):
     overlay.name = imageName
     overlay.imageData = imageData
     overlay.extras.points = []
-    overlay.extras.imageSize = image.size
+    overlay.extras.imageSize = image.size    
+    width, height = image.size
+    # set center point
+    if mission:
+        centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
+        centerPointLat = centerPtDict["lat"]
+        centerPointLon = centerPtDict["lon"]            
+        overlay.centerPointLat = centerPointLat
+        overlay.centerPointLon = centerPointLon 
     overlay.save()
     
     # generate initial quad tree
@@ -248,26 +257,14 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
     imageFB = None
     imageType = None
     overlay = None
-    
+     
     imageUrl = constructImageUrl(mission, roll, frame, size)
     try: 
         imageName, imageFB, imageType, imageId = getImageDataFromImageUrl(imageUrl)
     except:
         return ErrorJSONResponse("The image you requested is not available.")
-
-    overlay = createOverlay(request.user, imageName, imageFB, imageType)
-    width, height = overlay.extras.imageSize
-    if mission:
-        centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
-        centerPointLat = centerPtDict["lat"]
-        centerPointLon = centerPtDict["lon"]            
-        overlay.centerPointLat = centerPointLat
-        overlay.centerPointLon = centerPointLon 
-        overlay.save()
-
-    #TODO: Figure out a more elegant way to do this...    
+    overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
-    print "redirectUrl %s" % redirectUrl
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
 
@@ -286,8 +283,6 @@ def overlayNewJSON(request):
             mission = None
             roll = None
             frame = None
-            centerPointLat = None
-            centerPointLon = None
  
             # test to see if there is an image file
             if imageRef:
@@ -323,17 +318,7 @@ def overlayNewJSON(request):
                     if imageId: 
                         mission, roll, frame = imageId.split('-')
                         frame = frame.split('.')[0]
-            overlay = createOverlay(request.user, imageName, imageFB, imageType)
-            width, height = overlay.extras.imageSize
-            # is mission is set, get the center point coords of image.
-            if mission:
-                centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
-                centerPointLat = centerPtDict["lat"]
-                centerPointLon = centerPtDict["lon"]
-            
-            overlay.centerPointLat = centerPointLat
-            overlay.centerPointLon = centerPointLon 
-            overlay.save()
+            overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
             
             # respond with json
             data = {'status': 'success', 'id': overlay.key}
