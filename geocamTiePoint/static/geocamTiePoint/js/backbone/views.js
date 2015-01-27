@@ -59,7 +59,7 @@ $(function($) {
             '<div class="navbar-inner">' +
             '<ul id="navlist" class="nav">' +
             '<li><a href="/">' +
-            '<img src="/static/mapFasten/icons/mapFastenLogo.png"/>' +
+            '<img src="/static/mapFasten/icons/GeoRefNoBox.png"/>' +
             '</a></li>' +
             '<li class="nav_pad_vertical navbar-text">' +
             '<a href="#overlays/">List Overlays</a></li>' +
@@ -380,7 +380,6 @@ $(function($) {
             return this._drawMarkers(latLons);
         },
 
-
 		drawCenterPointMarker: function() {
             window.imageMap = this.gmap;
             var center = this.gmap.getCenter();     
@@ -391,7 +390,6 @@ $(function($) {
 			                                          centerPtLabel,
 			                                          this.gmap);
 		},
-
 
         updateTiepointFromMarker: function(index, marker) {
             var coords = latLonToPixel(marker.getPosition());
@@ -428,31 +426,26 @@ $(function($) {
 
             var gmap = new google.maps.Map(this.$('#map_canvas')[0],
                                            mapOptions);
-            //var gmap = new google.maps.Map(this.el, mapOptions);
 
             // disable 45-degree imagery
             gmap.setTilt(0);
-
             var overlay = this.model.toJSON();
+            this.gmap = gmap;
 
             if (overlay.bounds) {
                 fitNamedBounds(overlay.bounds, gmap);
-            } else if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    var pos = new google.maps.LatLng(position.coords.latitude,
-                                                     position.coords.longitude);
-                    gmap.setCenter(pos);
-                }, function() {
-                    maputils.handleNoGeolocation(gmap, true);
-                });
             } else {
-                // browser doesn't support geolocation
-                maputils.handleNoGeolocation(gmap, false);
+            	try { 
+            		this.panMapToCenterPoint();
+            	} catch (err) {
+            		console.log("Error while panning the map to center point");
+            		maputils.handleNoGeolocation(gmap, false);
+            	} 
             }
-            this.gmap = gmap;
             if (! this.options.readonly) {
                 this.drawMarkers();
             }
+            
             this.trigger('gmap_loaded');
 
             /* Events and init for the  qtree overlay */
@@ -490,6 +483,13 @@ $(function($) {
             }
         },
 
+        panMapToCenterPoint: function() {
+            var lon = this.model.get('centerPointLon').toFixed(2);
+            var lat = this.model.get('centerPointLat').toFixed(2);
+            var latLng = new google.maps.LatLng(lat, lon);
+            this.gmap.panTo(latLng);
+		},
+		
         destroyAlignedImageQtree: function() {
             if (this.alignedImageVisible) {
                 this.gmap.overlayMapTypes.pop();
@@ -738,7 +738,7 @@ $(function($) {
             if (this.helpIndex < this.helpSteps.length) this.helpIndex++;
             this.renderHelp();
         },
-
+        
         zoomMaximum: function() {
             //var imageZoom = this.imageView.model.maxZoom();
             var imageZoom = (this.imageView.gmap.mapTypes
