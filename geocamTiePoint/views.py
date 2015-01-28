@@ -171,6 +171,11 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
             imageData.image.save('dummy.png', ContentFile(bits), save=False)
             imageData.contentType = imageType
 
+    #if there are already overlays for this image, don't create one.
+    imageOverlays = Overlay.objects.filter(name=imageName)
+    if len(imageOverlays) > 0:
+        return imageOverlays[0]
+    
     # create and save new empty overlay so we can refer to it
     # this causes a ValueError if the user isn't logged in
     overlay = models.Overlay(author=author,
