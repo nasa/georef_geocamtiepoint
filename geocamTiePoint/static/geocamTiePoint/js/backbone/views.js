@@ -1,6 +1,7 @@
 var app = app || {};
 app.views = {};
 app.map = app.map || {}; //namespace for map helper stuff
+var centerPointMarker = null;
 
 $(function($) {
 
@@ -247,6 +248,7 @@ $(function($) {
             this.markers.push(marker);
             this.updateTiepointFromMarker(index, marker);
             app.currentView.selectMarker(index);
+            
         },
 
         initGmapUIHandlers: function() {
@@ -316,6 +318,10 @@ $(function($) {
                  this.drawCenterPointMarker.apply(this);
                  this.trigger('gmap_loaded');
                  if (this.options.debug) this.debugInstrumentation.apply(this);
+                 
+                 if (this.model.get('transform')) {
+                 	this.updateCenterPointMarker(this.model.get('transform'));
+                 }
              }, this)));
         },
 
@@ -367,6 +373,7 @@ $(function($) {
 
         },
 
+        // markers are redrawn after event.
         drawMarkers: function() {
             var model = this.model;
             var latLons = [];
@@ -377,16 +384,40 @@ $(function($) {
                     latLons.push(latLon);
                 }
             }, this);
+
+            if (this.model.get('transform')) {
+            	this.updateCenterPointMarker(this.model.get('transform'));
+            }
             return this._drawMarkers(latLons);
         },
 
+        updateCenterPointMarker: function(transform) {
+            var transform = (geocamTiePoint.transform.deserializeTransform
+                    (this.model.get('transform')));
+            var imageSize = this.model.get('imageSize');
+            var w = imageSize[0];
+            var h = imageSize[1];
+            if (transform && centerPointMarker) {
+	            // calculate the new center
+            	var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
+	            var lat = transformedCenter.lat().toFixed(2);
+	            var lon = transformedCenter.lng().toFixed(2);
+
+	            // update the label
+	            centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
+	            centerPointMarker.setLabel(centerPtLabel);
+            } else {
+            	console.log("Transformation matrix not available. Center point cannot be updated");
+            }
+        },
+        
 		drawCenterPointMarker: function() {
-            window.imageMap = this.gmap;
+			window.imageMap = this.gmap;
             var center = this.gmap.getCenter();     
             var lon = this.model.get('centerPointLon').toFixed(2);
             var lat = this.model.get('centerPointLat').toFixed(2);   
-            centerPtLabel = "lon, lat: ("+lon+", "+lat+")";
-            var marker = maputils.createCenterPointMarker(center,
+            centerPtLabel = "initial lat, lon: ("+lat+", "+lon+")";
+            centerPointMarker = maputils.createCenterPointMarker(center,
 			                                          centerPtLabel,
 			                                          this.gmap);
 		},
@@ -468,6 +499,7 @@ $(function($) {
                 this.model.get('transform').type) {
                 this.initAlignedImageQtree();
             }
+            this.showCurrentLatLonPosition();
         },
 
         initAlignedImageQtree: function() {
@@ -518,7 +550,22 @@ $(function($) {
         updateTiepointFromMarker: function(index, marker) {
             var coords = latLonToMeters(marker.getPosition());
             this.model.updateTiepoint('map', index, coords);
-        }
+        },
+        
+        showCurrentLatLonPosition: function() {
+			// shows the lat lon of where the cursor is on the map
+			// displays the value in the mapPos box at top left.
+			var positionBox = $('<div id="positionBox">' +
+				'<div id="mapPos" </div>' +
+				'</div>');
+			$('#workflow_controls').before(positionBox);
+			var mapPos = positionBox.find('#mapPos');
+			var transform = (geocamTiePoint.transform.deserializeTransform
+			                 (this.model.get('transform')));
+			google.maps.event.addListener(this.gmap, 'mousemove', function (event) {
+				mapPos.text("Cursor (Lat, Lon): " + event.latLng);
+				});        	
+		}, 
 
     }); // end MapView
 
@@ -1030,19 +1077,58 @@ $(function($) {
 
     app.views.NewOverlayView = app.views.View.extend({
         template:
-        '<div id="new_overlay_view">' +
+            '<div id="new_overlay_view">' +
             '<h3>Create a New Overlay: Import Overlay Image</h3>' +
             '<ul class="nav nav-tabs" id="formTabs">' +
+            '  <li data-target="#imageIdSubmit"><a href="#imageIdSubmit">' +
+            'From an ID </a></li>' +
             '  <li class="active" data-target="#fileUpload">' +
             '<a href="#fileUpload">Upload</a></li>' +
             '  <li data-target="#urlSubmit"><a href="#urlSubmit">' +
             'From a URL</a></li>' +
-            '  <li data-target="#imageIdSubmit"><a href="#imageIdSubmit">' +
-            'From an ID </a></li>' +
             '</ul>' +
             ' ' +
             '<div class="tab-content">' +
-                '<div class="tab-pane active" id="fileUpload">' +
+	            '<div class="tab-pane active" id="imageIdSubmit">' + 
+	        		'<form encytype="multipart/form-data" ' + 
+		        		'id="imageIdForm">' + 
+		        	'<div id="uploadControlGroup" class="control-group">' +
+		                '<label>Mission' +
+		                    '<span class="import-requirements">' +
+		                    '[required]' + 
+		                    '</span>' + 
+		                '</label>' +
+		                '<input type="text" id="mission" ' +
+		                  'style="width: 10%"/>' +
+		                '<label>Roll' +
+		                    '<span class="import-requirements">' +
+		                    '[required]' + 
+		                    '</span>' + 
+		                '</label>' +
+		                '<input type="text" id="roll" value="E" ' +
+		                  'style="width: 10%"/>' +
+		                '<label>Frame' +
+		                    '<span class="import-requirements">' +
+		                    '[required]' + 
+		                    '</span>' + 
+		                  '</label>' +
+		                '<input type="text" id="frame" ' +
+		                  'style="width: 10%"/>' +
+		                '<div style="padding-bottom: 10px;">' +
+		                	'<div style="padding-left: 2px;">' +
+		                	'<input type="radio" name="imageSize" value="small" checked> Small' + 
+		                	'</div>' +
+		                	'<div style="padding-left: 2px;">' +
+		                	'<input type="radio" name="imageSize" value="large"> Large' + 
+		                	'</div>' +
+		                '</div>' +
+		                '<input class="btn newOverlayFormSubmitButton"' +
+		                   ' type="button" value="Submit" />' +
+		                window.csrf_token +
+		            '</div>' +
+		            '</form>' + 
+	            '</div>' + 
+            	'<div class="tab-pane" id="fileUpload">' +
                     '<form encytype="multipart/form-data" ' +
                     'id="overlayUploadForm">' +
                     '<div id="uploadControlGroup" class="control-group">' +
@@ -1076,45 +1162,6 @@ $(function($) {
                     '</div>' +
                     '</form>' +
                 '</div>' +
-                '<div class="tab-pane" id="imageIdSubmit">' + 
-                	'<form encytype="multipart/form-data" ' + 
-                		'id="imageIdForm">' + 
-                    '<div id="uploadControlGroup" class="control-group">' +
-                        '<label>Mission' +
-	                        '<span class="import-requirements">' +
-	                        '[required]' + 
-	                        '</span>' + 
-                        '</label>' +
-                        '<input type="text" id="mission" ' +
-                          'style="width: 10%"/>' +
-                        '<label>Roll' +
-	                        '<span class="import-requirements">' +
-	                        '[required]' + 
-	                        '</span>' + 
-                        '</label>' +
-                        '<input type="text" id="roll" value="E" ' +
-                          'style="width: 10%"/>' +
-                        '<label>Frame' +
-	                        '<span class="import-requirements">' +
-	                        '[required]' + 
-	                        '</span>' + 
-                          '</label>' +
-                        '<input type="text" id="frame" ' +
-                          'style="width: 10%"/>' +
-                        '<div style="padding-bottom: 10px;">' +
-                        	'<div style="padding-left: 2px;">' +
-                        	'<input type="radio" name="imageSize" value="small" checked> Small' + 
-                        	'</div>' +
-                        	'<div style="padding-left: 2px;">' +
-                        	'<input type="radio" name="imageSize" value="large"> Large' + 
-                        	'</div>' +
-                        '</div>' +
-                        '<input class="btn newOverlayFormSubmitButton"' +
-                           ' type="button" value="Submit" />' +
-                        window.csrf_token +
-                    '</div>' +
-                	'</form>' + 
-                '</div>' + 
             '</div>' +
             '<div id="formErrorContainer"></div>' +
         '</div>',

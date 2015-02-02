@@ -51,8 +51,8 @@ input#locationSearch {
 
 .centerpoint-label{
     position: absolute;
-	color: blue;
-	font-size: 16px;
+	color: black;
+	font-size: 12px;
 	font-weight: bold;
 }
 

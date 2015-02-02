@@ -58,14 +58,21 @@ $(function($) {
 	  window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
 	}
 
+	maputils.createCenterPointLabelText = function createCenterPointLabelText(lat, lon) {
+		return "lat,lon:"+lat+","+lon;
+	};
+	
     maputils.createCenterPointMarker = function(latLng, label, map, options) {
-        var markerOpts = {
-            title: "center pt",
+    	var image = '/static/geocamTiePoint/images/crosshairs.png';
+    	var markerOpts = {
+            title: "center point",
             draggable: false,
 		    position: latLng,
 		    map: map,
+		    raiseOnDrag: false, 
 		    label: label,
-		    raiseOnDrag: false
+		    icon: image
+		    
 		};
 		markerOpts = _.extend(markerOpts, options);
 		var marker = new google.maps.Marker(markerOpts);
@@ -75,7 +82,6 @@ $(function($) {
 		});
         return marker;
     };
-
 
     maputils.createLabeledMarker = function(latLng, label, map, options) {
         var unselectedIcon =

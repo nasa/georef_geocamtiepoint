@@ -4,16 +4,20 @@
  **/
     var markerSize = { x: 22, y: 40 };
 
-
     google.maps.Marker.prototype.setLabel = function(label){
-        this.label = new MarkerLabel({
-          map: this.map,
-          marker: this,
-          text: label
-        });
+    	if (this.label) {
+    		// for the center point marker, only update the text of label.
+    		this.label.text = label;
+    	} else {
+	        this.label = new MarkerLabel({
+	          map: this.map,
+	          marker: this,
+	          text: label
+	        });
+        }
         this.label.bindTo('position', this, 'position');
     };
-
+   
     var MarkerLabel = function(options) {
         this.setValues(options);
         this.span = document.createElement('span');

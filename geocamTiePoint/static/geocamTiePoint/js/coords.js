@@ -87,6 +87,17 @@ function getNormalizedCoord(coord, zoom) {
     return {x: x, y: y};
 }
 
+
+function forwardTransformPixel(transform, pixelcoords) {
+    pixelcoords[0] = pixelcoords.x;
+    pixelcoords[1] = pixelcoords.y;
+    var transformedMeters = transform.forward(pixelcoords);
+    transformedMeters.x = transformedMeters[0];
+    transformedMeters.y = transformedMeters[1];
+    return metersToLatLon(transformedMeters);
+}
+
+
 function forwardTransformLatLon(transform, latlon) {
     // Fix a problem wherein points left of the image-space antimeridian
     // weren't projecting properly.

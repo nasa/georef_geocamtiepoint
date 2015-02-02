@@ -172,6 +172,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
             imageData.contentType = imageType
 
     #if there are already overlays for this image, don't create one.
+    #TODO: this is kind of hacky - a fix for the bug that creates overlays twice...
     imageOverlays = Overlay.objects.filter(name=imageName)
     if len(imageOverlays) > 0:
         return imageOverlays[0]
