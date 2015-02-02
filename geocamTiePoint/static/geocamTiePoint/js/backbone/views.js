@@ -319,9 +319,9 @@ $(function($) {
                  this.trigger('gmap_loaded');
                  if (this.options.debug) this.debugInstrumentation.apply(this);
                  
-                 if (this.model.get('transform')) {
-                 	this.updateCenterPointMarker(this.model.get('transform'));
-                 }
+//                 if (this.model.get('transform')) {
+//                 	this.updateCenterPointMarker(this.model.get('transform'));
+//                 }
              }, this)));
         },
 
@@ -560,11 +560,9 @@ $(function($) {
 				'</div>');
 			$('#workflow_controls').before(positionBox);
 			var mapPos = positionBox.find('#mapPos');
-			var transform = (geocamTiePoint.transform.deserializeTransform
-			                 (this.model.get('transform')));
 			google.maps.event.addListener(this.gmap, 'mousemove', function (event) {
 				mapPos.text("Cursor (Lat, Lon): " + event.latLng);
-				});        	
+			});        	
 		}, 
 
     }); // end MapView
