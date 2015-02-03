@@ -319,9 +319,9 @@ $(function($) {
                  this.trigger('gmap_loaded');
                  if (this.options.debug) this.debugInstrumentation.apply(this);
                  
-//                 if (this.model.get('transform')) {
-//                 	this.updateCenterPointMarker(this.model.get('transform'));
-//                 }
+                 if (this.model.get('transform')) {
+                 	this.updateCenterPointMarker(this.model.get('transform'));
+                 }
              }, this)));
         },
 
