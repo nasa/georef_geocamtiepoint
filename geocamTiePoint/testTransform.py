@@ -58,18 +58,20 @@ N = len(POINTS)
 
 
 def testTransformClass(cls):
-    tform = cls.fit(TO_PTS, FROM_PTS)
-    toPtsApprox = transform.forwardPts(tform, FROM_PTS)
+    imageId = ['ISS039', 'E', "12345"]
+    tform = cls.fit(TO_PTS, FROM_PTS, imageId)
+    toPtsApprox = transform.forwardPts2(tform, FROM_PTS)
     #print toPtsApprox
     print ('%s: %e'
            % (cls.__name__,
               numpy.linalg.norm(toPtsApprox - TO_PTS) / N))
 
-testTransformClass(transform.TranslateTransform)
-testTransformClass(transform.RotateScaleTranslateTransform)
-testTransformClass(transform.AffineTransform)
-testTransformClass(transform.ProjectiveTransform)
-testTransformClass(transform.QuadraticTransform)
-testTransformClass(transform.QuadraticTransform2)
+testTransformClass(transform.CameraModelTransform)
+# testTransformClass(transform.TranslateTransform)
+# testTransformClass(transform.RotateScaleTranslateTransform)
+# testTransformClass(transform.AffineTransform)
+# testTransformClass(transform.ProjectiveTransform)
+# testTransformClass(transform.QuadraticTransform)
+# testTransformClass(transform.QuadraticTransform2)
 
 print transform.getTransform(TO_PTS, FROM_PTS)

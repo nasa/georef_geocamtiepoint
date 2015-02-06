@@ -14,11 +14,10 @@
 # pylint: disable=W0223
 
 import math
-
 import numpy
-
+import logging
 from geocamTiePoint.optimize import optimize
-
+from geocamUtil import imageInfo
 
 def getProjectiveInverse(matrix):
     # http://www.cis.rit.edu/class/simg782/lectures/lecture_02/lec782_05_02.pdf (p. 33)
@@ -77,6 +76,7 @@ class Transform(object):
         params = optimize(toPts.flatten(),
                           lambda params: forwardPts(cls.fromParams(params), fromPts).flatten(),
                           params0)
+        
         return cls.fromParams(params)
 
     @classmethod
@@ -166,7 +166,6 @@ class AffineTransform(LinearTransform):
             U[2 * i + 1, 3:6] = fromPts[i, 0], fromPts[i, 1], 1
         soln, _residues, _rank, _sngVals = numpy.linalg.lstsq(U, V)
         params = soln[:, 0]
-        #print 'params:', params
         matrix = numpy.array([[params[0], params[1], params[2]],
                               [params[3], params[4], params[5]],
                               [0, 0, 1]],
@@ -205,44 +204,110 @@ class ProjectiveTransform(Transform):
         return tmat.flatten()[:8]
 
 
+def forwardPts2(params, fromPts):
+    """
+    this is exclusively for camera model transform "fit" function
+    """
+    toPts = numpy.zeros(fromPts.shape)
+    for i, pt in enumerate(fromPts):
+        toPts[i, :] = tform.forward(pt)
+    return toPts
+  
+  
+class CameraModelTransform(Transform):
+    """
+    fromPts: Tie points on the image (in pixel x, y)
+    toPts: Tie points on the map (already in Lat Lon)
+    
+    Take the fromPts and apply "forward" function with the params, 
+    which converts it to the lat long positions. 
+    Then minimize the delta between converted fromPts (in lat lon) and 
+    toPts.  
+    """
+    def __init__(self):
+        self.issLat = None
+        self.issLon = None
+        self.issAlt = None
+        #TODO: I assume orientation needs to be in here too. 
+        self.focalLength = None
+        self.imageSize = None
+      
+    @classmethod
+    def fit(cls, toPts, fromPts, imageId):
+        params0 = cls.getInitParams(imageId)
+        params = optimize(toPts.flatten(),
+                          lambda params: forwardPts2(cls.getInitParams(), fromPts).flatten(),
+                          params0)
+        return cls.fromParams(params)
+  
+    def forward(self, fromPt):
+        """
+        Given a point in pixel coordinates, 
+        return the point in lat long.
+        """
+        cameraLonLatAlt = (self.issLon, self.issLat, self.Alt)
+        opticalCenter = (int(width / 2.0), int(height / 2.0))
+        ecef = register.imageCoordToEcef(cameraLonLatAlt, fromPt, opticalCenter, self.focalLength)
+        lonLatAlt = register.transformEcefToLonLatAlt(ecef)
+        toPt = lonLatAlt
+        return toPt 
+    
+    @classmethod  
+    def getInitParams(cls, imageId):
+        # get the initial values of params and return them as a list
+        mission, roll, frame = imageId
+        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        try:
+            # below will fail if it returns an ErrorJSON
+            self.issLat = imageMetaData['latitude']
+            self.issLon = imageMetaData['longitude']
+            self.issAlt = imageMetaData['altitude']
+            self.focalLength = imageMetaData['focalLength']
+            self.imageSize = (imageMetaData['width'], imageMetaData['height'])
+        except Exception as e:
+            logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
+            print e
+        return [self.issLat, self.issLon, self.issAlt, self.focalLength]
+        
+ 
 class QuadraticTransform(Transform):
     def __init__(self, matrix):
         self.matrix = matrix
-
+ 
         # there's a projective transform hiding in the quadratic
         # transform if we drop the first two columns. we use it to
         # estimate an initial value when calculating the inverse.
         self.proj = ProjectiveTransform(self.matrix[:, 2:])
-
+ 
     def _residuals(self, v, u):
         vapprox = self.forward(u)
         return (vapprox - v)
-
+ 
     def forward(self, ulist):
         u = numpy.array([ulist[0] ** 2, ulist[1] ** 2, ulist[0], ulist[1], 1])
         v0 = self.matrix.dot(u)
         v = (v0 / v0[2])[:2]
         return v.tolist()
-
+ 
     def reverse(self, vlist):
         v = numpy.array(vlist)
-
+ 
         # to get a rough initial value, apply the inverse of the simpler
         # projective transform. this will give the exact answer if the
         # quadratic terms happen to be 0.
         u0 = self.proj.reverse(vlist)
-
+ 
         # optimize to get an exact inverse.
         umin = optimize(v,
                         lambda u: numpy.array(self.forward(u)),
                         numpy.array(u0))
-
+ 
         return umin.tolist()
-
+ 
     def getJsonDict(self):
         return {'type': 'quadratic',
                 'matrix': self.matrix.tolist()}
-
+ 
     @classmethod
     def fromParams(cls, params):
         matrix = numpy.zeros((3, 5))
@@ -251,7 +316,7 @@ class QuadraticTransform(Transform):
         matrix[2, 2:4] = params[10:12]
         matrix[2, 4] = 1
         return cls(matrix)
-
+ 
     @classmethod
     def getInitParams(cls, toPts, fromPts):
         tmat = AffineTransform.fit(toPts, fromPts).matrix
@@ -361,16 +426,17 @@ def forwardPts(tform, fromPts):
 
 
 def getTransformClass(n):
-    if n < 2:
-        raise ValueError('not enough tie points')
-    elif n == 2:
-        return RotateScaleTranslateTransform
-    elif n == 3:
-        return AffineTransform
-    elif n < 7:
-        return ProjectiveTransform
-    else:
-        return QuadraticTransform2
+    return QuadraticTransform2
+#     if n < 2:
+#         raise ValueError('not enough tie points')
+#     elif n == 2:
+#         return RotateScaleTranslateTransform
+#     elif n == 3:
+#         return AffineTransform
+#     elif n < 7:
+#         return ProjectiveTransform
+#     else:
+#         return QuadraticTransform2
 
 
 def getTransform(toPts, fromPts):

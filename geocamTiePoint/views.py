@@ -37,6 +37,8 @@ from geocamTiePoint.models import Overlay, QuadTree
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
 from geocamUtil import registration as register
+from geocamUtil import imageInfo as imageInfo
+from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 import re
 
 if settings.USING_APP_ENGINE:
@@ -97,28 +99,7 @@ def overlayDelete(request, key):
         overlay = get_object_or_404(Overlay, key=key)
         overlay.delete()
         return HttpResponseRedirect(reverse('geocamTiePoint_overlayIndex'))
-
-
-def validOverlayContentType(contentType):
-    if settings.PDF_IMPORT_ENABLED and contentType in PDF_MIME_TYPES:
-        # this will change to False when pdf conversion goes away
-        return True
-    if contentType.startswith('image/'):
-        return True
-    return False
-
-
-class ErrorJSONResponse(HttpResponse):
-    """
-    Packages up a form error into a JSON response that will be nice to deal with client-side.
-    The errors argument expects a django forms ErrorDict object.
-    If a string is given as the errors argument, the ErrorDict will be emulated.
-    """
-    def __init__(self, errors, *args, **kwargs):
-        if isinstance(errors, basestring):
-            errors = {"__all__": [errors]}
-        super(ErrorJSONResponse, self).__init__(json.dumps(errors), *args, status=400, content_type="application/json", **kwargs)
-
+        
 
 def toMegaBytes(numBytes):
     return '%.1d' % (numBytes / (1024 * 1024))
@@ -208,50 +189,6 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     return overlay
 
 
-def constructImageUrl(mission, roll, frame, imageSize):
-    """
-    Helper that constructs a image url from mission, roll, frame, and image size (small / large)
-    """
-    rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/" 
-    return  rootUrl + imageSize + "/" + mission + "/" + mission + "-" + roll + "-" + frame + ".jpg"
-
-
-def getImageDataFromImageUrl(imageUrl):
-    """
-    Given a url to an image, get imageSize, imageFB, 
-    imageType, and imageName needed for constructing the overlay. 
-    """
-    imageId = None  # mission-roll-frame
-    # if url is from eol website, extract the image id.
-    if ("eol.jsc.nasa.gov" in imageUrl) or ("eo-web.jsc.nasa.gov" in imageUrl):
-        imageName = imageUrl.split("/")[-1]  # get the image id (last elem in list)
-        imageId = imageName.split('.')[0]
-    
-    # we have a url, try to download it
-    try:
-        response = urllib2.urlopen(imageUrl)
-    except urllib2.HTTPError as e:
-        return ErrorJSONResponse("There was a problem fetching the image at this URL.")
-    if response.code != 200:
-        return ErrorJSONResponse("There was a problem fetching the image at this URL.")
-     
-    if not validOverlayContentType(response.headers.get('content-type')):
-        # we didn't receive an image,
-        # or we did and the server didn't say so.
-        logging.error("Non-image content-type:" + response.headers['Content-Type'].split('/')[0])
-        return ErrorJSONResponse("The file at this URL does not seem to be an image.")
-     
-    imageSize = int(response.info().get('content-length'))
-    if imageSize > settings.MAX_IMPORT_FILE_SIZE:
-        return ErrorJSONResponse("The submitted file is larger than the maximum allowed size. " +
-                                 "Maximum size is %d bytes." % settings.MAX_IMPORT_FILE_SIZE)
-    imageFB = StringIO(response.read())
-    imageType = response.headers['Content-Type']
-    imageName = imageUrl.split('/')[-1]
-    response.close()
-    return imageName, imageFB, imageType, imageId
-
-
 def createOverlayFromUrl(request, mission, roll, frame, size):
     """
     HttpRequest sent, which then constructs a url to pull the image
@@ -264,12 +201,18 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
     imageType = None
     overlay = None
      
-    imageUrl = constructImageUrl(mission, roll, frame, size)
-    try: 
-        imageName, imageFB, imageType, imageId = getImageDataFromImageUrl(imageUrl)
-    except:
-        return ErrorJSONResponse("The image you requested is not available.")
+    imageUrl = imageInfo.getUrlForImage(mission, roll, frame, size)
+    retval = imageInfo.getImageDataFromImageUrl(imageUrl)
+    if checkIfErrorJSONResponse(retval):
+        return retval
+    else:
+        imageName, imageFB, imageType, imageId = retval
+    
     overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
+    # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
+    if checkIfErrorJSONResponse(overlay):
+        return retval
+            
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
@@ -316,15 +259,25 @@ def overlayNewJSON(request):
                         # what did the user even do
                         return ErrorJSONResponse("No image url or mission id in returned form data")
                     # get image url from mission roll frame input
-                    imageUrl = constructImageUrl(mission, roll, frame, imageSmallOrLarge)
-                # get the image data from the imageUrl
-                imageName, imageFB, imageType, imageId = getImageDataFromImageUrl(imageUrl)
+                    imageUrl = imageInfo.getUrlForImage(mission, roll, frame, imageSmallOrLarge)
+                # get image data from url
+                retval = imageInfo.getImageDataFromImageUrl(imageUrl)
+                if checkIfErrorJSONResponse(retval):
+                    return retval
+                else:
+                    imageName, imageFB, imageType, imageId = retval
                 # if mission wasn't set by the user, get it from imageId in url.
                 if not mission:  
                     if imageId: 
                         mission, roll, frame = imageId.split('-')
                         frame = frame.split('.')[0]
+            
+            
+            
             overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
+            # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
+            if checkIfErrorJSONResponse(overlay):
+                return retval
             
             # respond with json
             data = {'status': 'success', 'id': overlay.key}
