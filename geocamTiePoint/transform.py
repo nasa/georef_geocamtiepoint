@@ -18,6 +18,49 @@ import numpy
 import logging
 from geocamTiePoint.optimize import optimize
 from geocamUtil import imageInfo
+from geocamUtil.registration import imageCoordToEcef
+from geocamUtil.geomath import transformEcefToLonLatAlt
+
+TILE_SIZE = 256.
+PATCH_SIZE = 32
+PATCHES_PER_TILE = int(TILE_SIZE / PATCH_SIZE)
+PATCH_ZOOM_OFFSET = math.log(PATCHES_PER_TILE, 2)
+INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
+ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
+ZOOM_OFFSET = 3
+BENCHMARK_WARP_STEPS = False
+BLACK = (0, 0, 0)
+GRAY = (192, 192, 192)
+
+
+def lonLatToMeters(lonLat):
+    lon, lat = lonLat
+    mx = lon * ORIGIN_SHIFT / 180
+    my = math.log(math.tan((90 + lat) * math.pi / 360)) / (math.pi / 180)
+    my = my * ORIGIN_SHIFT / 180
+    return mx, my
+
+
+def metersToLatLon(mercatorPt):
+    x, y = mercatorPt
+    lon = x * 180 / ORIGIN_SHIFT
+    lat = y * 180 / ORIGIN_SHIFT
+    lat = ((math.atan(math.exp((lat * (math.pi / 180)))) * 360) / math.pi) - 90
+    return lon, lat
+
+
+def pixelsToMeters(x, y, zoom):
+    res = resolution(zoom)
+    mx = (x * res) - ORIGIN_SHIFT
+    my = -(y * res) + ORIGIN_SHIFT
+    return [mx, my]
+
+
+def metersToPixels(x, y, zoom):
+    res = resolution(zoom)
+    px = (x + ORIGIN_SHIFT) / res
+    py = (-y + ORIGIN_SHIFT) / res
+    return [px, py]
 
 def getProjectiveInverse(matrix):
     # http://www.cis.rit.edu/class/simg782/lectures/lecture_02/lec782_05_02.pdf (p. 33)
@@ -73,6 +116,8 @@ class Transform(object):
     @classmethod
     def fit(cls, toPts, fromPts):
         params0 = cls.getInitParams(toPts, fromPts)
+        # lambada is a function that takes "params" as argument
+        # and returns the toPts calculated from fromPts and params.
         params = optimize(toPts.flatten(),
                           lambda params: forwardPts(cls.fromParams(params), fromPts).flatten(),
                           params0)
@@ -85,8 +130,84 @@ class Transform(object):
 
     @classmethod
     def fromParams(cls, params):
+        """
+        Given a vector of parameters, it initializes the transform
+        """
         raise NotImplementedError('implement in derived class')
 
+
+class CameraModelTransform(Transform):
+    def __init__(self, params, width, height):
+        self.params = params
+        self.width = width
+        self.height = height
+        
+    @classmethod
+    def fit(cls, toPts, fromPts, imageId):
+        # extract width and height of image.
+        params0 = cls.getInitParams(toPts, fromPts, imageId)
+        print "init params"
+        print params0
+        width = params0[5]
+        height = params0[6]
+        
+        # do the optimization
+        params0 = params0[:5]
+        params = optimize(toPts.flatten(),
+                          lambda params: forwardPts(cls.fromParams(params, width, height), fromPts).flatten(),
+                          params0)
+        print "optimized params"
+        print params
+        return cls.fromParams(params, width, height)
+
+    def forward(self, pt):
+        """
+        Takes in a point in pixel coordinate and returns point in gmap units (meters)
+        """
+        params = self.params
+        issLat = params[0]
+        issLon = params[1]
+        issAlt = params[2]
+        foLenX = params[3]
+        foLenY = params[4]
+        cameraLonLatAlt = (issLon, issLat, issAlt)
+        # need width and heigh there. 
+        opticalCenter = (int(self.width / 2.0), int(self.height / 2.0))
+        focalLength = (foLenX, foLenY)
+        ecef = imageCoordToEcef(cameraLonLatAlt, pt, opticalCenter, focalLength)
+        lonLatAlt = transformEcefToLonLatAlt(ecef)
+        lon = lonLatAlt[0]
+        lat = lonLatAlt[1]
+        toPt = [lon, lat]  # needs to be this order (lat, lon)
+        xy_meters = lonLatToMeters(toPt) 
+        return xy_meters
+        
+    @classmethod
+    def getInitParams(cls, toPts, fromPts, imageId):
+        mission = imageId[0]
+        roll = imageId[1]
+        frame = imageId[2]
+        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        try:
+            issLat = imageMetaData['latitude']
+            issLon = imageMetaData['longitude']
+            issAlt = imageMetaData['altitude']
+            foLenX = imageMetaData['focalLength'][0]
+            foLenY = imageMetaData['focalLength'][1]
+            # these values are not going to be optimized. But needs to be passed to fromParams 
+            # to set it as member vars.
+            width = imageMetaData['width']
+            height = imageMetaData['height']
+        except Exception as e:
+            logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
+            print e 
+        return [issLat, issLon, issAlt, foLenX, foLenY, width, height]
+
+    @classmethod
+    def fromParams(cls, params, width, height):
+        # this makes params field passed from getInitParams accessible as a parameter of self!
+        return cls(params, width, height)
+    
 
 class LinearTransform(Transform):
     def __init__(self, matrix):
@@ -202,73 +323,7 @@ class ProjectiveTransform(Transform):
     def getInitParams(cls, toPts, fromPts):
         tmat = AffineTransform.fit(toPts, fromPts).matrix
         return tmat.flatten()[:8]
-
-
-def forwardPts2(params, fromPts):
-    """
-    this is exclusively for camera model transform "fit" function
-    """
-    toPts = numpy.zeros(fromPts.shape)
-    for i, pt in enumerate(fromPts):
-        toPts[i, :] = tform.forward(pt)
-    return toPts
-  
-  
-class CameraModelTransform(Transform):
-    """
-    fromPts: Tie points on the image (in pixel x, y)
-    toPts: Tie points on the map (already in Lat Lon)
-    
-    Take the fromPts and apply "forward" function with the params, 
-    which converts it to the lat long positions. 
-    Then minimize the delta between converted fromPts (in lat lon) and 
-    toPts.  
-    """
-    def __init__(self):
-        self.issLat = None
-        self.issLon = None
-        self.issAlt = None
-        #TODO: I assume orientation needs to be in here too. 
-        self.focalLength = None
-        self.imageSize = None
-      
-    @classmethod
-    def fit(cls, toPts, fromPts, imageId):
-        params0 = cls.getInitParams(imageId)
-        params = optimize(toPts.flatten(),
-                          lambda params: forwardPts2(cls.getInitParams(), fromPts).flatten(),
-                          params0)
-        return cls.fromParams(params)
-  
-    def forward(self, fromPt):
-        """
-        Given a point in pixel coordinates, 
-        return the point in lat long.
-        """
-        cameraLonLatAlt = (self.issLon, self.issLat, self.Alt)
-        opticalCenter = (int(width / 2.0), int(height / 2.0))
-        ecef = register.imageCoordToEcef(cameraLonLatAlt, fromPt, opticalCenter, self.focalLength)
-        lonLatAlt = register.transformEcefToLonLatAlt(ecef)
-        toPt = lonLatAlt
-        return toPt 
-    
-    @classmethod  
-    def getInitParams(cls, imageId):
-        # get the initial values of params and return them as a list
-        mission, roll, frame = imageId
-        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
-        try:
-            # below will fail if it returns an ErrorJSON
-            self.issLat = imageMetaData['latitude']
-            self.issLon = imageMetaData['longitude']
-            self.issAlt = imageMetaData['altitude']
-            self.focalLength = imageMetaData['focalLength']
-            self.imageSize = (imageMetaData['width'], imageMetaData['height'])
-        except Exception as e:
-            logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
-            print e
-        return [self.issLat, self.issLon, self.issAlt, self.focalLength]
-        
+ 
  
 class QuadraticTransform(Transform):
     def __init__(self, matrix):

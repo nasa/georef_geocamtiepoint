@@ -27,17 +27,6 @@ from django.core.cache import cache
 
 from geocamTiePoint import transform
 
-TILE_SIZE = 256.
-PATCH_SIZE = 32
-PATCHES_PER_TILE = int(TILE_SIZE / PATCH_SIZE)
-PATCH_ZOOM_OFFSET = math.log(PATCHES_PER_TILE, 2)
-INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
-ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
-ZOOM_OFFSET = 3
-BENCHMARK_WARP_STEPS = False
-BLACK = (0, 0, 0)
-GRAY = (192, 192, 192)
-
 
 class ZoomTooBig(Exception):
     pass
@@ -211,36 +200,6 @@ def getImageDataJpg(image):
 
 def resolution(zoom):
     return INITIAL_RESOLUTION / (2 ** zoom)
-
-
-def lonLatToMeters(lonLat):
-    lon, lat = lonLat
-    mx = lon * ORIGIN_SHIFT / 180
-    my = math.log(math.tan((90 + lat) * math.pi / 360)) / (math.pi / 180)
-    my = my * ORIGIN_SHIFT / 180
-    return mx, my
-
-
-def metersToLatLon(mercatorPt):
-    x, y = mercatorPt
-    lon = x * 180 / ORIGIN_SHIFT
-    lat = y * 180 / ORIGIN_SHIFT
-    lat = ((math.atan(math.exp((lat * (math.pi / 180)))) * 360) / math.pi) - 90
-    return lon, lat
-
-
-def pixelsToMeters(x, y, zoom):
-    res = resolution(zoom)
-    mx = (x * res) - ORIGIN_SHIFT
-    my = -(y * res) + ORIGIN_SHIFT
-    return [mx, my]
-
-
-def metersToPixels(x, y, zoom):
-    res = resolution(zoom)
-    px = (x + ORIGIN_SHIFT) / res
-    py = (-y + ORIGIN_SHIFT) / res
-    return [px, py]
 
 
 def imageMapBounds(imageSize, tform):
