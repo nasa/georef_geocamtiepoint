@@ -464,7 +464,13 @@ $(function($) {
             return QuadraticTransform2;
         }
     */
-    	return CameraModelTransform;
+    	if (n < 2) {
+    		throw 'not enough tie points';
+    	} else if (n == 2) {
+    		return RotateScaleTranslateTransform;
+    	} else if (n > 2) {
+    		return CameraModelTransform;
+    	}
     }
 
     function getTransform0(toPts, fromPts, issMRF) {

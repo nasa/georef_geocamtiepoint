@@ -392,6 +392,8 @@ $(function($) {
         },
 
         updateCenterPointMarker: function(transform) {
+        	// applies the current transform to the center point of the image in pixels
+        	// to get a new lat long value for center ponit. 
             var transform = (geocamTiePoint.transform.deserializeTransform
                     (this.model.get('transform')));
             var imageSize = this.model.get('imageSize');
