@@ -112,7 +112,7 @@ $(function($) {
         //console.log('fit: params: ' + JSON.stringify(params));
         return params;
     };
-
+    
     /**********************************************************************
      * LinearTransform
      **********************************************************************/
@@ -167,7 +167,7 @@ $(function($) {
         }
         var p = linearLeastSquares(V, U);
         return [p.values[0][0],
-                p.values[1][0],
+                 p.values[1][0],
                 p.values[2][0],
                 p.values[3][0],
                 p.values[4][0],
@@ -182,6 +182,52 @@ $(function($) {
         return new AffineTransform(matrix);
     };
 
+
+    /**********************************************************************
+     * Camera Model Transform
+     **********************************************************************/
+  
+    function CameraModelTransform(params) {
+    	self.params = params;
+    }
+    
+    CameraModelTransform.prototype = $.extend(true,
+            {},
+            Transform.prototype);
+
+    CameraModelTransform.fromParams = function(params) {
+    	return new CameraModelTransform(params);
+    };
+
+    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId) {
+    	/**
+    	 * Sends a request to the server and retrieves 
+    	 * optimized params (iss pose, orientation, focal len, etc)
+    	 * for registration in JSON.
+    	 */
+    	if (imageId === 'undefined') {
+    		// for now, raise an exception. Later use another form of transform 
+    		// that doens't depend on the iss image id.
+    		alert("CameraModelTransform.fit: imageId is undefined! ", imageId);
+    		return;
+    	}
+    	
+    	console.log("toPts: ", toPts);
+    	console.log("toPts.values", toPts.values);
+    	var pts = {"imageId": imageId, "toPts": toPts.values, "fromPts": fromPts.values};
+    	$.ajax({
+    		type: 'POST', 
+    		url: cameraModelTransformFitUrl,
+    		data: pts, 
+    		success: function(params){
+    			return params;
+    		},
+    		error: function() { alert("error occured"); }, 
+    		dataType: "json",
+    	});
+    };
+    
+    
     /**********************************************************************
      * RotateScaleTranslateTransform
      **********************************************************************/
@@ -405,7 +451,8 @@ $(function($) {
      **********************************************************************/
 
     function getTransformClass(n) {
-        if (n < 2) {
+    /* 
+    	if (n < 2) {
             throw 'not enough tie points';
         } else if (n == 2) {
             return RotateScaleTranslateTransform;
@@ -416,20 +463,28 @@ $(function($) {
         } else {
             return QuadraticTransform2;
         }
+    */
+    	return CameraModelTransform;
     }
 
-    function getTransform0(toPts, fromPts) {
+    function getTransform0(toPts, fromPts, issMRF) {
         var n = toPts.w;
         var cls = getTransformClass(n);
-        var params = cls.fit(cls, toPts, fromPts);
+        var params = null;
+        if ((cls == CameraModelTransform) && (issMRF != 'undefined')) {
+        	//only pass the issMRF field if it is a cameraModelTransform
+        	params = cls.fit(cls, toPts, fromPts, issMRF);
+        } else {
+            params = cls.fit(cls, toPts, fromPts);
+        }
         return cls.fromParams(params);
     }
 
-    function getTransform(points) {
+    function getTransform(points, issMRF) {
         var s = splitPoints(points);
         var toPts = s[0];
         var fromPts = s[1];
-        return getTransform0(toPts, fromPts);
+        return getTransform0(toPts, fromPts, issMRF);
     }
 
     function deserializeTransform(transformJSON) {

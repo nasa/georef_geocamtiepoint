@@ -59,6 +59,12 @@ N = len(POINTS)
 
 def testTransformClass(cls):
     tform = cls.fit(TO_PTS, FROM_PTS)
+    print "Topts should look like"
+    print TO_PTS
+    print "TO_PTS.class"
+    print TO_PTS.__class__
+    print "From pts should be like"
+    print FROM_PTS
     toPtsApprox = transform.forwardPts(tform, FROM_PTS)
     #print toPtsApprox
     print ('%s: %e'
@@ -66,7 +72,7 @@ def testTransformClass(cls):
               numpy.linalg.norm(toPtsApprox - TO_PTS) / N))
 
 def testTransformClass2(cls):
-    tform = cls.fit(TO_PTS, FROM_PTS, ["ISS039", "E", "12345"])
+    tform = cls.fit(TO_PTS, FROM_PTS, "ISS039-E-12345")
     toPtsApprox = transform.forwardPts(tform, FROM_PTS)
     #print toPtsApprox
     print ('%s: %e'

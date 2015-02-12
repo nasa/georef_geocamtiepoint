@@ -28,6 +28,16 @@ from django.core.cache import cache
 from geocamTiePoint import transform
 
 
+PATCH_SIZE = 32
+TILE_SIZE = transform.TILE_SIZE
+PATCHES_PER_TILE = int(TILE_SIZE / PATCH_SIZE)
+PATCH_ZOOM_OFFSET = math.log(PATCHES_PER_TILE, 2)
+ZOOM_OFFSET = 3
+BENCHMARK_WARP_STEPS = False
+BLACK = (0, 0, 0)
+GRAY = (192, 192, 192)
+
+
 class ZoomTooBig(Exception):
     pass
 
@@ -118,12 +128,12 @@ def calculateMaxZoom(bounds, image):
     metersPerPixelY = (bounds.ymax - bounds.ymin) / image.size[1]
     metersPerPixel = min(metersPerPixelX, metersPerPixelY)
     assert metersPerPixel > 0
-    decimalZoom = math.log((INITIAL_RESOLUTION / metersPerPixel), 2)
+    decimalZoom = math.log((transform.INITIAL_RESOLUTION / metersPerPixel), 2)
     return int(math.ceil(decimalZoom))
 
 
 def tileIndex(zoom, mercatorCoords):
-    coords = metersToPixels(mercatorCoords[0], mercatorCoords[1], zoom)
+    coords = transform.metersToPixels(mercatorCoords[0], mercatorCoords[1], zoom)
     index = [int(math.floor(coord / (TILE_SIZE))) for coord in coords]
     return index
 
@@ -134,7 +144,7 @@ def tileExtent(zoom, x, y):
                (x + 1, y + 1),
                (x + 1, y))
     pixelCorners = [tileIndexToPixels(*corner) for corner in corners]
-    mercatorCorners = [pixelsToMeters(*(pixels + (zoom,))) for pixels in pixelCorners]
+    mercatorCorners = [transform.pixelsToMeters(*(pixels + (zoom,))) for pixels in pixelCorners]
     return mercatorCorners
 
 
@@ -142,8 +152,8 @@ def tileBoundsLonLat(zoom, x, y):
     corners = ((x, y),
                (x + 1, y + 1))
     pixelCorners = [tileIndexToPixels(*corner) for corner in corners]
-    mercatorCorners = [pixelsToMeters(*(pixels + (zoom,))) for pixels in pixelCorners]
-    nw, se = [metersToLatLon(c) for c in mercatorCorners]
+    mercatorCorners = [transform.pixelsToMeters(*(pixels + (zoom,))) for pixels in pixelCorners]
+    nw, se = [transform.metersToLatLon(c) for c in mercatorCorners]
     west, north = nw
     east, south = se
     return {
@@ -198,15 +208,12 @@ def getImageDataJpg(image):
     return (out.getvalue(), 'image/jpeg')
 
 
-def resolution(zoom):
-    return INITIAL_RESOLUTION / (2 ** zoom)
-
 
 def imageMapBounds(imageSize, tform):
     w, h = imageSize
     imageCorners = cornerPoints([0, 0, w, h])
     mercatorCorners = [tform.forward(c) for c in imageCorners]
-    latLonCorners = [metersToLatLon(c) for c in mercatorCorners]
+    latLonCorners = [transform.metersToLatLon(c) for c in mercatorCorners]
     bounds = Bounds(latLonCorners)
     return {'west': bounds.xmin,
             'south': bounds.ymin,
@@ -586,7 +593,7 @@ class WarpedQuadTreeGenerator(AbstractQuadTreeGenerator):
             for py in xrange(PATCHES_PER_TILE + 1):
                 targetPatchOrigin = tileIndexToPixels(x * PATCHES_PER_TILE + px,
                                                       y * PATCHES_PER_TILE + py)
-                mercatorPatchOrigin = pixelsToMeters(targetPatchOrigin[0],
+                mercatorPatchOrigin = transform.pixelsToMeters(targetPatchOrigin[0],
                                                      targetPatchOrigin[1],
                                                      zoom + PATCH_ZOOM_OFFSET)
                 sourcePatchOrigin = intMap(self.transform.reverse(mercatorPatchOrigin))

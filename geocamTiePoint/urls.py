@@ -15,9 +15,14 @@ urlpatterns = patterns(
     url(r'^b/$', 'backbone',
         {}, 'geocamTiePoint_backbone'),
 
+    ## for ajax response ##
+    url(r'^cameraModelTransformFit/$', 'cameraModelTransformFit', 
+        {}, 'geocamTiePoint_cameraModelTransformFit'),
+    
+    ## overlays ##
     url(r'^overlays/new\.json$', 'overlayNewJSON',
         {}, 'geocamTiePoint_overlayNew_JSON'),
-
+                       
     ## Urls to make current pages work with new workflow ##
     url(r'^overlays/list\.html$', lambda request: redirect(reverse('geocamTiePoint_backbone') + '#overlays/'),
         {}, 'geocamTiePoint_overlayIndex'),

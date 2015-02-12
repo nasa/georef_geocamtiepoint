@@ -10,6 +10,7 @@ import logging
 import time
 import rfc822
 import urllib2
+import numpy
 
 from fileinput import filename
 try:
@@ -82,6 +83,7 @@ def backbone(request):
             {
                 'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
                 'settings': export_settings(),
+                'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit')
             },
             context_instance=RequestContext(request))
     else:
@@ -112,7 +114,67 @@ class FieldFileLike(object):
     def __init__(self, f, content_type):
         self.file = f
         self.content_type = content_type
+
+
+def arraysToNdArray(xPts, yPts):
+    """
+    given arrays of x pts and y pts, it neatly organizes it
+    into numpy ndarray of size (n,2) where each row (or is it column?)
+    is a point (x,y) . 
     
+    this format is what is required for to and from pts
+    by the fit function in Transforms.
+    """
+    n = len(xPts)
+    ndarray = numpy.ndarray(shape=(n,2), dtype=float)   
+    for i in range(n):
+        ndarray[i][0] = xPts[i]
+        ndarray[i][1] = yPts[i]
+    return ndarray
+
+
+def ndarrayToList(ndarray):
+    """
+    takes an ndarray, flattens it and converts it to 
+    a list object so that it is json-izable.
+    """
+    return list(ndarray.flatten())
+    
+
+@csrf_exempt
+def cameraModelTransformFit(request):
+    """
+    Handles the call from the client side, which is sent 
+    when "CameraModelTransform.fit" is called from transform.js. 
+    Returns the optimized parameters returned by 'fit' in the CameraModelTransform class. 
+    """ 
+    if request.is_ajax() and request.method == 'POST':
+        data = request.POST
+        toPtsX = []
+        toPtsY = []
+        fromPtsX = []
+        fromPtsY = []
+        issImageId = ""
+        for key, value in data.iterlists():
+            if 'imageId' in key:
+                issImageId = value[0] # want the str, not the list.
+            elif 'toPts[0][]' == key:
+                toPtsX = value
+            elif 'toPts[1][]' == key:
+                toPtsY = value
+            elif 'fromPts[0][]' in key:
+                fromPtsX = value
+            elif 'fromPts[1][]' in key:
+                fromPtsY = value
+        toPts = arraysToNdArray(toPtsX, toPtsY)
+        fromPts = arraysToNdArray(fromPtsX, fromPtsY)
+        tform = transform.CameraModelTransform.fit(toPts, fromPts, issImageId)
+        params = tform.params
+        params = ndarrayToList(params)
+        return HttpResponse(json.dumps({'params': params}), content_type="application/json")
+    else: 
+        return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
+
 
 @transaction.commit_on_success
 def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
@@ -182,6 +244,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
         centerPointLon = centerPtDict["lon"]            
         overlay.centerPointLat = centerPointLat
         overlay.centerPointLon = centerPointLon 
+        overlay.issMRF = mission + '-' + roll + '-' + str(frame)
     overlay.save()
     
     # generate initial quad tree
@@ -232,7 +295,6 @@ def overlayNewJSON(request):
             mission = None
             roll = None
             frame = None
- 
             # test to see if there is an image file
             if imageRef:
                 # file takes precedence over image url
@@ -271,14 +333,10 @@ def overlayNewJSON(request):
                     if imageId: 
                         mission, roll, frame = imageId.split('-')
                         frame = frame.split('.')[0]
-            
-            
-            
             overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
             # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
             if checkIfErrorJSONResponse(overlay):
                 return retval
-            
             # respond with json
             data = {'status': 'success', 'id': overlay.key}
             return HttpResponse(json.dumps(data))

@@ -45,19 +45,19 @@ window.csrf_token = "{% csrf_token %}";
         window.settings = {{settings|safe}};
 
         $(function($){
-
             app.overlays = app.overlays || new app.models.OverlayCollection;
             {% if initial_overlays_json %}
             // Seed app.overlays with initally loaded data
             var overlay_bootstrap = {{ initial_overlays_json|safe }};
             app.overlays.reset(overlay_bootstrap);
             {% endif %}
-
             app.navbar = new app.views.NavbarView({el: $('#navbar').addClass('navbar')});
             app.navbar.render();
-
             app.router.start(); // initializes the app view based on url fragment.
         });
+        
+        var cameraModelTransformFitUrl = "{{ cameraModelTransformFitUrl }}";
+        console.log("cameraModelTransformFitUrl ", cameraModelTransformFitUrl);
     </script>
 
 {% endblock scripts %}

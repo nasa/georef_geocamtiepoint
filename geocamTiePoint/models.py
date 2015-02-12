@@ -236,7 +236,8 @@ class Overlay(models.Model):
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
     centerPointLat = models.FloatField(null=True, blank=True)
     centerPointLon = models.FloatField(null=True, blank=True)
-
+    issMRF = models.CharField(max_length=255, null=True, blank=True,
+                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
@@ -244,7 +245,7 @@ class Overlay(models.Model):
     extras = ExtrasDotField()
 
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerPointLat', 'centerPointLon')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerPointLat', 'centerPointLon', 'issMRF')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform')
 

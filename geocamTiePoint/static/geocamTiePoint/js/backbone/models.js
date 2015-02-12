@@ -141,9 +141,10 @@ $(function($) {
             });
             // a minimum of two tiepoints are required to compute the transform
             if (points.length < 2) return false;
+            var issMRF = this.get('issMRF');
             this.set('transform',
                 (points ?
-                 geocamTiePoint.transform.getTransform(points).toDict() :
+                 geocamTiePoint.transform.getTransform(points, issMRF).toDict() :
                  {type: '', matrix: []})
             );
         },

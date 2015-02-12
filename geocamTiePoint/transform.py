@@ -21,16 +21,10 @@ from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef
 from geocamUtil.geomath import transformEcefToLonLatAlt
 
-TILE_SIZE = 256.
-PATCH_SIZE = 32
-PATCHES_PER_TILE = int(TILE_SIZE / PATCH_SIZE)
-PATCH_ZOOM_OFFSET = math.log(PATCHES_PER_TILE, 2)
-INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
+
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
-ZOOM_OFFSET = 3
-BENCHMARK_WARP_STEPS = False
-BLACK = (0, 0, 0)
-GRAY = (192, 192, 192)
+TILE_SIZE = 256.
+INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
 
 
 def lonLatToMeters(lonLat):
@@ -47,6 +41,10 @@ def metersToLatLon(mercatorPt):
     lat = y * 180 / ORIGIN_SHIFT
     lat = ((math.atan(math.exp((lat * (math.pi / 180)))) * 360) / math.pi) - 90
     return lon, lat
+
+
+def resolution(zoom):
+    return INITIAL_RESOLUTION / (2 ** zoom)
 
 
 def pixelsToMeters(x, y, zoom):
@@ -145,6 +143,7 @@ class CameraModelTransform(Transform):
     @classmethod
     def fit(cls, toPts, fromPts, imageId):
         # extract width and height of image.
+        imageId = imageId.split('-')
         params0 = cls.getInitParams(toPts, fromPts, imageId)
         print "init params"
         print params0
