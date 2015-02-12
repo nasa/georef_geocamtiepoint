@@ -211,16 +211,16 @@ $(function($) {
     		alert("CameraModelTransform.fit: imageId is undefined! ", imageId);
     		return;
     	}
-    	
-    	console.log("toPts: ", toPts);
-    	console.log("toPts.values", toPts.values);
     	var pts = {"imageId": imageId, "toPts": toPts.values, "fromPts": fromPts.values};
+    	// make a call to the server with toPts, fromPts, and imageId.
     	$.ajax({
     		type: 'POST', 
     		url: cameraModelTransformFitUrl,
     		data: pts, 
     		success: function(params){
-    			return params;
+    			// if server successfully responded, return the values
+    			// retrieved from the server.
+    			return params; 
     		},
     		error: function() { alert("error occured"); }, 
     		dataType: "json",
@@ -451,7 +451,7 @@ $(function($) {
      **********************************************************************/
 
     function getTransformClass(n) {
-    /* 
+    	//TODO: Later incorporate CameraModelTransform here!
     	if (n < 2) {
             throw 'not enough tie points';
         } else if (n == 2) {
@@ -463,14 +463,6 @@ $(function($) {
         } else {
             return QuadraticTransform2;
         }
-    */
-    	if (n < 2) {
-    		throw 'not enough tie points';
-    	} else if (n == 2) {
-    		return RotateScaleTranslateTransform;
-    	} else if (n > 2) {
-    		return CameraModelTransform;
-    	}
     }
 
     function getTransform0(toPts, fromPts, issMRF) {

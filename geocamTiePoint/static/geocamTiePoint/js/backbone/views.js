@@ -327,7 +327,6 @@ $(function($) {
 
         debugInstrumentation: function() {
             window.imageMap = this.gmap;
-
             // display labeled markers along axes from the center.
             var center = this.gmap.getCenter();
             var coords = [];
@@ -339,7 +338,6 @@ $(function($) {
                 coords.push([i, center.lng()]);
             }
             var map = this.gmap;
-            /*
             _.each(coords, function(coord) {
                 var marker = new google.maps.Marker({
                     position: new google.maps.LatLng(coord[0], coord[1]),
@@ -347,12 +345,9 @@ $(function($) {
                     map: map
                 });
             });
-			*/
-
             // Display a rectangle for the image bounds according to the model.
             var rect = new google.maps.Rectangle({map: this.gmap});
             rect.set('bounds', this.model.imageBounds());
-
             // Display image coords and projected map coords for the cursor position
             var positionBox = $('<div id="positionBox">' +
                 '<div id="imagePos" "></div>' +
@@ -370,7 +365,6 @@ $(function($) {
                              forwardTransformLatLon(transform, e.latLng)
                              .toString());
              }));
-
         },
 
         // markers are redrawn after event.
@@ -391,9 +385,9 @@ $(function($) {
             return this._drawMarkers(latLons);
         },
 
+    	// applies the current transform to the center point of the image in pixels
+    	// to get a new lat long value for center ponit. 
         updateCenterPointMarker: function(transform) {
-        	// applies the current transform to the center point of the image in pixels
-        	// to get a new lat long value for center ponit. 
             var transform = (geocamTiePoint.transform.deserializeTransform
                     (this.model.get('transform')));
             var imageSize = this.model.get('imageSize');

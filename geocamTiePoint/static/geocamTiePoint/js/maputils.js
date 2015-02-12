@@ -78,7 +78,7 @@ $(function($) {
 		var marker = new google.maps.Marker(markerOpts);
 		marker.label.span.setAttribute("class", "centerpoint-label")
 		google.maps.event.addListener(marker, 'click', function() {
-			copyToClipboard(label);
+			copyToClipboard(marker.label.text);
 		});
         return marker;
     };
