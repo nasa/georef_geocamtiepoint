@@ -242,7 +242,7 @@ $(function($) {
                                                       this.gmap);
             this.initMarkerDragHandlers(marker);
             this.markers.push(marker);
-            this.updateTiepointFromMarker(index, marker);
+            this.updateTiepointFromMarker(index, marker, false);
             app.currentView.selectMarker(index);
         },
 
@@ -267,7 +267,7 @@ $(function($) {
                   actionPerformed();
                   var index = this.markers.indexOf(marker);
                   assert(index >= 0, 'Marker not found.');
-                  this.updateTiepointFromMarker(index, marker);
+                  this.updateTiepointFromMarker(index, marker, false);
                   _.delay(function() {window.draggingG = false;}, 200);
               }, this)));
         }
@@ -366,9 +366,28 @@ $(function($) {
              }));
         },
 
+//        // markers are redrawn after event.
+//        drawMarkersForHandleClick: function() {
+//            //fetch the latest server values for overlay.
+//        	var model = this.model;
+//        	var latLons_in_gmap_space = [];
+//            _.each(model.get('points'), function(point) {
+//                var pixelCoords = { x: point[2], y: point[3] };
+//                if (! _.any(_.values(pixelCoords), _.isNull)) {
+//                	var latLon = pixelsToLatLon(pixelCoords, model.maxZoom());
+//                	latLons_in_gmap_space.push(latLon);
+//                }
+//            });
+//             if (model.get('transform')) {
+//             	this.updateCenterPointMarker();
+//             }
+//    		 return this._drawMarkers(latLons_in_gmap_space);
+//        },
+        
         // markers are redrawn after event.
         drawMarkers: function() {
             //fetch the latest server values for overlay.
+        	console.log('drawRotatedMarkers called!');
         	var model = this.model;
         	var latLons_in_gmap_space = [];
             _.each(model.get('points'), function(point) {
@@ -434,10 +453,12 @@ $(function($) {
                     this.gmap);
 		},
 		
-        updateTiepointFromMarker: function(index, marker) {
+        updateTiepointFromMarker: function(index, marker, drawMarkerFlag) {
+        	//drawMarker flag is set to true unless specified by passing 'false' as an arg.
+        	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
             var coords = latLonToPixel(marker.getPosition());
     		console.log("updateTiepointFromMarker: rotated coords ", coords);
-            this.model.updateTiepoint('image', index, coords);
+            this.model.updateTiepoint('image', index, coords, drawMarkerFlag);
         }
 
     }); // end ImageQtreeView

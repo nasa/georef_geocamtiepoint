@@ -106,7 +106,9 @@ $(function($) {
          * tiepoint array.  Will add a new tiepoint if one doesn't
          * already exist at that index.
         */
-        updateTiepoint: function(whichSide, pointIndex, coords) {
+        updateTiepoint: function(whichSide, pointIndex, coords, drawMarkerFlag) {
+        	//drawMarkerFlag is set to true unless function is called with 'false' as an arg.
+        	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
             var points = this.get('points');
             var initial_length = points.length;
             var tiepoint = points[pointIndex] || [null, null, null, null];
@@ -122,7 +124,9 @@ $(function($) {
             if (points.length > initial_length) this.trigger('add_point');
             // Manually trigger this, because the value of model.points
             // (an array reference) hasn't actually changed.
-            this.trigger('change:points');
+            if (drawMarkerFlag) {
+            	this.trigger('change:points');
+            }
         },
 
         deleteTiepoint: function(index) {

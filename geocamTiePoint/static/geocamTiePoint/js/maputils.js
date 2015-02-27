@@ -221,6 +221,7 @@ maputils.rotateTiePt = function(pixelCoord, overlay){
 	if (angle == 0) { // if no rotation, return pt as pixel coord.
 		return pixelCoord;
 	} 
+	angle = -1* angle; // need to rotate counter clock wise.
 	// get center pt of unrotate image in pixel coords
 	var imageSize = overlay.get('orgImageSize');
 	var width = parseFloat(imageSize[0]);
@@ -345,9 +346,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {//function(m
         if (json['status'] == 'success') {
         	console.log("json angle", json['angle']);
     		overlay.fetch({ 'success': function (overlay) {
-            	console.log('rotation angle from user stored in the overlay', overlay.get('rotation'));
-            	console.log('overlay rotation value: ', overlay.get('totalRotation'));
-            	imageQtreeView.render();
+    			imageQtreeView.render();
     		}});
         }
 	}
