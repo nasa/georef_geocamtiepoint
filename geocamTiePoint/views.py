@@ -33,13 +33,14 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 
-from geocamTiePoint import models, forms, settings
-from geocamTiePoint.models import Overlay, QuadTree
+from geocamTiePoint import forms, settings
+from geocamTiePoint.models import Overlay, QuadTree, ImageData
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
 from geocamUtil import registration as register
 from geocamUtil import imageInfo as imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
+from geocamUtil.icons import rotate
 import re
 
 if settings.USING_APP_ENGINE:
@@ -83,7 +84,8 @@ def backbone(request):
             {
                 'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
                 'settings': export_settings(),
-                'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit')
+                'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
+                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay')
             },
             context_instance=RequestContext(request))
     else:
@@ -141,6 +143,81 @@ def ndarrayToList(ndarray):
     return list(ndarray.flatten())
     
 
+def getOriginalImage(overlayId):
+    """
+    Searches through the image data objects and finds 
+    one that has no rotation value and belongs to the overlay
+    with key = overlayId.
+    
+    It returns a PIL image object. 
+    """
+    imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = 0)
+    if imagedata:
+        imagedata = imagedata[0]
+    try:
+        bits = imagedata.image.file.read()
+    except: 
+        logging.error("image cannot be read from the image data")
+        return None
+    fakeFile = StringIO(bits)
+    im = PIL.Image.open(fakeFile)
+    if (im.mode != 'RGBA'):
+        im = im.convert('RGBA')
+    return im
+
+
+@csrf_exempt
+def rotateOverlay(request):
+    """
+    Called in response to the ajax request sent from the client when 
+    user moves the rotation slider or inputs rotation. 
+    
+    It creates a new overlay with an image that has been rotated by PIL
+    and re-renders the page.
+    """
+    if request.is_ajax() and request.method == 'POST':
+        data = request.POST
+        # get the rotation angle input from the user
+        rotationAngle = data["rotation"]
+        rotationAngle = int(rotationAngle) # convert str to int
+        # get the id of the current overlay
+        overlayId = data["overlayId"]
+        # get the overlay object
+        overlay = Overlay.objects.get(key=overlayId)
+        # original image uploaded by the user
+        originalImage = getOriginalImage(overlayId)
+        # save out the original image size
+        overlay.extras.orgImageSize = originalImage.size
+        # add the user's new rotation request to the total rotation
+        overlay.extras.totalRotation += rotationAngle
+        overlay.extras.rotation = rotationAngle
+        #rotate the image (minus sign since PIL rotates counter clockwise)
+        rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, PIL.Image.BICUBIC, expand=1)
+        # save the rotated image 
+        out = StringIO()
+        rotatedImage.save(out, format='png')
+        convertedBits = out.getvalue()
+        # make a deep copy of the image data 
+        rotatedImageData = overlay.imageData
+        rotatedImageData.pk = None # set the primary key to None to make a deep copy
+        rotatedImageData.rotationAngle = overlay.extras.totalRotation 
+        rotatedImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+        rotatedImageData.save()
+        # set the imageData field of the current overlay to this new imageData that has the rotated image.
+        overlay.imageData = rotatedImageData
+        overlay.extras.rotatedImageSize = rotatedImage.size # width, height
+        
+        overlay.save()
+        overlay.generateUnalignedQuadTree()
+        data = {'status': 'success', 'id': overlay.key, 'angle': rotationAngle}
+        return HttpResponse(json.dumps(data))
+        #TODO: the tie points and center point coordinates need to be rotated as well. 
+         
+        #TODO: would "updateTiePointFromMarker" still work? it gets a lat lon value from the
+        # image overlay on the right side, converts it to pixel coordinates. With rotated tiles,
+        # latLonToPixel might break. It may need to be modified to take in degrees
+
+
 @csrf_exempt
 def cameraModelTransformFit(request):
     """
@@ -182,7 +259,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
-    imageData = models.ImageData(contentType=imageType)
+    imageData = ImageData(contentType=imageType)
     bits = imageFB.read()
     image = None
     if imageType in PDF_MIME_TYPES:
@@ -222,7 +299,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     
     # create and save new empty overlay so we can refer to it
     # this causes a ValueError if the user isn't logged in
-    overlay = models.Overlay(author=author,
+    overlay = Overlay(author=author,
                              isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     overlay.save()
     imageData.overlay = overlay
@@ -236,14 +313,12 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     overlay.imageData = imageData
     overlay.extras.points = []
     overlay.extras.imageSize = image.size    
+    overlay.extras.totalRotation = 0 # set initial rotation value to 0
     width, height = image.size
     # set center point
     if mission:
         centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
-        centerPointLat = centerPtDict["lat"]
-        centerPointLon = centerPtDict["lon"]            
-        overlay.centerPointLat = centerPointLat
-        overlay.centerPointLon = centerPointLon 
+        overlay.extras.centerPointLatLon = [centerPtDict["lat"], centerPtDict["lon"]]
         overlay.issMRF = mission + '-' + roll + '-' + str(frame)
     overlay.save()
     
@@ -372,7 +447,6 @@ def overlayIdJson(request, key):
 def overlayListJson(request):
     # return only the last 100 overlays for now.  if it gets longer than that, we'll implement paging.
     overlays = Overlay.objects.order_by('-lastModifiedTime')[:100]
-
     return HttpResponse(dumps(list(o.jsonDict for o in overlays)), content_type='application/json')
 
 

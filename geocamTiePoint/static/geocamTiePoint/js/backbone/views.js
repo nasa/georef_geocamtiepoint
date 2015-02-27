@@ -173,7 +173,6 @@ $(function($) {
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
             this.markers = [];
-
             this.on('gmap_loaded', this.initGmapUIHandlers);
             this.model.on('change:points', this.drawMarkers, this);
         },
@@ -230,25 +229,21 @@ $(function($) {
             });
             return selected_idx;
         },
-
+        
         handleClick: function(event) {
             if (!_.isUndefined(window.draggingG) && draggingG) return;
             assert(!_.isUndefined(window.actionPerformed),
                    'Missing global actionPerformed().  Check for undo.js');
             actionPerformed();
             var latLng = event.latLng;
-            var coord = latLonToPixel(latLng);
             var index = this.markers.length;
-
             var marker = maputils.createLabeledMarker(latLng,
                                                       '' + (index + 1),
                                                       this.gmap);
             this.initMarkerDragHandlers(marker);
-
             this.markers.push(marker);
             this.updateTiepointFromMarker(index, marker);
             app.currentView.selectMarker(index);
-            
         },
 
         initGmapUIHandlers: function() {
@@ -313,16 +308,20 @@ $(function($) {
             this.gmap.fitBounds(this.model.imageBounds());
 
             (google.maps.event.addListenerOnce
-             (this.gmap, 'idle', _.bind(function() {
-                 this.drawMarkers();
+    		(this.gmap, 'idle', _.bind(function() { 
+       			 this.drawMarkers();
                  this.drawCenterPointMarker.apply(this);
                  this.trigger('gmap_loaded');
                  if (this.options.debug) this.debugInstrumentation.apply(this);
                  
                  if (this.model.get('transform')) {
-                 	this.updateCenterPointMarker(this.model.get('transform'));
+                 	this.updateMarker();
                  }
              }, this)));
+            
+            //add rotation control slider
+            var mapType = new maputils.ImageMapType(this.model);
+            maputils.createRotationControl(this, mapType);
         },
 
         debugInstrumentation: function() {
@@ -369,57 +368,75 @@ $(function($) {
 
         // markers are redrawn after event.
         drawMarkers: function() {
-            var model = this.model;
-            var latLons = [];
-            _.each(this.model.get('points'), function(point, index) {
+            //fetch the latest server values for overlay.
+        	var model = this.model;
+        	var latLons_in_gmap_space = [];
+            _.each(model.get('points'), function(point) {
                 var pixelCoords = { x: point[2], y: point[3] };
                 if (! _.any(_.values(pixelCoords), _.isNull)) {
-                    var latLon = pixelsToLatLon(pixelCoords, model.maxZoom());
-                    latLons.push(latLon);
+                	// if overlay has been rotated, redraw the markers in rotated frame.
+                	// rotateTiePt handles the case where rotation = 0
+                	var rotatedCoords = maputils.rotateTiePt(pixelCoords, model);
+                	var latLon = pixelsToLatLon(rotatedCoords, model.maxZoom());
+                	latLons_in_gmap_space.push(latLon);
                 }
-            }, this);
-
-            if (this.model.get('transform')) {
-            	this.updateCenterPointMarker(this.model.get('transform'));
-            }
-            return this._drawMarkers(latLons);
+            });
+             if (model.get('transform')) {
+             	this.updateCenterPointMarker();
+             }
+    		 return this._drawMarkers(latLons_in_gmap_space);
         },
 
     	// applies the current transform to the center point of the image in pixels
     	// to get a new lat long value for center ponit. 
-        updateCenterPointMarker: function(transform) {
-            var transform = (geocamTiePoint.transform.deserializeTransform
-                    (this.model.get('transform')));
-            var imageSize = this.model.get('imageSize');
-            var w = imageSize[0];
-            var h = imageSize[1];
-            if (transform && centerPointMarker) {
-	            // calculate the new center
-            	var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
-	            var lat = transformedCenter.lat().toFixed(2);
-	            var lon = transformedCenter.lng().toFixed(2);
-
-	            // update the label
-	            centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
-	            centerPointMarker.setLabel(centerPtLabel);
-            } else {
-            	console.log("Transformation matrix not available. Center point cannot be updated");
-            }
+        updateCenterPointMarker: function() {
+        	var model = this.model;
+            model.fetch({ 'success': function(model) {
+                var transform = (geocamTiePoint.transform.deserializeTransform
+                        (model.get('transform')));
+                var imageSize = model.get('imageSize');
+                var w = imageSize[0];
+                var h = imageSize[1];
+                if (transform && centerPointMarker) {
+    	            // calculate the new center
+                	var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
+    	            var lat = transformedCenter.lat().toFixed(2);
+    	            var lon = transformedCenter.lng().toFixed(2);
+    	            // update the label
+    	            centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
+    	            centerPointMarker.setLabel(centerPtLabel);
+                } else {
+                	console.log("Transformation matrix not available. Center point cannot be updated");
+                }
+            } });
         },
         
 		drawCenterPointMarker: function() {
-			window.imageMap = this.gmap;
-            var center = this.gmap.getCenter();     
-            var lon = this.model.get('centerPointLon').toFixed(2);
-            var lat = this.model.get('centerPointLat').toFixed(2);   
-            centerPtLabel = "initial lat, lon: ("+lat+", "+lon+")";
+            // rotate the center by rotation angle in overlay.
+			var model = this.model;
+            var rotationAngle = model.get('totalRotation');
+            var imageSize = null;
+            if (rotationAngle == 0) {
+            	imageSize = model.get('imageSize');
+            } else {
+            	imageSize = model.get('rotatedImageSize');
+            }
+            var w = imageSize[0];
+            var h = imageSize[1];
+            var maxZoom = model.maxZoom();
+            var center = pixelsToLatLon({x: w / 2.0 , y: h / 2.0}, maxZoom);
+            // get the calculated center pt lat lon from the overlay model.
+            var centerLatLon = model.get('centerPointLatLon');
+            centerPtLabel = "initial lat, lon: (" + centerLatLon[0].toFixed(2) + " , "
+            				+ centerLatLon[1].toFixed(2) + ")";
             centerPointMarker = maputils.createCenterPointMarker(center,
-			                                          centerPtLabel,
-			                                          this.gmap);
+                    centerPtLabel,
+                    this.gmap);
 		},
-
+		
         updateTiepointFromMarker: function(index, marker) {
             var coords = latLonToPixel(marker.getPosition());
+    		console.log("updateTiepointFromMarker: rotated coords ", coords);
             this.model.updateTiepoint('image', index, coords);
         }
 
@@ -512,9 +529,9 @@ $(function($) {
         },
 
         panMapToCenterPoint: function() {
-            var lon = this.model.get('centerPointLon').toFixed(2);
-            var lat = this.model.get('centerPointLat').toFixed(2);
-            var latLng = new google.maps.LatLng(lat, lon);
+            var centerLatLon = this.model.get('centerPointLatLon');
+            var latLng = new google.maps.LatLng(centerLatLon[0].toFixed(2), 
+            									centerLatLon[1].toFixed(2));
             this.gmap.panTo(latLng);
 		},
 		
@@ -571,17 +588,17 @@ $(function($) {
                     'to the neighborhood of your overlay.',
                 videoId: 'sHp_OGcgckQ',
                 helpFunc: function() {
-                     this.$('#locationSearch').focus();
-                     flicker(
-                         function() {
-                             (this.$('#locationSearch')
-                              .css('background-color', '#aaf'));
-                         },
-                         function() {
-                             (this.$('#locationSearch')
-                              .css('background-color', '#fff'));
-                         },
-                         500, 8);
+//                     this.$('#locationSearch').focus();
+//                     flicker(
+//                         function() {
+//                             (this.$('#locationSearch')
+//                              .css('background-color', '#aaf'));
+//                         },
+//                         function() {
+//                             (this.$('#locationSearch')
+//                              .css('background-color', '#fff'));
+//                         },
+//                         500, 8);
                 }
             },
             {

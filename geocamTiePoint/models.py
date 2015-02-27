@@ -69,6 +69,9 @@ class ImageData(models.Model):
     # we set unusedTime when a QuadTree is no longer referenced by an Overlay.
     # it will eventually be deleted.
     unusedTime = models.DateTimeField(null=True, blank=True)
+    # works like caching. If certain angle is requested and image data is 
+    # is available in db, we can just pull up that image.
+    rotationAngle = models.IntegerField(null=True, blank=True, default=0)
 
     def __unicode__(self):
         if self.overlay:
@@ -234,18 +237,23 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
-    centerPointLat = models.FloatField(null=True, blank=True)
-    centerPointLon = models.FloatField(null=True, blank=True)
+    # rotation: stores the value of how much the current image is rotated from the original.
+    # this value is an accumulation of user's rotation requests. 
+#     rotation = models.IntegerField(blank=True, default=0, help_text="In integer angles")
+    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
     issMRF = models.CharField(max_length=255, null=True, blank=True,
                               help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
-    # include: imageSize, points, transform, bounds
+    # include: imageSize, points, transform, bounds, centerPointLatLon, rotatedImageSize
     extras = ExtrasDotField()
 
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerPointLat', 'centerPointLon', 'issMRF')
+#     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
+#                     'centerPointLat', 'centerPointLon', 'issMRF', 'rotation')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
+                    'issMRF')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform')
 

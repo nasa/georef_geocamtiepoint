@@ -13,7 +13,7 @@ $(function($) {
                'Missing global: fitNamedBounds');
         fitNamedBounds(settings.GEOCAM_TIE_POINT_DEFAULT_MAP_VIEWPORT,
                        gmap);
-    }
+    };
 
     maputils.ImageMapType = function(overlayModel) {
         assert(typeof TILE_SIZE !== 'undefined',
@@ -182,11 +182,237 @@ $(function($) {
 });
 
 
+// helper needed for transparency and rotation sliders.
+maputils.findPosLeft = function(obj) {
+	var curleft = 0;
+    if (obj.offsetParent) {
+        do {
+            curleft += obj.offsetLeft;
+        } while (obj = obj.offsetParent);
+        return curleft;
+    }
+    return undefined;
+};
+
+
+
+maputils.pixelToCart = function(pixel, width, height) {
+	//need to add 0.5 to pixel coords
+	var pixelX = pixel.x + 0.5;
+	var pixelY = pixel.y + 0.5;
+	var cartX = pixelX - width/2;
+	var cartY = -1*pixelY + height/2;
+	return [parseFloat(cartX), parseFloat(cartY)];
+};
+
+
+maputils.cartToPixel = function(cart, width, height) {
+	var pixelX = parseFloat(cart[0]) + width/2;
+	var pixelY = height/2 - parseFloat(cart[1]);
+	// need to subtract 0.5 from cartesian coords
+	pixelX = pixelX - 0.5;
+	pixelY = pixelY - 0.5;
+	return {x: parseInt(pixelX), y: parseInt(pixelY)};
+};
+
+
+maputils.rotateTiePt = function(pixelCoord, overlay){
+	var angle = overlay.get('totalRotation');
+	if (angle == 0) { // if no rotation, return pt as pixel coord.
+		return pixelCoord;
+	} 
+	// get center pt of unrotate image in pixel coords
+	var imageSize = overlay.get('orgImageSize');
+	var width = parseFloat(imageSize[0]);
+	var height = parseFloat(imageSize[1]);
+    // convert angle to theta
+    var theta = angle * (Math.PI / 180); 
+    // construct rotation matrix
+    var rotateMatrix = new Matrix(3, 3,
+            [[Math.cos(theta), -Math.sin(theta), 0],
+             [Math.sin(theta), Math.cos(theta), 0],
+             [0, 0, 1]]);
+    // transform the pt so that center pt becomes the origin.
+	var cart = maputils.pixelToCart(pixelCoord, width, height);
+    // put tie point in a 3 x 1 matrix.
+    var tiePt = new Matrix(1,3, [[cart[0]],
+                                 [cart[1]],
+                                 [1]]);
+    var transformedTiePt = rotateMatrix.multiply(tiePt).values;
+	// get center pt of rotated image in pixel coords
+	var rotatedImageSize = overlay.get('rotatedImageSize');
+	var rwidth = parseFloat(rotatedImageSize[0]);
+	var rheight = parseFloat(rotatedImageSize[1]);
+	console.log("size of the rotated image", rwidth + ',  ' + rheight);
+	// convert back to pixel coords.
+    var pixel = maputils.cartToPixel(transformedTiePt, rwidth, rheight);
+    // transform the tie point back by adding back the center pt offset.
+    return pixel;
+};
+
+
+//set up a rotation slider on image side
+maputils.createRotationControl = function(imageQtreeView, mapType) {//function(map, mapType, overlay) {
+	var map = imageQtreeView.gmap;
+	var overlay = imageQtreeView.model;
+	var ROTATION_MAX_PIXELS = 57; //slider spans 57 pixels
+	var sliderImageUrl = '/static/geocamTiePoint/images/rotation_slider.png';
+	
+	//create slider bar
+	var rotationSliderDiv = document.createElement('DIV');
+	(rotationSliderDiv.setAttribute
+     ('style',
+      'margin: 5px;' +
+      ' overflow-x: hidden;' +
+      ' overflow-y: hidden;' +
+      ' background: url(' + sliderImageUrl + ') no-repeat;' +
+      ' width: 71px;' +
+      ' height: 21px;' +
+      ' cursor: pointer;'));
+	
+	//create knob
+    var rotationKnobDiv = document.createElement('DIV');
+    (rotationKnobDiv.setAttribute
+     ('style',
+      'padding: 0;' +
+      ' margin: 0;' +
+      ' overflow-x: hidden;' +
+      ' overflow-y: hidden;' +
+      ' background: url(' + sliderImageUrl + ') no-repeat -71px 0;' +
+      ' width: 14px;' +
+      ' height: 21px;'));
+    rotationSliderDiv.appendChild(rotationKnobDiv);
+    
+    //create text input box div
+    var rotationInputDiv = document.createElement('DIV');
+    var rotationInputSpan = document.createElement('span');
+    rotationInputSpan.className = "input-prepend";
+    spanAddOn = document.createElement('span');
+    spanAddOn.className = "add-on";
+    spanAddOn.innerHTML = "Rotate";
+    rotationInputSpan.appendChild(spanAddOn);
+    //text box
+    var rotationInput = document.createElement("input");
+    rotationInput.type = "text";
+    rotationInput.placeholder = "Angle";
+    rotationInput.id = "rotationAngle"; 
+    rotationInputSpan.appendChild(rotationInput);
+
+    var rotationCtrlKnob = new ExtDraggableObject(rotationKnobDiv, {
+        restrictY: true,
+        container: rotationSliderDiv
+    });
+    
+    google.maps.event.addListener(rotationCtrlKnob, 'drag', function() {
+    	var angle = getAngle(mapType, rotationCtrlKnob.valueX());
+    	rotationInput.value = angle | 0;
+    	//TODO: do some fancy transparency overlay here using initAlignedOverlay to show
+        //what the rotation will potentially look like.
+	});
+	
+	google.maps.event.addDomListener(rotationSliderDiv, 'click', function(e) {
+        var x = rotationCtrlKnob.valueX();
+        var angle = getAngle(mapType, x);
+		// add the angle to the total angles dictionary
+        var data = new FormData();
+		data.append('rotation', parseInt(angle));
+		data.append('overlayId', overlay.id);
+		// make a call to the server to generate new tiles from rotated image.
+		$.ajax({
+			url: rotateOverlayUrl,
+			crossDomain: false,
+			data: data,
+			cache: false, 
+			contentType: false, 
+			processData: false,
+			type: 'POST', 
+            success: (_.bind (submitSuccess,
+                     this)),
+            error: (_.bind (submitError,
+                   this))
+		});
+	});
+	
+	function submitSuccess(data) {
+		console.log('got data back from rotate');
+        try {
+            var json = JSON.parse(data);
+        } catch (error) {
+            console.log('Failed to parse response as JSON: ' +
+                        error.message);
+            return;
+        }
+        if (json['status'] == 'success') {
+        	console.log("json angle", json['angle']);
+    		overlay.fetch({ 'success': function (overlay) {
+            	console.log('rotation angle from user stored in the overlay', overlay.get('rotation'));
+            	console.log('overlay rotation value: ', overlay.get('totalRotation'));
+            	imageQtreeView.render();
+    		}});
+        }
+	}
+	
+	function submitError() {
+		
+	}
+	
+    function getAngle(mapType, pixelX) {
+        // pixelX in range 0 to ROTATION_MAX_PIXELS
+        var rotationAngle = 360 * (pixelX / ROTATION_MAX_PIXELS);
+        // max angle value goes slightly over 360 so set it to 360 if it does.
+        if (rotationAngle > 360) rotationAngle = 360;
+        return Math.round(rotationAngle);
+    }
+
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(rotationInputSpan);
+    map.controls[google.maps.ControlPosition.RIGHT_TOP].push(rotationSliderDiv);
+};
+
+
+//maputils.testRotateTiePt = function() {
+//	var angle = 90;
+//	var pixelCoord = {x: 6, y: 1};
+//	
+//	if (angle == 0) { // if no rotation, return pt as pixel coord.
+//		return pixelCoord;
+//	} 
+//	// get center pt in pixel coords
+//	var width = 9;
+//	var height = 7;
+//	
+//    // convert angle to theta
+//    var theta = angle * (Math.PI / 180); 
+//    
+//    // construct rotation matrix
+//    var rotateMatrix = new Matrix(3, 3,
+//            [[Math.cos(theta), -Math.sin(theta), 0],
+//             [Math.sin(theta), Math.cos(theta), 0],
+//             [0, 0, 1]]);
+//    
+//    // transform the pt so that center pt becomes the origin.
+//	var cart = maputils.pixelToCart(pixelCoord, width, height);
+//    
+//    // put tie point in a 3 x 1 matrix.
+//    var tiePt = new Matrix(1,3, [[cart[0]],
+//                                 [cart[1]],
+//                                 [1]]);
+//    var transformedTiePt = rotateMatrix.multiply(tiePt).values;
+//    
+//    console.log("rotated tie point in cartesian: ", transformedTiePt);
+//    
+//    // convert back to pixel coords.
+//    var pixel = maputils.cartToPixel(transformedTiePt, width, height);
+//    console.log("in pixel coords: ", pixel);
+//    
+//    // transform the tie point back by adding back the center pt offset.
+//    return pixel;
+//};
+
+
 //set up a transparency slider
 maputils.createOpacityControl = function(map, mapType, overlay) {
     var OPACITY_MAX_PIXELS = 57;
     var sliderImageUrl = '/static/geocamTiePoint/images/opacity-slider3d6.png';
-
     // Create main div to hold the control.
     var opacityDiv = document.createElement('DIV');
     (opacityDiv.setAttribute
@@ -222,7 +448,7 @@ maputils.createOpacityControl = function(map, mapType, overlay) {
     });
 
     google.maps.event.addDomListener(opacityDiv, 'click', function(e) {
-        var left = findPosLeft(this);
+        var left = maputils.findPosLeft(this);
         var x = e.pageX - left - 5;
         opacityCtrlKnob.setValueX(x);
         setOpacity(mapType, x);
@@ -244,17 +470,6 @@ maputils.createOpacityControl = function(map, mapType, overlay) {
         //console.log("opacity: " + opacityPercent);
         overlay.overlayOpacity = opacityPercent;
         mapType.setOpacity(opacityPercent / 100.0);
-    }
-
-    function findPosLeft(obj) {
-        var curleft = 0;
-        if (obj.offsetParent) {
-            do {
-                curleft += obj.offsetLeft;
-            } while (obj = obj.offsetParent);
-            return curleft;
-        }
-        return undefined;
     }
 
 };

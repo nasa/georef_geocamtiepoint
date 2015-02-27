@@ -174,3 +174,9 @@ a.btn-primary {
 #video {
     margin-left: 10px;
 }
+
+input#rotationAngle {
+    width: 75px;
+}
+
+

@@ -15,9 +15,13 @@ urlpatterns = patterns(
     url(r'^b/$', 'backbone',
         {}, 'geocamTiePoint_backbone'),
 
-    ## for ajax response ##
+    ## transform.js sends a ajax request to retrieve camera model transform value from server side. ##
     url(r'^cameraModelTransformFit/$', 'cameraModelTransformFit', 
         {}, 'geocamTiePoint_cameraModelTransformFit'),
+    
+    ## rotation slider sends ajax request to create a new overlay with rotated image ##
+    url(r'^rotateOverlay/$', 'rotateOverlay', 
+        {}, 'geocamTiePoint_rotateOverlay'), 
     
     ## overlays ##
     url(r'^overlays/new\.json$', 'overlayNewJSON',
