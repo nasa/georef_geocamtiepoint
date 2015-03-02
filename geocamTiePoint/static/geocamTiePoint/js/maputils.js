@@ -216,7 +216,47 @@ maputils.cartToPixel = function(cart, width, height) {
 };
 
 
-maputils.rotateTiePt = function(pixelCoord, overlay){
+maputils.undoTiePtRotation = function(pixelCoord, overlay) {
+	var angle = overlay.get('totalRotation');
+	if (angle == 0) { // if no rotation, return pt as pixel coord.
+		return pixelCoord;
+	} 
+	// no need to negate the angle sign since we are rotating clock wise to 
+	// undo the rotation.
+	
+	// get the center pt of the rotated image in pixel coords
+	var rotatedImageSize = overlay.get('rotatedImageSize');
+	var rwidth = parseFloat(rotatedImageSize[0]);
+	var rheight = parseFloat(rotatedImageSize[1]);
+	
+    // convert angle to theta
+    var theta = angle * (Math.PI / 180); 
+    // construct rotation matrix
+    var rotateMatrix = new Matrix(3, 3,
+            [[Math.cos(theta), -Math.sin(theta), 0],
+             [Math.sin(theta), Math.cos(theta), 0],
+             [0, 0, 1]]);
+    
+    // transform the pt so that center pt becomes the origin.
+	var cart = maputils.pixelToCart(pixelCoord, rwidth, rheight);
+    // put tie point in a 3 x 1 matrix.
+    var tiePt = new Matrix(1,3, [[cart[0]],
+                                 [cart[1]],
+                                 [1]]);
+    //do the transformation
+    var originalTiePt = rotateMatrix.multiply(tiePt).values;
+	//get the center of the original image in pixel coords
+	var imageSize = overlay.get('orgImageSize');
+	var width = parseFloat(imageSize[0]);
+	var height = parseFloat(imageSize[1]);
+	// convert back to pixel coords.
+    var pixel = maputils.cartToPixel(originalTiePt, width, height);
+    // transform the tie point back by adding back the center pt offset.
+    return pixel;
+};
+
+
+maputils.rotateTiePt = function(pixelCoord, overlay) {
 	var angle = overlay.get('totalRotation');
 	if (angle == 0) { // if no rotation, return pt as pixel coord.
 		return pixelCoord;
@@ -239,12 +279,12 @@ maputils.rotateTiePt = function(pixelCoord, overlay){
     var tiePt = new Matrix(1,3, [[cart[0]],
                                  [cart[1]],
                                  [1]]);
+    //do the transformation
     var transformedTiePt = rotateMatrix.multiply(tiePt).values;
 	// get center pt of rotated image in pixel coords
 	var rotatedImageSize = overlay.get('rotatedImageSize');
 	var rwidth = parseFloat(rotatedImageSize[0]);
 	var rheight = parseFloat(rotatedImageSize[1]);
-	console.log("size of the rotated image", rwidth + ',  ' + rheight);
 	// convert back to pixel coords.
     var pixel = maputils.cartToPixel(transformedTiePt, rwidth, rheight);
     // transform the tie point back by adding back the center pt offset.
@@ -352,7 +392,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {//function(m
 	}
 	
 	function submitError() {
-		
+		console.log("server failed to tile the rotated image");
 	}
 	
     function getAngle(mapType, pixelX) {
@@ -366,46 +406,6 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {//function(m
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(rotationInputSpan);
     map.controls[google.maps.ControlPosition.RIGHT_TOP].push(rotationSliderDiv);
 };
-
-
-//maputils.testRotateTiePt = function() {
-//	var angle = 90;
-//	var pixelCoord = {x: 6, y: 1};
-//	
-//	if (angle == 0) { // if no rotation, return pt as pixel coord.
-//		return pixelCoord;
-//	} 
-//	// get center pt in pixel coords
-//	var width = 9;
-//	var height = 7;
-//	
-//    // convert angle to theta
-//    var theta = angle * (Math.PI / 180); 
-//    
-//    // construct rotation matrix
-//    var rotateMatrix = new Matrix(3, 3,
-//            [[Math.cos(theta), -Math.sin(theta), 0],
-//             [Math.sin(theta), Math.cos(theta), 0],
-//             [0, 0, 1]]);
-//    
-//    // transform the pt so that center pt becomes the origin.
-//	var cart = maputils.pixelToCart(pixelCoord, width, height);
-//    
-//    // put tie point in a 3 x 1 matrix.
-//    var tiePt = new Matrix(1,3, [[cart[0]],
-//                                 [cart[1]],
-//                                 [1]]);
-//    var transformedTiePt = rotateMatrix.multiply(tiePt).values;
-//    
-//    console.log("rotated tie point in cartesian: ", transformedTiePt);
-//    
-//    // convert back to pixel coords.
-//    var pixel = maputils.cartToPixel(transformedTiePt, width, height);
-//    console.log("in pixel coords: ", pixel);
-//    
-//    // transform the tie point back by adding back the center pt offset.
-//    return pixel;
-//};
 
 
 //set up a transparency slider

@@ -315,7 +315,7 @@ $(function($) {
                  if (this.options.debug) this.debugInstrumentation.apply(this);
                  
                  if (this.model.get('transform')) {
-                 	this.updateMarker();
+                 	this.updateCenterPointMarker();
                  }
              }, this)));
             
@@ -366,28 +366,9 @@ $(function($) {
              }));
         },
 
-//        // markers are redrawn after event.
-//        drawMarkersForHandleClick: function() {
-//            //fetch the latest server values for overlay.
-//        	var model = this.model;
-//        	var latLons_in_gmap_space = [];
-//            _.each(model.get('points'), function(point) {
-//                var pixelCoords = { x: point[2], y: point[3] };
-//                if (! _.any(_.values(pixelCoords), _.isNull)) {
-//                	var latLon = pixelsToLatLon(pixelCoords, model.maxZoom());
-//                	latLons_in_gmap_space.push(latLon);
-//                }
-//            });
-//             if (model.get('transform')) {
-//             	this.updateCenterPointMarker();
-//             }
-//    		 return this._drawMarkers(latLons_in_gmap_space);
-//        },
         
         // markers are redrawn after event.
         drawMarkers: function() {
-            //fetch the latest server values for overlay.
-        	console.log('drawRotatedMarkers called!');
         	var model = this.model;
         	var latLons_in_gmap_space = [];
             _.each(model.get('points'), function(point) {
@@ -395,17 +376,19 @@ $(function($) {
                 if (! _.any(_.values(pixelCoords), _.isNull)) {
                 	// if overlay has been rotated, redraw the markers in rotated frame.
                 	// rotateTiePt handles the case where rotation = 0
+                	var angle = model.get('totalRotation');
                 	var rotatedCoords = maputils.rotateTiePt(pixelCoords, model);
                 	var latLon = pixelsToLatLon(rotatedCoords, model.maxZoom());
                 	latLons_in_gmap_space.push(latLon);
                 }
             });
-             if (model.get('transform')) {
-             	this.updateCenterPointMarker();
-             }
-    		 return this._drawMarkers(latLons_in_gmap_space);
+	         if (model.get('transform')) {
+	         	this.updateCenterPointMarker();
+	         }
+			 return this._drawMarkers(latLons_in_gmap_space);
         },
 
+        
     	// applies the current transform to the center point of the image in pixels
     	// to get a new lat long value for center ponit. 
         updateCenterPointMarker: function() {
@@ -457,7 +440,6 @@ $(function($) {
         	//drawMarker flag is set to true unless specified by passing 'false' as an arg.
         	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
             var coords = latLonToPixel(marker.getPosition());
-    		console.log("updateTiepointFromMarker: rotated coords ", coords);
             this.model.updateTiepoint('image', index, coords, drawMarkerFlag);
         }
 

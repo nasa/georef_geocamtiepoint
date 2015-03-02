@@ -107,8 +107,15 @@ $(function($) {
          * already exist at that index.
         */
         updateTiepoint: function(whichSide, pointIndex, coords, drawMarkerFlag) {
-        	//drawMarkerFlag is set to true unless function is called with 'false' as an arg.
+        	// drawMarkerFlag is set to true unless function is called with 'false' as an arg.
         	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
+        	//  this flag is set to true if this fcn is called by handle click
+        	var clickedOnImageViewFlag = (whichSide == 'image') && (drawMarkerFlag == false);
+            if (clickedOnImageViewFlag) { 
+            	var overlay = this;
+            	// undo the rotation on tie pts before saving the coords.
+            	coords = maputils.undoTiePtRotation(coords, overlay);
+            }
             var points = this.get('points');
             var initial_length = points.length;
             var tiepoint = points[pointIndex] || [null, null, null, null];
@@ -124,7 +131,11 @@ $(function($) {
             if (points.length > initial_length) this.trigger('add_point');
             // Manually trigger this, because the value of model.points
             // (an array reference) hasn't actually changed.
-            if (drawMarkerFlag) {
+            // if it is a map side or if the draw marker flag is on, trigger overlay's drawMarker call.
+            if (!clickedOnImageViewFlag) { 
+            	// we don't want to call this if it is new point on the 
+            	// image side (from user click) because it will rotate the 
+            	// already rotated point again.
             	this.trigger('change:points');
             }
         },
@@ -231,7 +242,6 @@ $(function($) {
             this.pollTimer = setTimeout(_.bind(pollForExportComplete, this),
                                         timeout, model, timeout);
         }
-
     });
 
     app.OverlayCollection = Backbone.Collection.extend({

@@ -357,8 +357,17 @@ class Overlay(models.Model):
         if self.extras.get('transform') is None:
             return None
 
-        qt = QuadTree(imageData=self.imageData,
-                      transform=dumps(self.extras.transform))
+        #instead of just grabbing the imageData in the overlay (which might be rotated), 
+        # grab the original image's imageData
+        imagedata = ImageData.objects.filter(overlay__key = self.key).filter(rotationAngle = 0)
+        if imagedata:
+            print "image data has been found for overlay %d" % self.key
+            print imagedata 
+            imagedata = imagedata[0]
+        
+        qt = QuadTree(imageData=imagedata,
+                    transform=dumps(self.extras.transform))
+        
         qt.save()
 
         self.alignedQuadTree = qt
