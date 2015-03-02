@@ -211,11 +211,6 @@ def rotateOverlay(request):
         overlay.generateUnalignedQuadTree()
         data = {'status': 'success', 'id': overlay.key, 'angle': rotationAngle}
         return HttpResponse(json.dumps(data))
-        #TODO: the tie points and center point coordinates need to be rotated as well. 
-         
-        #TODO: would "updateTiePointFromMarker" still work? it gets a lat lon value from the
-        # image overlay on the right side, converts it to pixel coordinates. With rotated tiles,
-        # latLonToPixel might break. It may need to be modified to take in degrees
 
 
 @csrf_exempt

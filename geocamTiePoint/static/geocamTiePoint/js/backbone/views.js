@@ -189,10 +189,13 @@ $(function($) {
             while (this.markers && this.markers.length > 0) {
                 var marker = this.markers.pop();
                 if (marker.get('selected')) selected_idx = this.markers.length;
+                // get the id of the marker
+                var markerId = marker.label.span.id;
+                markerId = "#" + markerId;
+                // remove the marker label
+                $(markerId).remove();
                 marker.setMap(null);
-                $(".map-marker-label").remove() 
             }
-            
             var markers = this.markers = [];
             _.each(latlons_in_gmap_space, function(latLon, index) {
                 if (! _.any(_.values(latLon), _.isNull)) {

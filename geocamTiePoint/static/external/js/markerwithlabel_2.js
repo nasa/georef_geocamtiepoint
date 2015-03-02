@@ -22,6 +22,8 @@
         this.setValues(options);
         this.span = document.createElement('span');
         this.span.className = 'map-marker-label';
+        // set the id of the label to map type and its index
+        this.span.id = options.map.mapTypeId + '-' + options.text;
     };
 
     MarkerLabel.prototype = $.extend(new google.maps.OverlayView(), {
