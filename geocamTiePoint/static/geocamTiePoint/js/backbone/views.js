@@ -123,17 +123,6 @@ $(function($) {
             dialog.modal('show');
         }
 
-        /*
-          afterRender: function(){
-          this.$('#overlay_list li a.delete').each(function(idx, a){
-          a.click(function(evt){
-          var overlay_id = parseInt(this.id.split('_').pop());
-          app.overlys.get(overlay_id).destroy();
-          });
-          });
-          },
-        */
-
     });
 
 
@@ -312,19 +301,31 @@ $(function($) {
 
             (google.maps.event.addListenerOnce
     		(this.gmap, 'idle', _.bind(function() { 
-       			 this.drawMarkers();
-                 this.drawCenterPointMarker.apply(this);
-                 this.trigger('gmap_loaded');
-                 if (this.options.debug) this.debugInstrumentation.apply(this);
+    			 var imageQtreeView = this;
+    			 imageQtreeView.drawMarkers();
+    			 imageQtreeView.drawCenterPointMarker.apply(imageQtreeView);
+    			 imageQtreeView.trigger('gmap_loaded');
+                 if (imageQtreeView.options.debug) imageQtreeView.debugInstrumentation.apply(imageQtreeView);
                  
-                 if (this.model.get('transform')) {
-                 	this.updateCenterPointMarker();
+                 if (imageQtreeView.model.get('transform')) {
+                	 imageQtreeView.updateCenterPointMarker();
                  }
-             }, this)));
-            
-            //add rotation control slider
-            var mapType = new maputils.ImageMapType(this.model);
-            maputils.createRotationControl(this, mapType);
+                 //add rotation control slider
+                 var mapType = new maputils.ImageMapType(imageQtreeView.model);
+                 maputils.createRotationControl(imageQtreeView, mapType);
+                 // submit rotation on enter 
+                 $("form#rotationInputForm").submit(function() {
+                	 event.preventDefault();
+					 var angle = $("input#rotationAngle")[0].value;
+					 var data = new FormData();
+					 data.append('rotation', parseInt(angle));
+					 var overlayId = parseInt($("input#overlayId")[0].value);
+                	 data.append('overlayId', overlayId);
+                	 // submit the rotation angle to the server to generate
+                	 // new tiles for rotated image.
+					 maputils.submitRotationToServer(data, imageQtreeView);
+             	}, event, imageQtreeView);
+    		}, this)));
         },
 
         debugInstrumentation: function() {
@@ -994,7 +995,6 @@ $(function($) {
         },
 
         initMarkerSelectHandlers: function() {
-
             /* Clear any extant select handlers, lest they get duplicated */
             var selectHandlers =
                 this._selectHandlers =
@@ -1002,7 +1002,6 @@ $(function($) {
             while (selectHandlers.length > 0) {
                 google.maps.event.removeListener(selectHandlers.pop());
             }
-
             var splitView = this;
             var views = [this.imageView, this.mapView];
             /* Select one pair of markers at a time */
