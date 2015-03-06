@@ -19,6 +19,7 @@ except ImportError:
     from StringIO import StringIO
 
 import PIL.Image
+import PIL.ImageEnhance
 
 from django.shortcuts import render_to_response
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
@@ -85,7 +86,11 @@ def backbone(request):
                 'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
                 'settings': export_settings(),
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
-                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay')
+                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
+                'enhanceContrastUrl': reverse('geocamTiePoint_enhanceContrast'),
+                'enhanceColorUrl': reverse('geocamTiePoint_enhanceColor'),
+                'enhanceSharpnessUrl': reverse('geocamTiePoint_enhanceSharpness'),
+                'enhanceBrightnessUrl': reverse('geocamTiePoint_enhanceBrightness'),
             },
             context_instance=RequestContext(request))
     else:
@@ -213,6 +218,59 @@ def rotateOverlay(request):
         return HttpResponse(json.dumps(data))
 
 
+@csrf_exempt
+def enhanceContrast(request):
+    if request.is_ajax() and request.method == 'POST':
+        data = request.POST
+        contrastValue = data['contrast']
+        overlayId = data["overlayId"]
+        overlay = Overlay.objects.get(key=overlayId)
+        imageData = overlay.imageData
+        try:
+            bits = imageData.image.file.read()
+        except: 
+            logging.error("image cannot be read from the image data")
+            return None
+        fakeFile = StringIO(bits)
+        im = PIL.Image.open(fakeFile)
+        if (im.mode != 'RGBA'):
+            im = im.convert('RGBA')
+        enhancer = PIL.ImageEnhance.Contrast(im)
+        enhancedIm = enhancer.enhance(2.0) #TODO: swap this out with user input
+        print "enhancedIm is "
+        print enhancedIm.__class__.__name__
+        out = StringIO()
+        enhancedIm.save(out, format='png')
+        convertedBits = out.getvalue()
+        # make a deep copy of the image data 
+        enhancedImageData = overlay.imageData
+        enhancedImageData.pk = None # set the primary key to None to make a deep copy
+        enhancedImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+        enhancedImageData.save()
+        # set the imageData field of the current overlay to this new imageData that has the rotated image.
+        overlay.imageData = enhancedImageData
+        # save overlay and generate tiles
+        overlay.save()
+        overlay.generateUnalignedQuadTree()
+        data = {'status': 'success', 'id': overlay.key}
+        return HttpResponse(json.dumps(data))
+        
+        
+@csrf_exempt
+def enhanceSharpness(request):
+    pass
+
+
+@csrf_exempt
+def enhanceColor(request):
+    pass
+
+
+@csrf_exempt
+def enhanceBrightness(request):
+    pass
+
+        
 @csrf_exempt
 def cameraModelTransformFit(request):
     """

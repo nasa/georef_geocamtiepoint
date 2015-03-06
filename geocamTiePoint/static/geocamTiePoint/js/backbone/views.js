@@ -325,6 +325,12 @@ $(function($) {
                 	 // new tiles for rotated image.
 					 maputils.submitRotationToServer(data, imageQtreeView);
              	}, event, imageQtreeView);
+                 
+                 //add image enhancement control sliders
+                 maputils.createImageContrastControl(imageQtreeView, mapType);
+                 maputils.createImageSharpnessControl(imageQtreeView, mapType);
+                 maputils.createImageColorControl(imageQtreeView, mapType);
+                 maputils.createImageBrightnessControl(imageQtreeView, mapType);
     		}, this)));
         },
 

@@ -23,6 +23,19 @@ urlpatterns = patterns(
     url(r'^rotateOverlay/$', 'rotateOverlay', 
         {}, 'geocamTiePoint_rotateOverlay'), 
     
+    ## image enhancement requests from the client handled here
+    url(r'^enhanceContrast/$', 'enhanceContrast', 
+        {}, 'geocamTiePoint_enhanceContrast'), 
+
+    url(r'^enhanceSharpness/$', 'enhanceSharpness', 
+        {}, 'geocamTiePoint_enhanceSharpness'), 
+
+    url(r'^enhanceColor/$', 'enhanceColor', 
+        {}, 'geocamTiePoint_enhanceColor'), 
+
+    url(r'^enhanceBrightness/$', 'enhanceBrightness', 
+        {}, 'geocamTiePoint_enhanceBrightness'),     
+    
     ## overlays ##
     url(r'^overlays/new\.json$', 'overlayNewJSON',
         {}, 'geocamTiePoint_overlayNew_JSON'),

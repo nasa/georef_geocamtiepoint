@@ -274,9 +274,9 @@ maputils.rotateTiePt = function(pixelCoord, overlay) {
 };
 
 
-maputils.submitRotationToServer = function(data, imageQtreeView) {
+maputils.submitRequestToServer = function(url, data, imageQtreeView) {
 	$.ajax({
-		url : rotateOverlayUrl,
+		url : url,
 		crossDomain : false,
 		data : data,
 		cache : false,
@@ -288,7 +288,6 @@ maputils.submitRotationToServer = function(data, imageQtreeView) {
 	});
 	
 	function submitSuccess(data) {
-		console.log('got data back from rotate');
 		try {
 			var json = JSON.parse(data);
 		} catch (error) {
@@ -296,7 +295,6 @@ maputils.submitRotationToServer = function(data, imageQtreeView) {
 			return;
 		}
 		if (json['status'] == 'success') {
-			console.log("json angle", json['angle']);
 			var overlay = imageQtreeView.model;
 			overlay.fetch({
 				'success' : function(overlay) {
@@ -309,6 +307,192 @@ maputils.submitRotationToServer = function(data, imageQtreeView) {
 	function submitError() {
 		console.log("server failed to tile the rotated image");
 	}
+};
+
+
+// creates contrast slider on the image overlay
+maputils.createImageContrastControl = function(imageQtreeView, mapType) {
+	var map = imageQtreeView.gmap;
+	var overlay = imageQtreeView.model;
+	var CONTRAST_MAX_PIXELS = 57;
+	var sliderImageUrl = '/static/geocamTiePoint/images/contrast_slider.png';
+	
+	// create slider bar
+	var contrastSliderDiv = document.createElement('DIV');
+	(contrastSliderDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
+			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
+
+	var hiddenDiv = document.createElement('DIV');
+	hiddenDiv.setAttribute("type", "hidden");
+	(hiddenDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
+	//by doing 'position: absolute', left offset is relative to position of its parent div (contrast slider div)
+	contrastSliderDiv.appendChild(hiddenDiv);
+	
+	// create knob
+	var contrastKnobDiv = document.createElement('DIV');
+	(contrastKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
+			+ ' width: 14px;' + ' height: 23px;'));
+	hiddenDiv.appendChild(contrastKnobDiv);
+	
+	var leftOffset = Math.round(CONTRAST_MAX_PIXELS / 2.0);
+	var contrastCtrlKnob = new ExtDraggableObject(contrastKnobDiv, {
+		restrictY : true,
+		container : hiddenDiv, 
+	});
+	
+	google.maps.event.addListener(contrastCtrlKnob, 'drag', function() {
+	});
+
+	google.maps.event.addDomListener(contrastSliderDiv, 'click', function(e) {
+		var data = new FormData();
+		data.append('contrast', 2.0);
+		data.append('overlayId', overlay.id);
+		// make a call to the server to generate new tiles from rotated image.
+		maputils.submitRequestToServer(enhanceContrastUrl, data, imageQtreeView);
+	});
+
+	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(contrastSliderDiv);	
+};
+
+
+//creates sharpness control on the image overlay
+maputils.createImageSharpnessControl = function(imageQtreeView, mapType) {
+	var map = imageQtreeView.gmap;
+	var overlay = imageQtreeView.model;
+	var SHARPNESS_MAX_PIXELS = 57;
+	var sliderImageUrl = '/static/geocamTiePoint/images/sharpness_slider.png';
+	
+	// create slider bar
+	var sharpnessSliderDiv = document.createElement('DIV');
+	(sharpnessSliderDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
+			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
+
+	var hiddenDiv = document.createElement('DIV');
+	hiddenDiv.setAttribute("type", "hidden");
+	(hiddenDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
+	//by doing 'position: absolute', left offset is relative to position of its parent div (sharpness slider div)
+	sharpnessSliderDiv.appendChild(hiddenDiv);
+	
+	// create knob
+	var sharpnessKnobDiv = document.createElement('DIV');
+	(sharpnessKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
+			+ ' width: 14px;' + ' height: 23px;'));
+	hiddenDiv.appendChild(sharpnessKnobDiv);
+	
+	var sharpnessCtrlKnob = new ExtDraggableObject(sharpnessKnobDiv, {
+		restrictY : true,
+		container : hiddenDiv, 
+	});
+	
+	google.maps.event.addListener(sharpnessCtrlKnob, 'drag', function() {
+	});
+
+	google.maps.event.addDomListener(sharpnessSliderDiv, 'click', function(e) {
+	});
+
+	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(sharpnessSliderDiv);	
+};
+
+
+//creates color control on the image overlay
+maputils.createImageColorControl = function(imageQtreeView, mapType) {
+	var map = imageQtreeView.gmap;
+	var overlay = imageQtreeView.model;
+	var COLOR_MAX_PIXELS = 57;
+	var sliderImageUrl = '/static/geocamTiePoint/images/color_slider.png';
+	
+	// create slider bar
+	var colorSliderDiv = document.createElement('DIV');
+	(colorSliderDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
+			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
+
+	var hiddenDiv = document.createElement('DIV');
+	hiddenDiv.setAttribute("type", "hidden");
+	(hiddenDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
+	//by doing 'position: absolute', left offset is relative to position of its parent div (color slider div)
+	colorSliderDiv.appendChild(hiddenDiv);
+	
+	// create knob
+	var colorKnobDiv = document.createElement('DIV');
+	(colorKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
+			+ ' width: 14px;' + ' height: 23px;'));
+	hiddenDiv.appendChild(colorKnobDiv);
+	
+	var colorCtrlKnob = new ExtDraggableObject(colorKnobDiv, {
+		restrictY : true,
+		container : hiddenDiv, 
+	});
+	
+	google.maps.event.addListener(colorCtrlKnob, 'drag', function() {
+	});
+
+	google.maps.event.addDomListener(colorSliderDiv, 'click', function(e) {
+	});
+
+	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(colorSliderDiv);	
+};
+
+
+//creates color control on the image overlay
+maputils.createImageBrightnessControl = function(imageQtreeView, mapType) {
+	var map = imageQtreeView.gmap;
+	var overlay = imageQtreeView.model;
+	var BRIGHTNESS_MAX_PIXELS = 57;
+	var sliderImageUrl = '/static/geocamTiePoint/images/brightness_slider.png';
+	
+	// create slider bar
+	var brightnessSliderDiv = document.createElement('DIV');
+	(brightnessSliderDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
+			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
+
+	var hiddenDiv = document.createElement('DIV');
+	hiddenDiv.setAttribute("type", "hidden");
+	(hiddenDiv.setAttribute('style', 'margin: 5px;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
+	//by doing 'position: absolute', left offset is relative to position of its parent div (brightness slider div)
+	brightnessSliderDiv.appendChild(hiddenDiv);
+	
+	// create knob
+	var brightnessKnobDiv = document.createElement('DIV');
+	(brightnessKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
+			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
+			+ ' width: 14px;' + ' height: 23px;'));
+	hiddenDiv.appendChild(brightnessKnobDiv);
+	
+	var brightnessCtrlKnob = new ExtDraggableObject(brightnessKnobDiv, {
+		restrictY : true,
+		container : hiddenDiv, 
+	});
+	
+	google.maps.event.addListener(brightnessCtrlKnob, 'drag', function() {
+	});
+
+	google.maps.event.addDomListener(brightnessSliderDiv, 'click', function(e) {
+	});
+
+	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(brightnessSliderDiv);	
 };
 
 
@@ -384,7 +568,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 		data.append('rotation', parseInt(angle));
 		data.append('overlayId', overlay.id);
 		// make a call to the server to generate new tiles from rotated image.
-		maputils.submitRotationToServer(data, imageQtreeView);
+		maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);
 	});
 
 	function getAngle(mapType, pixelX) {
@@ -400,7 +584,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 	}
 
 	map.controls[google.maps.ControlPosition.TOP_RIGHT].push(rotationInputForm);
-	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(rotationSliderDiv);
+	map.controls[google.maps.ControlPosition.TOP_RIGHT].push(rotationSliderDiv);
 };
 
 
