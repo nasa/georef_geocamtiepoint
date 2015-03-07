@@ -171,7 +171,7 @@ $(function($) {
 
 });
 
-// helper needed for transparency and rotation sliders.
+// helper needed for transparency slider.
 maputils.findPosLeft = function(obj) {
 	var curleft = 0;
 	if (obj.offsetParent) {
@@ -338,20 +338,32 @@ maputils.createImageContrastControl = function(imageQtreeView, mapType) {
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
 			+ ' width: 14px;' + ' height: 23px;'));
+	//IMPORTANT: set the x value of the knob based on what's stored in the overlay.
 	hiddenDiv.appendChild(contrastKnobDiv);
-	
 	var leftOffset = Math.round(CONTRAST_MAX_PIXELS / 2.0);
 	var contrastCtrlKnob = new ExtDraggableObject(contrastKnobDiv, {
 		restrictY : true,
-		container : hiddenDiv, 
+		container : hiddenDiv,
 	});
 	
 	google.maps.event.addListener(contrastCtrlKnob, 'drag', function() {
 	});
-
+	function getAngle(mapType, pixelX) {
+		// pixelX in range 0 to ROTATION_MAX_PIXELS
+		var rotationAngle = 360 * (pixelX / ROTATION_MAX_PIXELS);
+		rotationAngle = rotationAngle - 180; // slider starts at -180
+		// max angle value goes slightly over 180 so set it to 180 if it does.
+		if (rotationAngle > 180)
+			rotationAngle = 180;
+		if (rotationAngle < -180)
+			rotationAngle = -180;
+		return Math.round(rotationAngle);
+	}
 	google.maps.event.addDomListener(contrastSliderDiv, 'click', function(e) {
+		var x = contrastCtrlKnob.valueX();
+		var contrast = 4.0 * (x / CONTRAST_MAX_PIXELS) - 1.0;
 		var data = new FormData();
-		data.append('contrast', 2.0);
+		data.append('contrast', contrast);
 		data.append('overlayId', overlay.id);
 		// make a call to the server to generate new tiles from rotated image.
 		maputils.submitRequestToServer(enhanceContrastUrl, data, imageQtreeView);

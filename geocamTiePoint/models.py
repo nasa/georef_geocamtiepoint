@@ -72,6 +72,13 @@ class ImageData(models.Model):
     # works like caching. If certain angle is requested and image data is 
     # is available in db, we can just pull up that image.
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
+    # holds image that hasn't been enhanced (but maybe have been rotated)
+    unenhancedImage = models.ImageField(upload_to = getNewImageFileName,
+                                        max_length=255, null=True, blank=True)
+    contrast = models.FloatField(null=True, blank=True, default=0)
+    sharpness = models.FloatField(null=True, blank=True, default=0)
+    brightness = models.FloatField(null=True, blank=True, default=0)
+    color = models.FloatField(null=True, blank=True, default=0)
 
     def __unicode__(self):
         if self.overlay:
@@ -251,7 +258,7 @@ class Overlay(models.Model):
 
     # import/export configuration
 #     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-#                     'centerPointLat', 'centerPointLon', 'issMRF', 'rotation')
+#                     'centerPointLat', 'centerPointLon', 'issMRF', 'totalRotation)
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
                     'issMRF')
     importFields = ('name', 'description', 'imageSourceUrl')

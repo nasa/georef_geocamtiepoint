@@ -323,7 +323,7 @@ $(function($) {
                 	 data.append('overlayId', overlayId);
                 	 // submit the rotation angle to the server to generate
                 	 // new tiles for rotated image.
-					 maputils.submitRotationToServer(data, imageQtreeView);
+					 maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);
              	}, event, imageQtreeView);
                  
                  //add image enhancement control sliders

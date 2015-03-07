@@ -29,6 +29,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.core.urlresolvers import reverse
 from django.core.files.base import ContentFile
+from django.core.files import File
 from django.db import transaction
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
@@ -58,6 +59,9 @@ PDF_MIME_TYPES = ('application/pdf',
                   'text/pdf',
                   'text/x-pdf',
                   )
+
+ENHANCED = 1 
+UNENHANCED = 0
 
 
 def transparentPngData():
@@ -159,16 +163,86 @@ def getOriginalImage(overlayId):
     imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = 0)
     if imagedata:
         imagedata = imagedata[0]
-    try:
-        bits = imagedata.image.file.read()
-    except: 
-        logging.error("image cannot be read from the image data")
+        try:
+            bits = imagedata.image.file.read()
+        except: 
+            logging.error("image cannot be read from the image data")
+            return None
+        fakeFile = StringIO(bits)
+        im = PIL.Image.open(fakeFile)
+        if (im.mode != 'RGBA'):
+            im = im.convert('RGBA')
+        return im
+    else:
         return None
-    fakeFile = StringIO(bits)
-    im = PIL.Image.open(fakeFile)
-    if (im.mode != 'RGBA'):
-        im = im.convert('RGBA')
-    return im
+
+
+def getRotatedImageData(overlayId, totalRotation):
+    """
+    Searches thru image data objects to find the one
+    that has the given rotation value. If that doesn't exist, 
+    returns None
+    """
+    imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = totalRotation)
+    if imagedata:
+        imagedata = imagedata[0]
+        return imagedata
+    else:
+        return None
+
+
+def getImage(imageData, enhancementFlag):
+    """
+    Given imageData object, returns PIL image object.
+    
+    If unenhancedFlag is true, returns the image that has NOT been
+    changed in terms of contrast, sharpness, brightness, and color.
+    """
+    if imageData:
+        if enhancementFlag is UNENHANCED:
+            if not imageData.unenhancedImage: # if it doesn't exist, return imageData.image
+                try: 
+                    bits = imageData.image.file.read()
+                except: 
+                    logging.error("image cannot be read from the image data")
+                    return None
+            else: # unenhanced image is available, return that.
+                try: 
+                    bits = imageData.unenhancedImage.file.read()
+                except: 
+                    logging.error("image cannot be read from the image data")
+                    return None
+        elif enhancementFlag is ENHANCED:
+            try: 
+                bits = imageData.image.file.read()
+            except: 
+                logging.error("image cannot be read from the image data")
+                return None
+        else:
+            return None
+        fakeFile = StringIO(bits)
+        im = PIL.Image.open(fakeFile)
+        return im
+    return None
+
+
+def saveImageToDatabase(PILimage, imageData, enhancementFlag):
+    """
+    Given PIL image object, saves the image bits to the imageData object.
+    enhancementFlag determines whether image beings saved has been manipulated or not
+    and saves accordingly (either to imageData.image or imageData.unenhancedImage)
+    """
+    out = StringIO()
+    PILimage.save(out, format='png')
+    convertedBits = out.getvalue()
+    # the file name is dummy because it gets set to a new file name on save
+    if enhancementFlag is ENHANCED: 
+        imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    elif enhancementFlag is UNENHANCED: 
+        if not imageData.image:  # if there is nothing in imageData.image, save the image here too
+            imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+        imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    imageData.save()
 
 
 @csrf_exempt
@@ -183,35 +257,41 @@ def rotateOverlay(request):
     if request.is_ajax() and request.method == 'POST':
         data = request.POST
         # get the rotation angle input from the user
-        rotationAngle = data["rotation"]
+        rotationAngle = data["rotation"]        
         rotationAngle = int(rotationAngle) # convert str to int
         # get the id of the current overlay
         overlayId = data["overlayId"]
         # get the overlay object
         overlay = Overlay.objects.get(key=overlayId)
-        # original image uploaded by the user
-        originalImage = getOriginalImage(overlayId)
-        # save out the original image size
-        overlay.extras.orgImageSize = originalImage.size
         # add the user's new rotation request to the total rotation
         overlay.extras.totalRotation += rotationAngle
-        overlay.extras.rotation = rotationAngle
-        #rotate the image (minus sign since PIL rotates counter clockwise)
-        rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, PIL.Image.BICUBIC, expand=1)
-        # save the rotated image 
-        out = StringIO()
-        rotatedImage.save(out, format='png')
-        convertedBits = out.getvalue()
-        # make a deep copy of the image data 
-        rotatedImageData = overlay.imageData
-        rotatedImageData.pk = None # set the primary key to None to make a deep copy
-        rotatedImageData.rotationAngle = overlay.extras.totalRotation 
-        rotatedImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
-        rotatedImageData.save()
+        rotatedImage = None
+        rotatedImageData = getRotatedImageData(overlayId, overlay.extras.totalRotation)
+        #check if imageData obj with this rotation angle exists.
+        if rotatedImageData == None:  # if no existing rotated image data, create a new one
+            # original image uploaded by the user
+            originalImage = getOriginalImage(overlayId)
+            # save out the original image size
+            overlay.extras.orgImageSize = originalImage.size
+            #rotate the image (minus sign since PIL rotates counter clockwise)
+            rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, 
+                                                PIL.Image.BICUBIC, expand=1)
+            # make a deep copy of the image data 
+            rotatedImageData = overlay.imageData
+            rotatedImageData.pk = None # set the primary key to None to make a deep copy
+            rotatedImageData.rotationAngle = overlay.extras.totalRotation             
+            # save the rotated image 
+#             saveImageToDatabase(rotatedImage, rotatedImageData, UNENHANCED)
+            out = StringIO()
+            rotatedImage.save(out, format='png')
+            convertedBits = out.getvalue()
+            rotatedImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+            rotatedImageData.save()
+        else:  # use the existing rotated image data
+            rotatedImage = getImage(rotatedImageData, UNENHANCED)  # needed for size
         # set the imageData field of the current overlay to this new imageData that has the rotated image.
         overlay.imageData = rotatedImageData
         overlay.extras.rotatedImageSize = rotatedImage.size # width, height
-        
         overlay.save()
         overlay.generateUnalignedQuadTree()
         data = {'status': 'success', 'id': overlay.key, 'angle': rotationAngle}
@@ -220,14 +300,26 @@ def rotateOverlay(request):
 
 @csrf_exempt
 def enhanceContrast(request):
+    # make the slider absolute (have it remember the last value). Also, save this 
+    # contrast, sharpness, color, and brightness values in overlay. and update these 
+    # with each call
     if request.is_ajax() and request.method == 'POST':
         data = request.POST
         contrastValue = data['contrast']
+        contrastValue = float(contrastValue)
         overlayId = data["overlayId"]
         overlay = Overlay.objects.get(key=overlayId)
         imageData = overlay.imageData
+        imageData.contrast = contrastValue
+        unenhancedImage = imageData.unenhancedImage
+        if not unenhancedImage:  
+            # get the contents of the un-enhanced image and save it to 
+            # 'unenhancedImage' field in imageData
+            unIm = getImage(imageData, UNENHANCED)
+            saveImageToDatabase(unIm, imageData, UNENHANCED)
+        # process the rotated, unenhanced image
         try:
-            bits = imageData.image.file.read()
+            bits = unenhancedImage.file.read()
         except: 
             logging.error("image cannot be read from the image data")
             return None
@@ -235,23 +327,13 @@ def enhanceContrast(request):
         im = PIL.Image.open(fakeFile)
         if (im.mode != 'RGBA'):
             im = im.convert('RGBA')
+        # change image contrast
         enhancer = PIL.ImageEnhance.Contrast(im)
-        enhancedIm = enhancer.enhance(2.0) #TODO: swap this out with user input
-        print "enhancedIm is "
-        print enhancedIm.__class__.__name__
-        out = StringIO()
-        enhancedIm.save(out, format='png')
-        convertedBits = out.getvalue()
-        # make a deep copy of the image data 
-        enhancedImageData = overlay.imageData
-        enhancedImageData.pk = None # set the primary key to None to make a deep copy
-        enhancedImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
-        enhancedImageData.save()
-        # set the imageData field of the current overlay to this new imageData that has the rotated image.
-        overlay.imageData = enhancedImageData
-        # save overlay and generate tiles
+        enhancedIm = enhancer.enhance(contrastValue) 
+        saveImageToDatabase(enhancedIm, imageData, ENHANCED)        
+        overlay.imageData.save()
         overlay.save()
-        overlay.generateUnalignedQuadTree()
+        overlay.generateUnalignedQuadTree()  # generate tiles
         data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
         
