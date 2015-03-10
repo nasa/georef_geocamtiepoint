@@ -72,8 +72,11 @@ class ImageData(models.Model):
     # works like caching. If certain angle is requested and image data is 
     # is available in db, we can just pull up that image.
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
-    # holds image that hasn't been enhanced (but maybe have been rotated)
+    # holds image that hasn't been enhanced (but may have been rotated)
     unenhancedImage = models.ImageField(upload_to = getNewImageFileName,
+                                        max_length=255, null=True, blank=True)
+    #holds image that has been enhanced (and may have been rotated)
+    enhancedImage = models.ImageField(upload_to = getNewImageFileName,
                                         max_length=255, null=True, blank=True)
     contrast = models.FloatField(null=True, blank=True, default=0)
     sharpness = models.FloatField(null=True, blank=True, default=0)

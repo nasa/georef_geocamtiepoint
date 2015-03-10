@@ -104,14 +104,11 @@ $(function($) {
 		// jquery object.
 		var input = _.isString(search_bar) ? $(search_bar)[0] : search_bar[0];
 		var autoComplete = new google.maps.places.SearchBox(input);
-
 		autoComplete.bindTo('bounds', map);
-
 		var infoWindow = new google.maps.InfoWindow();
 		var marker = new google.maps.Marker({
 			map : map
 		});
-
 		(google.maps.event
 				.addListener(
 						autoComplete,
@@ -142,7 +139,6 @@ $(function($) {
 									+ '</strong><br>' + address + '</div>');
 							infoWindow.open(map, marker);
 						}));
-
 	};
 
 	maputils.fitMapToBounds = function(map, bounds) {
@@ -310,201 +306,151 @@ maputils.submitRequestToServer = function(url, data, imageQtreeView) {
 };
 
 
-// creates contrast slider on the image overlay
-maputils.createImageContrastControl = function(imageQtreeView, mapType) {
-	var map = imageQtreeView.gmap;
-	var overlay = imageQtreeView.model;
-	var CONTRAST_MAX_PIXELS = 57;
-	var sliderImageUrl = '/static/geocamTiePoint/images/contrast_slider.png';
+/**
+ * Given slider type and slider position X, sets the position of the 
+ * slider knob (knob positions are globals stored in backbone.html).
+ */
+maputils.setSliderKnobValue = function(sliderType, sliderPosition) {
+	switch (sliderType) {
+	case "contrast":
+		contrastKnobPosition = sliderPosition;
+		break;
+	case "sharpness":
+		sharpnessKnobPosition = sliderPosition;
+		break;
+	case "color":
+		colorKnobPosition = sliderPosition;
+		break;
+	case "brightness":
+		brightnessKnobPosition = sliderPosition;
+		break;
+	}
+};
+
+
+/** 
+ * Given slider type, returns the knob position
+ */
+maputils.getCtrlKnobPosition = function(sliderType, ctrlKnob) {
+	var leftOffset  = null;
+	switch (sliderType) {
+	case "contrast":
+		return contrastKnobPosition;
+	case "sharpness":
+		return sharpnessKnobPosition;
+	case "color":
+		return colorKnobPosition;
+	case "brightness":
+		return brightnessKnobPosition;
+	}	
+};
+
+
+/**
+ * Reset the control knob
+ */
+maputils.resetSlider = function(sliderType, start, end, totalPixels) {
+	var sliderPosition = -1*start / (end-start) * SLIDER_LENGTH_PIXELS;
+	maputils.setSliderKnobValue(sliderType, sliderPosition);
+};
+
+
+/**
+ * If the slider matches the given sliderType, returns the 
+ * global variable xxxKnobPosition. Otherwise, returns the 
+ * 0 position of the slider (in pixels)
+ */
+maputils.getSliderLeftOffset = function(sliderType, start, end) {
+	// set the slider knob position to the value stored in the global var.
+	var leftOffset = 0;
+	if (currentSlider == sliderType) {
+		leftOffset = maputils.getCtrlKnobPosition(sliderType);
+	} else {
+		//set the leftOffset to zero position in the slider
+		leftOffset = -1*start / (end-start) * SLIDER_LENGTH_PIXELS;
+	}
+	return leftOffset;
+};
+
+
+/**
+ * Creates slider dom and 'click' and 'drag' listeners for image enhancement sliders
+ */
+maputils.createSliderDomAndListeners = function(imageQtreeView, end, start, sliderType) {
+	var sliderImageUrl = getSliderImageUrl(sliderType);
 	
-	// create slider bar
-	var contrastSliderDiv = document.createElement('DIV');
-	(contrastSliderDiv.setAttribute('style', 'margin: 5px;'
+	// create the slider divs
+	var sliderDiv = document.createElement('DIV');
+	(sliderDiv.setAttribute('style', 'margin: 5px;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
 			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
-
 	var hiddenDiv = document.createElement('DIV');
 	hiddenDiv.setAttribute("type", "hidden");
 	(hiddenDiv.setAttribute('style', 'margin: 5px;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
-	//by doing 'position: absolute', left offset is relative to position of its parent div (contrast slider div)
-	contrastSliderDiv.appendChild(hiddenDiv);
-	
+	//by doing 'position: absolute', left offset is relative to position of its parent div 
+	// (sharpness slider div)
+	sliderDiv.appendChild(hiddenDiv);
 	// create knob
-	var contrastKnobDiv = document.createElement('DIV');
-	(contrastKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
+	var knobDiv = document.createElement('DIV');
+	(knobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
 			+ ' width: 14px;' + ' height: 23px;'));
-	//IMPORTANT: set the x value of the knob based on what's stored in the overlay.
-	hiddenDiv.appendChild(contrastKnobDiv);
-	var leftOffset = Math.round(CONTRAST_MAX_PIXELS / 2.0);
-	var contrastCtrlKnob = new ExtDraggableObject(contrastKnobDiv, {
+	hiddenDiv.appendChild(knobDiv);
+
+	var leftOffset = maputils.getSliderLeftOffset(sliderType, start, end);
+	var ctrlKnob = new ExtDraggableObject(knobDiv, {
 		restrictY : true,
 		container : hiddenDiv,
+		left: leftOffset
 	});
 	
-	google.maps.event.addListener(contrastCtrlKnob, 'drag', function() {
-	});
-	function getAngle(mapType, pixelX) {
-		// pixelX in range 0 to ROTATION_MAX_PIXELS
-		var rotationAngle = 360 * (pixelX / ROTATION_MAX_PIXELS);
-		rotationAngle = rotationAngle - 180; // slider starts at -180
-		// max angle value goes slightly over 180 so set it to 180 if it does.
-		if (rotationAngle > 180)
-			rotationAngle = 180;
-		if (rotationAngle < -180)
-			rotationAngle = -180;
-		return Math.round(rotationAngle);
+	maputils.createSliderDomListeners(ctrlKnob, sliderDiv, imageQtreeView, sliderType,
+									  start, end);
+	// add the dom to the map
+	var map = imageQtreeView.gmap;
+	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(sliderDiv);	
+	
+	// helper that constructs image-enhancement slider image urls.
+	function getSliderImageUrl(sliderType) {
+		return '/static/geocamTiePoint/images/' + sliderType + '_slider.png';
 	}
-	google.maps.event.addDomListener(contrastSliderDiv, 'click', function(e) {
-		var x = contrastCtrlKnob.valueX();
-		var contrast = 4.0 * (x / CONTRAST_MAX_PIXELS) - 1.0;
+};
+
+
+// create slider dom listeners
+maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView, 
+											sliderType, start, end) {
+	// setup dom listeners
+	google.maps.event.addListener(ctrlKnob, 'drag', function() {
+	});
+	var overlay = imageQtreeView.model;
+	google.maps.event.addDomListener(sliderDiv, 'click', function(e) {
+		var x = ctrlKnob.valueX();
+		maputils.setSliderKnobValue(sliderType, x);
+		var value = (end - start) * (x / SLIDER_LENGTH_PIXELS) + start;
 		var data = new FormData();
-		data.append('contrast', contrast);
+		data.append('value', value);
 		data.append('overlayId', overlay.id);
+		data.append("enhanceType", sliderType);
+		// mark this slider as 'current'
+		currentSlider = sliderType;
 		// make a call to the server to generate new tiles from rotated image.
-		maputils.submitRequestToServer(enhanceContrastUrl, data, imageQtreeView);
+		maputils.submitRequestToServer(enhanceImageUrl, data, imageQtreeView);
 	});
-
-	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(contrastSliderDiv);	
 };
 
 
-//creates sharpness control on the image overlay
-maputils.createImageSharpnessControl = function(imageQtreeView, mapType) {
-	var map = imageQtreeView.gmap;
-	var overlay = imageQtreeView.model;
-	var SHARPNESS_MAX_PIXELS = 57;
-	var sliderImageUrl = '/static/geocamTiePoint/images/sharpness_slider.png';
-	
-	// create slider bar
-	var sharpnessSliderDiv = document.createElement('DIV');
-	(sharpnessSliderDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
-			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
 
-	var hiddenDiv = document.createElement('DIV');
-	hiddenDiv.setAttribute("type", "hidden");
-	(hiddenDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
-	//by doing 'position: absolute', left offset is relative to position of its parent div (sharpness slider div)
-	sharpnessSliderDiv.appendChild(hiddenDiv);
-	
-	// create knob
-	var sharpnessKnobDiv = document.createElement('DIV');
-	(sharpnessKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
-			+ ' width: 14px;' + ' height: 23px;'));
-	hiddenDiv.appendChild(sharpnessKnobDiv);
-	
-	var sharpnessCtrlKnob = new ExtDraggableObject(sharpnessKnobDiv, {
-		restrictY : true,
-		container : hiddenDiv, 
-	});
-	
-	google.maps.event.addListener(sharpnessCtrlKnob, 'drag', function() {
-	});
-
-	google.maps.event.addDomListener(sharpnessSliderDiv, 'click', function(e) {
-	});
-
-	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(sharpnessSliderDiv);	
-};
-
-
-//creates color control on the image overlay
-maputils.createImageColorControl = function(imageQtreeView, mapType) {
-	var map = imageQtreeView.gmap;
-	var overlay = imageQtreeView.model;
-	var COLOR_MAX_PIXELS = 57;
-	var sliderImageUrl = '/static/geocamTiePoint/images/color_slider.png';
-	
-	// create slider bar
-	var colorSliderDiv = document.createElement('DIV');
-	(colorSliderDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
-			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
-
-	var hiddenDiv = document.createElement('DIV');
-	hiddenDiv.setAttribute("type", "hidden");
-	(hiddenDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
-	//by doing 'position: absolute', left offset is relative to position of its parent div (color slider div)
-	colorSliderDiv.appendChild(hiddenDiv);
-	
-	// create knob
-	var colorKnobDiv = document.createElement('DIV');
-	(colorKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
-			+ ' width: 14px;' + ' height: 23px;'));
-	hiddenDiv.appendChild(colorKnobDiv);
-	
-	var colorCtrlKnob = new ExtDraggableObject(colorKnobDiv, {
-		restrictY : true,
-		container : hiddenDiv, 
-	});
-	
-	google.maps.event.addListener(colorCtrlKnob, 'drag', function() {
-	});
-
-	google.maps.event.addDomListener(colorSliderDiv, 'click', function(e) {
-	});
-
-	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(colorSliderDiv);	
-};
-
-
-//creates color control on the image overlay
-maputils.createImageBrightnessControl = function(imageQtreeView, mapType) {
-	var map = imageQtreeView.gmap;
-	var overlay = imageQtreeView.model;
-	var BRIGHTNESS_MAX_PIXELS = 57;
-	var sliderImageUrl = '/static/geocamTiePoint/images/brightness_slider.png';
-	
-	// create slider bar
-	var brightnessSliderDiv = document.createElement('DIV');
-	(brightnessSliderDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
-			+ ' width: 128px;' + ' height: 23px;' + ' cursor: pointer;'));	
-
-	var hiddenDiv = document.createElement('DIV');
-	hiddenDiv.setAttribute("type", "hidden");
-	(hiddenDiv.setAttribute('style', 'margin: 5px;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
-	//by doing 'position: absolute', left offset is relative to position of its parent div (brightness slider div)
-	brightnessSliderDiv.appendChild(hiddenDiv);
-	
-	// create knob
-	var brightnessKnobDiv = document.createElement('DIV');
-	(brightnessKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
-			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat -128px 0;'
-			+ ' width: 14px;' + ' height: 23px;'));
-	hiddenDiv.appendChild(brightnessKnobDiv);
-	
-	var brightnessCtrlKnob = new ExtDraggableObject(brightnessKnobDiv, {
-		restrictY : true,
-		container : hiddenDiv, 
-	});
-	
-	google.maps.event.addListener(brightnessCtrlKnob, 'drag', function() {
-	});
-
-	google.maps.event.addDomListener(brightnessSliderDiv, 'click', function(e) {
-	});
-
-	map.controls[google.maps.ControlPosition.RIGHT_TOP].push(brightnessSliderDiv);	
+// set up sliders for contrast, sharpness, color, and brightness controls.
+maputils.createImageEnhacementControls = function(imageQtreeView, mapType) {
+	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "contrast");
+	maputils.createSliderDomAndListeners(imageQtreeView, 2.0, -2.0, "sharpness");
+	maputils.createSliderDomAndListeners(imageQtreeView, 4.0, -0.0, "color");
+	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "brightness");	
 };
 
 

@@ -32,7 +32,6 @@ $(function($) {
             if (! this._renderedTemplate) {
                 this._renderedTemplate = Handlebars.compile(this.template);
             }
-
             /*
               assert(this.context || this.model.toJSON,
               'Could note find a a context for the template.');
@@ -327,10 +326,7 @@ $(function($) {
              	}, event, imageQtreeView);
                  
                  //add image enhancement control sliders
-                 maputils.createImageContrastControl(imageQtreeView, mapType);
-                 maputils.createImageSharpnessControl(imageQtreeView, mapType);
-                 maputils.createImageColorControl(imageQtreeView, mapType);
-                 maputils.createImageBrightnessControl(imageQtreeView, mapType);
+                 maputils.createImageEnhacementControls(imageQtreeView, mapType);
     		}, this)));
         },
 
