@@ -154,22 +154,18 @@ def getImage(imageData, flag):
     """
     Returns the PIL image object from imageData based on the flag.
     """
-    bits = None
+    image = None
     try: 
         if flag == ENHANCED:
-            bits = imageData.enhancedImage.file.read()
+            image = PIL.Image.open(imageData.enhancedImage.file)
         elif flag == UNENHANCED:
-            bits = imageData.unenhancedImage.file.read()
+            image = PIL.Image.open(imageData.unenhancedImage.file)
         elif flag == DISPLAY:
-            bits = imageData.image.file.read()
+            image = PIL.Image.open(imageData.image.file)
     except: 
         logging.error("image cannot be read from the image data")
         return None
-    fakeFile = StringIO(bits)
-    im = PIL.Image.open(fakeFile)
-    if (im.mode != 'RGBA'):
-        im = im.convert('RGBA')
-    return im
+    return image
 
     
 def getOriginalImage(overlayId):
@@ -220,6 +216,7 @@ def saveImageToDatabase(PILimage, imageData, flags):
         imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
     if DISPLAY in flags:
         imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    imageData.contentType = 'image/png'
     imageData.save()
 
 
@@ -228,13 +225,13 @@ def saveEnhancementValToDB(imageData, enhancementType, value):
     Given type of the enhancement, stores the value in appropriate 
     enhancement parameter inside image data.
     """
-    if enhancementType is "contrast":
+    if enhancementType == "contrast":
         imageData.contrast = value
-    elif enhancementType is "sharpness":
+    elif enhancementType == "sharpness":
         imageData.sharpness = value
-    elif enhancementType is "brightness":
+    elif enhancementType == "brightness":
         imageData.brightness = value
-    elif enhancementType is "color":
+    elif enhancementType == "color":
         imageData.color = value
     imageData.save()
 
@@ -313,7 +310,7 @@ def checkAndApplyEnhancement(imageData):
     are non-zero, apply the enhancement to the unenhanced image and set it as the 'image' field
     of imageData
     """
-    unenhancedIm = imageData.unenhancedImage
+    unenhancedIm = getImage(imageData, UNENHANCED)
     enhancedIm = None
     if imageData.contrast != 0:
         enhancedIm = enhanceImage("contrast", imageData.contrast, unenhancedIm)
@@ -323,9 +320,8 @@ def checkAndApplyEnhancement(imageData):
         enhancedIm = enhanceImage("brightness", imageData.brightness, unenhancedIm)
     elif imageData.color != 0:
         enhancedIm = enhanceImage("color", imageData.color, unenhancedIm)
-    imageData.enhancedImage = enhancedIm
-    imageData.image = enhancedIm
-    imageData.save()
+    if (enhancedIm != None):
+        saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
       
         
 @csrf_exempt
