@@ -353,11 +353,13 @@ $(function($) {
                  // submit rotation on enter 
                  $("form#rotationInputForm").submit(function() {
                 	 event.preventDefault();
-					 var angle = $("input#rotationAngle")[0].value;
+					 var angle = parseInt($("input#rotationAngle")[0].value);
 					 var data = new FormData();
-					 data.append('rotation', parseInt(angle));
+					 data.append('rotation', angle);
 					 var overlayId = parseInt($("input#overlayId")[0].value);
                 	 data.append('overlayId', overlayId);
+                	 // set the rotateKnob position
+                	 rotateKnobPosition = maputils.getRotationSliderPosition(angle);
                 	 // submit the rotation angle to the server to generate
                 	 // new tiles for rotated image.
 					 maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);

@@ -441,11 +441,16 @@ maputils.createImageEnhacementControls = function(imageQtreeView, mapType) {
 };
 
 
+// transforms angle value to rotation slider knob position
+maputils.getRotationSliderPosition = function(angle) {
+	return (ROTATION_MAX_PIXELS + 5) * ((angle +180) / 360);
+}
+
+
 // set up a rotation slider on image side
 maputils.createRotationControl = function(imageQtreeView, mapType) {
 	var map = imageQtreeView.gmap;
 	var overlay = imageQtreeView.model;
-	var ROTATION_MAX_PIXELS = 556; // slider spans 556 pixels
 	var sliderImageUrl = '/static/geocamTiePoint/images/rotation_slider_long.png';
 
 	// create slider bar
@@ -453,13 +458,13 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 	(rotationSliderDiv.setAttribute('style', 'margin: 5px;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
-			+ ' width: 556px;' + ' height: 60px;' + ' cursor: pointer;'));
+			+ ' width:' + ROTATION_MAX_PIXELS + 'px;' + ' height: 60px;' + ' cursor: pointer;'));
 
 	// create knob
 	var rotationKnobDiv = document.createElement('DIV');
 	(rotationKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat -556px 0;'
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -' + ROTATION_MAX_PIXELS + 'px 0;'
 			+ ' width: 14px;' + ' height: 60px;'));
 	rotationSliderDiv.appendChild(rotationKnobDiv); 
 
@@ -476,6 +481,9 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 	var rotationInput = document.createElement("input");
 	rotationInput.type = "text";
 	rotationInput.placeholder = "Angle";
+	if (rotateKnobPosition != null) {
+		rotationInput.value = getAngle(rotateKnobPosition);
+	} 
 	rotationInput.id = "rotationAngle";
 
 	//create a hidden input field that holds overlay id
@@ -492,9 +500,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 	var leftOffset = Math.round(ROTATION_MAX_PIXELS / 2.0) + 5;
 	if (rotateKnobPosition != null) {
 		leftOffset = rotateKnobPosition;
-		rotationInput.value = getAngle(rotateKnobPosition);
 	}
-	
 	var rotationCtrlKnob = new ExtDraggableObject(rotationKnobDiv, {
 		restrictY : true,
 		left : leftOffset, // starting position of slider knob
