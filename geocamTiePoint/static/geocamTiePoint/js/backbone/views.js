@@ -69,26 +69,52 @@ $(function($) {
             '</div>'
     });
 
+    function getLastModifiedTime(time) {
+    	var time = time.split('T');
+    	return time[0] + ' ' +time.split('S')[0];
+    }
+    
     app.views.ListOverlaysView = app.views.View.extend({
         template:
         '<a class="btn btn-primary" href="#overlays/new">New Overlay</a>' +
             '<h1>Choose an overlay:</h1>' +
             '{{debug}}' +
-            '<table id="overlay_list">' +
+            // table
+            '<table id="overlay_list" class="overlay_list">' +
+            // headers
+            '<thead>' +
+            '<th> Image Name </th>' +
+            '<th> Edit </th>'+
+            '<th> Delete </th>' + 
+            '<th> Center Lat/Lon </th>' + 
+            '<th> Last Modified Time </th>' +
+            '<th> # of Tiepoints </th>'+
+            '</thead>'+
             '{{#each overlays.models }}<tr>' +
+            // image name
             '<td>{{#if attributes.alignedTilesUrl}}' +
             '<a href="#overlay/{{id}}">' +
             '{{/if}}' +
             '{{get "name"}}' +
             '{{#if attributes.alignedTilesUrl}}</a>{{/if}}</td>' +
+            // edit
             '<td><a id="edit_{{id}}" class="edit" ' +
             'href="#overlay/{{id}}/edit">' +
             '[edit]</a></td>' +
+            // delete
             '<td><a id="delete_{{id}}" class="delete" href="#overlays/"' +
             ' onClick="app.currentView.deleteOverlay({{id}})">' +
             '[delete]</a></td>' +
+            // center point
+            '<td>{{attributes.centerPointLatLon}}</td>' + 
+            // last modified time
+            '<td>{{attributes.lastModifiedTimeHumanReadable}}</td>'+
+            // number of tie points
+            '<td>{{attributes.numTiePts}}</td>'+
+            // end of row
             '</tr>{{/each}}' +
             '</table>' +
+            // confirm delete modal
             '<div class="modal hide" id="confirmDelete" aria-hidden="true">' +
                 '<div class="modal-body">' +
                     '<p>Delete this overlay?</p>' +
@@ -104,6 +130,18 @@ $(function($) {
 
         initialize: function() {
             app.views.View.prototype.initialize.apply(this, arguments);
+            app.overlays.forEach(function(overlay) {
+            	var lastModifiedTime = overlay.attributes.lastModifiedTime
+            	if (lastModifiedTime) {
+	            	var lastModifiedTimeHR = lastModifiedTime.split('T');
+	            	lastModifiedTimeHR = lastModifiedTimeHR[0] + ' ' + lastModifiedTimeHR[1].split('Z')[0];
+	            	overlay.set('lastModifiedTimeHumanReadable', lastModifiedTimeHR);
+            	}
+            	var numTiePts = overlay.attributes.points.length;
+            	if (numTiePts) {
+            		overlay.set('numTiePts', numTiePts);
+            	}
+            });
             this.context = { overlays: app.overlays };
             app.overlays.on('remove', function() {this.render();}, this);
         },
@@ -435,8 +473,8 @@ $(function($) {
             var center = pixelsToLatLon({x: w / 2.0 , y: h / 2.0}, maxZoom);
             // get the calculated center pt lat lon from the overlay model.
             var centerLatLon = model.get('centerPointLatLon');
-            centerPtLabel = "initial lat, lon: (" + centerLatLon[0].toFixed(2) + " , "
-            				+ centerLatLon[1].toFixed(2) + ")";
+            centerPtLabel = "initial lat, lon: (" + centerLatLon[0]+ " , "
+            				+ centerLatLon[1] + ")";
             centerPointMarker = maputils.createCenterPointMarker(center,
                     centerPtLabel,
                     this.gmap);
@@ -1136,9 +1174,9 @@ $(function($) {
 		                	'<div style="padding-left: 2px;">' +
 		                	'<input type="radio" name="imageSize" value="small" checked> Small' + 
 		                	'</div>' +
-		                	'<div style="padding-left: 2px;">' +
-		                	'<input type="radio" name="imageSize" value="large"> Large' + 
-		                	'</div>' +
+//		                	'<div style="padding-left: 2px;">' +
+//		                	'<input type="radio" name="imageSize" value="large"> Large' + 
+//		                	'</div>' +
 		                '</div>' +
 		                '<input class="btn newOverlayFormSubmitButton"' +
 		                   ' type="button" value="Submit" />' +

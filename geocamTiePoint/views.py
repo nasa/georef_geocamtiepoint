@@ -479,7 +479,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     # set center point
     if mission:
         centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
-        overlay.extras.centerPointLatLon = [centerPtDict["lat"], centerPtDict["lon"]]
+        overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
         overlay.issMRF = mission + '-' + roll + '-' + str(frame)
     overlay.save()
     

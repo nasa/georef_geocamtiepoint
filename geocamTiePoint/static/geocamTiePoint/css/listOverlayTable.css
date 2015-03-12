@@ -1,0 +1,106 @@
+table.overlay_list thead {
+    text-align: left;
+    background-color: #d0d0d0;
+}
+
+th.placeholder{
+    background-color: #FFFFFF;
+}
+
+table.overlay_list {
+	overflow: scroll;
+}
+
+table.overlay_list th {
+	text-align: center;
+}
+
+table.overlay_list td {
+    white-space: pre-wrap;
+    padding: 6pt;
+    border: none;
+    vertical-align: top;
+    text-align: center;
+}
+table.overlay_list tr:nth-child(even) {
+    background-color: #f0f0f0;
+}
+
+table.overlay_list tr:nth-child(odd) td{
+    border-width: 0px 1px;
+    border-color: #f0f0f0;
+}
+
+table.overlay_list tr p{
+    margin-top: 3px;
+    margin-bottom: 0px;
+}
+
+table.overlay_list tr.daybreak td{
+    font-weight: bold;
+    background-color: #dfefdf;
+}
+
+table.display td{
+    white-space: pre-wrap; /* Wrap long lines, but don't supress line breaks */
+    vertical-align: top;
+}
+
+tr.draft {
+    color: #8AC380;
+}
+
+.tags ul{
+    list-style: none;
+    padding: 0px;
+    color: #66AA66;
+}
+
+ul#filters li{
+    bullet-style: none;
+    display: inline-block;
+}
+
+ul#filters li label, ul#filters li select {
+    display: block;
+}
+
+#filterform input[type=submit] {
+    /* Make the submit buttons look more native */
+    appearance: button;
+    -webkit-appearance: button;
+    -moz-appearance: button;
+}
+
+#filterform #filters, #filterform #filterbuttons {
+    padding-left: 40px;
+}
+
+#filterform #export_button {
+    float: right;
+}
+
+#pager {
+	margin-top: 5px;
+}
+
+#pager a {
+      text-decoration: none;
+      }
+      
+#pager .current {
+    border: 2px solid #888888;
+    padding-left: 2px;
+    padding-right: 2px;
+    font-weight: bold;
+    }
+
+#pager .right {
+    position:absolute;
+	right:40px;
+    }
+    
+#pager .counts {
+   font-weight: bold;
+    }
+}
