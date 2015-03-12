@@ -79,9 +79,7 @@ class ImageData(models.Model):
     enhancedImage = models.ImageField(upload_to = getNewImageFileName,
                                         max_length=255, null=True, blank=True)
     contrast = models.FloatField(null=True, blank=True, default=0)
-    sharpness = models.FloatField(null=True, blank=True, default=0)
     brightness = models.FloatField(null=True, blank=True, default=0)
-    color = models.FloatField(null=True, blank=True, default=0)
 
     def __unicode__(self):
         if self.overlay:

@@ -315,12 +315,6 @@ maputils.setSliderKnobValue = function(sliderType, sliderPosition) {
 	case "contrast":
 		contrastKnobPosition = sliderPosition;
 		break;
-	case "sharpness":
-		sharpnessKnobPosition = sliderPosition;
-		break;
-	case "color":
-		colorKnobPosition = sliderPosition;
-		break;
 	case "brightness":
 		brightnessKnobPosition = sliderPosition;
 		break;
@@ -336,10 +330,6 @@ maputils.getCtrlKnobPosition = function(sliderType, ctrlKnob) {
 	switch (sliderType) {
 	case "contrast":
 		return contrastKnobPosition;
-	case "sharpness":
-		return sharpnessKnobPosition;
-	case "color":
-		return colorKnobPosition;
 	case "brightness":
 		return brightnessKnobPosition;
 	}	
@@ -350,7 +340,7 @@ maputils.getCtrlKnobPosition = function(sliderType, ctrlKnob) {
  * Reset the control knob
  */
 maputils.resetSlider = function(sliderType, start, end, totalPixels) {
-	var sliderPosition = -1*start / (end-start) * SLIDER_LENGTH_PIXELS;
+	var sliderPosition = -1*start / (end-start) * ENHANCE_SLIDER_LENGTH_PIXELS;
 	maputils.setSliderKnobValue(sliderType, sliderPosition);
 };
 
@@ -363,11 +353,11 @@ maputils.resetSlider = function(sliderType, start, end, totalPixels) {
 maputils.getSliderLeftOffset = function(sliderType, start, end) {
 	// set the slider knob position to the value stored in the global var.
 	var leftOffset = 0;
-	if (currentSlider == sliderType) {
+	if (currentEnhanceSlider == sliderType) {
 		leftOffset = maputils.getCtrlKnobPosition(sliderType);
 	} else {
 		//set the leftOffset to zero position in the slider
-		leftOffset = -1*start / (end-start) * SLIDER_LENGTH_PIXELS;
+		leftOffset = -1*start / (end-start) * ENHANCE_SLIDER_LENGTH_PIXELS;
 	}
 	return leftOffset;
 };
@@ -391,7 +381,6 @@ maputils.createSliderDomAndListeners = function(imageQtreeView, end, start, slid
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' width: 71px;' + ' height: 23px;' + 'left:54px;' + 'position:absolute;')); 
 	//by doing 'position: absolute', left offset is relative to position of its parent div 
-	// (sharpness slider div)
 	sliderDiv.appendChild(hiddenDiv);
 	// create knob
 	var knobDiv = document.createElement('DIV');
@@ -431,13 +420,13 @@ maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView
 	google.maps.event.addDomListener(sliderDiv, 'click', function(e) {
 		var x = ctrlKnob.valueX();
 		maputils.setSliderKnobValue(sliderType, x);
-		var value = (end - start) * (x / SLIDER_LENGTH_PIXELS) + start;
+		var value = (end - start) * (x / ENHANCE_SLIDER_LENGTH_PIXELS) + start;
 		var data = new FormData();
 		data.append('value', value);
 		data.append('overlayId', overlay.id);
 		data.append("enhanceType", sliderType);
 		// mark this slider as 'current'
-		currentSlider = sliderType;
+		currentEnhanceSlider = sliderType;
 		// make a call to the server to generate new tiles from rotated image.
 		maputils.submitRequestToServer(enhanceImageUrl, data, imageQtreeView);
 	});
@@ -445,11 +434,9 @@ maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView
 
 
 
-// set up sliders for contrast, sharpness, color, and brightness controls.
+// set up sliders for contrast and brightness controls.
 maputils.createImageEnhacementControls = function(imageQtreeView, mapType) {
 	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "contrast");
-	maputils.createSliderDomAndListeners(imageQtreeView, 2.0, -2.0, "sharpness");
-	maputils.createSliderDomAndListeners(imageQtreeView, 4.0, -0.0, "color");
 	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "brightness");	
 };
 
@@ -458,22 +445,22 @@ maputils.createImageEnhacementControls = function(imageQtreeView, mapType) {
 maputils.createRotationControl = function(imageQtreeView, mapType) {
 	var map = imageQtreeView.gmap;
 	var overlay = imageQtreeView.model;
-	var ROTATION_MAX_PIXELS = 57; // slider spans 57 pixels
-	var sliderImageUrl = '/static/geocamTiePoint/images/rotation_slider2.png';
+	var ROTATION_MAX_PIXELS = 556; // slider spans 556 pixels
+	var sliderImageUrl = '/static/geocamTiePoint/images/rotation_slider_long.png';
 
 	// create slider bar
 	var rotationSliderDiv = document.createElement('DIV');
 	(rotationSliderDiv.setAttribute('style', 'margin: 5px;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
 			+ ' background: url(' + sliderImageUrl + ') no-repeat;'
-			+ ' width: 71px;' + ' height: 21px;' + ' cursor: pointer;'));
+			+ ' width: 556px;' + ' height: 60px;' + ' cursor: pointer;'));
 
 	// create knob
 	var rotationKnobDiv = document.createElement('DIV');
 	(rotationKnobDiv.setAttribute('style', 'padding: 0;' + ' margin: 0;'
 			+ ' overflow-x: hidden;' + ' overflow-y: hidden;'
-			+ ' background: url(' + sliderImageUrl + ') no-repeat -71px 0;'
-			+ ' width: 14px;' + ' height: 21px;'));
+			+ ' background: url(' + sliderImageUrl + ') no-repeat -556px 0;'
+			+ ' width: 14px;' + ' height: 60px;'));
 	rotationSliderDiv.appendChild(rotationKnobDiv); 
 
 	// create text input box div
@@ -502,16 +489,20 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 	rotationInputForm.appendChild(rotationInputSpan);
 	rotationInputSpan.appendChild(rotationInput);
 
+	var leftOffset = Math.round(ROTATION_MAX_PIXELS / 2.0) + 5;
+	if (rotateKnobPosition != null) {
+		leftOffset = rotateKnobPosition;
+		rotationInput.value = getAngle(rotateKnobPosition);
+	}
+	
 	var rotationCtrlKnob = new ExtDraggableObject(rotationKnobDiv, {
 		restrictY : true,
-		left : Math.round(ROTATION_MAX_PIXELS / 2.0), // left offset (for
-														// starting at 0
-														// degrees)
+		left : leftOffset, // starting position of slider knob
 		container : rotationSliderDiv
 	});
 
 	google.maps.event.addListener(rotationCtrlKnob, 'drag', function() {
-		var angle = getAngle(mapType, rotationCtrlKnob.valueX());
+		var angle = getAngle(rotationCtrlKnob.valueX());
 		rotationInput.value = angle | 0;
 		// TODO: do some fancy transparency overlay here using
 		// initAlignedOverlay to show
@@ -520,7 +511,9 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 
 	google.maps.event.addDomListener(rotationSliderDiv, 'click', function(e) {
 		var x = rotationCtrlKnob.valueX();
-		var angle = getAngle(mapType, x);
+		// set the rotation knob position (so it can remember upon rerender
+		rotateKnobPosition = x;
+		var angle = getAngle(x);
 		// add the angle to the total angles dictionary
 		var data = new FormData();
 		data.append('rotation', parseInt(angle));
@@ -529,9 +522,9 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 		maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);
 	});
 
-	function getAngle(mapType, pixelX) {
+	function getAngle(pixelX) {
 		// pixelX in range 0 to ROTATION_MAX_PIXELS
-		var rotationAngle = 360 * (pixelX / ROTATION_MAX_PIXELS);
+		var rotationAngle = 360 * (pixelX / (ROTATION_MAX_PIXELS +5));
 		rotationAngle = rotationAngle - 180; // slider starts at -180
 		// max angle value goes slightly over 180 so set it to 180 if it does.
 		if (rotationAngle > 180)

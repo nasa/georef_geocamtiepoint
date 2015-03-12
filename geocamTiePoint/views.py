@@ -227,20 +227,14 @@ def saveEnhancementValToDB(imageData, enhancementType, value):
     """
     if enhancementType == "contrast":
         imageData.contrast = value
-    elif enhancementType == "sharpness":
-        imageData.sharpness = value
     elif enhancementType == "brightness":
         imageData.brightness = value
-    elif enhancementType == "color":
-        imageData.color = value
     imageData.save()
 
 
 def zeroOutEnhanceValInDB(imageData):
     imageData.contrast = 0
-    imageData.sharpness = 0
     imageData.brightness = 0
-    imageData.color = 0
     imageData.save()
 
 
@@ -250,12 +244,8 @@ def getEnhancer(type):
     """
     if type == u'contrast':
         return PIL.ImageEnhance.Contrast
-    elif type == u'sharpness':
-        return PIL.ImageEnhance.Sharpness
     elif type == u'brightness':
         return PIL.ImageEnhance.Brightness
-    elif type == u'color':
-        return PIL.ImageEnhance.Color
     else: 
         logging.error("invalid type provided for image enhancer")
         return None
@@ -264,7 +254,7 @@ def getEnhancer(type):
 def enhanceImage(enhanceType, value, im):
     """
     Processes image thru an enhancer and returns an enhanced image.
-    enhanceType specifies whether it's 'contrast', 'sharpness', 'brightness' or 'color
+    enhanceType specifies whether it's 'contrast' or 'brightness' 
     operation. value is input to the enhancer. im is the input image.
     """
     # enhance the image
@@ -306,7 +296,7 @@ def createEnhancedImageTiles(request):
 
 def checkAndApplyEnhancement(imageData):
     """
-    If any of the imageData's enhancement parameters (contrast, sharpness, brightness, color)
+    If any of the imageData's enhancement parameters (contrast, brightness)
     are non-zero, apply the enhancement to the unenhanced image and set it as the 'image' field
     of imageData
     """
@@ -314,12 +304,8 @@ def checkAndApplyEnhancement(imageData):
     enhancedIm = None
     if imageData.contrast != 0:
         enhancedIm = enhanceImage("contrast", imageData.contrast, unenhancedIm)
-    elif imageData.sharpness != 0:
-        enhancedIm = enhanceImage("sharpness", imageData.sharpness, unenhancedIm)
     elif imageData.brightness != 0:
         enhancedIm = enhanceImage("brightness", imageData.brightness, unenhancedIm)
-    elif imageData.color != 0:
-        enhancedIm = enhanceImage("color", imageData.color, unenhancedIm)
     if (enhancedIm != None):
         saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
       
@@ -343,7 +329,7 @@ def rotateOverlay(request):
         # get the overlay object
         overlay = Overlay.objects.get(key=overlayId)
         # add the user's new rotation request to the total rotation
-        overlay.extras.totalRotation += rotationAngle
+        overlay.extras.totalRotation = rotationAngle
         rotatedImage = None
         rotatedImageData = getRotatedImageData(overlayId, overlay.extras.totalRotation)
         # check if imageData obj with this rotation angle exists.
@@ -371,7 +357,7 @@ def rotateOverlay(request):
         overlay.extras.rotatedImageSize = rotatedImage.size # width, height
         overlay.save()
         overlay.generateUnalignedQuadTree()
-        data = {'status': 'success', 'id': overlay.key, 'angle': rotationAngle}
+        data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
 
 
