@@ -159,7 +159,9 @@ def getImage(imageData, flag):
         if flag == ENHANCED:
             image = PIL.Image.open(imageData.enhancedImage.file)
         elif flag == UNENHANCED:
+            print "inside getImage unenhanced"
             image = PIL.Image.open(imageData.unenhancedImage.file)
+            print "unenhanced image here"
         elif flag == DISPLAY:
             image = PIL.Image.open(imageData.image.file)
     except: 
@@ -168,7 +170,7 @@ def getImage(imageData, flag):
     return image
 
     
-def getOriginalImage(overlayId):
+def getOriginalImage(overlay):
     """
     Searches through the image data objects and finds 
     one that has no rotation value and belongs to the overlay
@@ -176,10 +178,9 @@ def getOriginalImage(overlayId):
     
     It returns a PIL image object. 
     """
-    imageData = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = 0)
-    if imageData:
-        imageData = imageData[0]
-        return getImage(imageData, UNENHANCED)
+    originalImageData = overlay.getOriginalImageData()
+    if originalImageData:
+        return getImage(originalImageData, UNENHANCED)
     else:
         return None
 
@@ -232,10 +233,14 @@ def saveEnhancementValToDB(imageData, enhancementType, value):
     imageData.save()
 
 
-def zeroOutEnhanceValInDB(imageData):
-    imageData.contrast = 0
-    imageData.brightness = 0
-    imageData.save()
+def getEnhanceValue(enhanceType, imageData):
+    """
+    Given enhancement type, returns the value stored in imageData object.
+    """
+    if enhanceType == "contrast":
+        return imageData.contrast
+    elif enhanceType == "brightness":
+        return imageData.brightness
 
 
 def getEnhancer(type):
@@ -277,19 +282,19 @@ def createEnhancedImageTiles(request):
         value = float(value)
         overlayId = data["overlayId"]
         overlay = Overlay.objects.get(key=overlayId)
+        previousQuadTree = None
+        if overlay.imageData.isOriginal != True: 
+            previousQuadTree = overlay.unalignedQuadTree
         imageData = overlay.imageData
         enhanceType = data['enhanceType']
-        # set all the imageData enhancement values to zero
-        zeroOutEnhanceValInDB(imageData)
-        # save the enhancement value only for 'enhanceType' in imageData model obj in database
-        saveEnhancementValToDB(imageData, enhanceType, value)
-        unenhancedImage = getImage(imageData, UNENHANCED)        
-        # enhance the image
-        enhancedIm = enhanceImage(enhanceType, value, unenhancedImage)
-        saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])        
+        # save the new enhancement value only for 'enhanceType' in database
+        saveEnhancementValToDB(imageData, enhanceType, value)   
+        checkAndApplyEnhancement(imageData)     
         overlay.imageData.save()
         overlay.save()
         overlay.generateUnalignedQuadTree()  # generate tiles
+        if previousQuadTree != None:
+            previousQuadTree.delete()  # delete the old tiles
         data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
 
@@ -301,12 +306,15 @@ def checkAndApplyEnhancement(imageData):
     of imageData
     """
     unenhancedIm = getImage(imageData, UNENHANCED)
-    enhancedIm = None
+    enhancedIm = unenhancedIm
+    saveToDB = False
     if imageData.contrast != 0:
-        enhancedIm = enhanceImage("contrast", imageData.contrast, unenhancedIm)
-    elif imageData.brightness != 0:
-        enhancedIm = enhanceImage("brightness", imageData.brightness, unenhancedIm)
-    if (enhancedIm != None):
+        enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
+        saveToDB = True
+    if imageData.brightness != 0:
+        enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)
+        saveToDB = True
+    if saveToDB:
         saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
       
         
@@ -330,33 +338,42 @@ def rotateOverlay(request):
         overlay = Overlay.objects.get(key=overlayId)
         # add the user's new rotation request to the total rotation
         overlay.extras.totalRotation = rotationAngle
-        rotatedImage = None
-        rotatedImageData = getRotatedImageData(overlayId, overlay.extras.totalRotation)
-        # check if imageData obj with this rotation angle exists.
-        if rotatedImageData == None:  # if no existing rotated image data, create a new one
-            # original image uploaded by the user
-            originalImage = getOriginalImage(overlayId)
-            # save out the original image size
-            overlay.extras.orgImageSize = originalImage.size
-            #rotate the image (minus sign since PIL rotates counter clockwise)
-            rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, 
-                                                PIL.Image.BICUBIC, expand=1)
+        # original image uploaded by the user
+        originalImage = getOriginalImage(overlay)
+        # save out the original image size
+        overlay.extras.orgImageSize = originalImage.size
+        #rotate the image (minus sign since PIL rotates counter clockwise)
+        rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, 
+                                            PIL.Image.BICUBIC, expand=1)
+        previousQuadTree = None
+        if overlay.imageData.isOriginal is True: 
             # make a deep copy of the image data 
             rotatedImageData = overlay.imageData
             rotatedImageData.pk = None # set the primary key to None to make a deep copy
+            rotatedImageData.isOriginal = False
             rotatedImageData.rotationAngle = overlay.extras.totalRotation             
-            # save the rotated image 
             saveImageToDatabase(rotatedImage, rotatedImageData, [DISPLAY, UNENHANCED])
-        else:  # use the existing rotated image data
-            rotatedImage = getImage(rotatedImageData, UNENHANCED)
-            saveImageToDatabase(rotatedImage, rotatedImageData, [DISPLAY]) # save unenhanced image as display image 
-        # apply image enhancement if there is a non-zero value in imageData parameters
-        checkAndApplyEnhancement(rotatedImageData)
-        # set the imageData field of the current overlay to this new imageData that has the rotated image.
-        overlay.imageData = rotatedImageData
+            # apply image enhancement if there is a non-zero value in imageData parameters
+            checkAndApplyEnhancement(rotatedImageData)
+            # set the imageData field of the current overlay to this new imageData that has the rotated image.
+            overlay.imageData = rotatedImageData
+        else:
+            # save out the overlay's quad tree
+            previousQuadTree = overlay.unalignedQuadTree
+            # overwrite the existing image data
+            overlay.imageData.isOriginal = False
+            overlay.imageData.rotationAngle = overlay.extras.totalRotation
+            saveImageToDatabase(rotatedImage, overlay.imageData, [DISPLAY, UNENHANCED])
+            checkAndApplyEnhancement(overlay.imageData)
+        if rotatedImage == None:
+            rotatedImage = getImage(overlay.imageData, UNENHANCED)
+            print "Got the unenahnced image from rotated image data because rotated image was none"
+            print rotatedImage
         overlay.extras.rotatedImageSize = rotatedImage.size # width, height
         overlay.save()
         overlay.generateUnalignedQuadTree()
+        if previousQuadTree != None:
+            previousQuadTree.delete()
         data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
 
@@ -401,9 +418,15 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     """
     Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
-    """
+    """    
+    #if the overlay with the image name already exists, return it.
+    imageOverlays = Overlay.objects.filter(name=imageName)
+    if len(imageOverlays) > 0:
+        return imageOverlays[0]
+    
     imageData = ImageData(contentType=imageType)
     bits = imageFB.read()
+    imageContent = None
     image = None
     if imageType in PDF_MIME_TYPES:
         if not settings.PDF_IMPORT_ENABLED:
@@ -411,7 +434,7 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
 
         # convert PDF to raster image
         pngData = pdf.convertPdf(bits)
-        imageData.image.save('dummy.png', ContentFile(pngData), save=False)
+        imageContent = pngData
         imageData.contentType = 'image/png'
     else:
         try:
@@ -427,29 +450,20 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
             image.save(out, format='png')
             convertedBits = out.getvalue()
             logging.info('converted image to RGBA')
-            imageData.image.save('dummy.png', ContentFile(convertedBits),
-                                 save=False)
-            # initially unenhanced image is set to the uploaded image.
-            imageData.unenhancedImage.save('dummy.png', ContentFile(convertedBits),
-                                           save=False)
+            imageContent = convertedBits
             imageData.contentType = 'image/png'
         else:
-            imageData.image.save('dummy.png', ContentFile(bits), save=False)
-            imageData.unenhancedImage.save('dummy.png', ContentFile(bits), save=False)
             imageData.contentType = imageType
-
-    #if there are already overlays for this image, don't create one.
-    #TODO: this is kind of hacky - a fix for the bug that creates overlays twice...
-    imageOverlays = Overlay.objects.filter(name=imageName)
-    if len(imageOverlays) > 0:
-        return imageOverlays[0]
-    
+    imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
+    imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
     # create and save new empty overlay so we can refer to it
     # this causes a ValueError if the user isn't logged in
     overlay = Overlay(author=author,
                              isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     overlay.save()
     imageData.overlay = overlay
+    # set this image data as the 'original', unenhanced / rotated image
+    imageData.isOriginal = True
     imageData.save()
 
     if image is None:

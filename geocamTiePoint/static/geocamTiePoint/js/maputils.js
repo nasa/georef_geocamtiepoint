@@ -325,13 +325,19 @@ maputils.setSliderKnobValue = function(sliderType, sliderPosition) {
 /** 
  * Given slider type, returns the knob position
  */
-maputils.getCtrlKnobPosition = function(sliderType, ctrlKnob) {
+maputils.getCtrlKnobPosition = function(sliderType, start, end) {
 	var leftOffset  = null;
 	switch (sliderType) {
-	case "contrast":
-		return contrastKnobPosition;
-	case "brightness":
-		return brightnessKnobPosition;
+		case "contrast":
+			if (contrastKnobPosition == null) {
+				return -1*start / (end-start) * ENHANCE_SLIDER_LENGTH_PIXELS;
+			}
+			return contrastKnobPosition;
+		case "brightness":
+			if (brightnessKnobPosition == null) {
+				return -1*start / (end-start) * ENHANCE_SLIDER_LENGTH_PIXELS;
+			}
+			return brightnessKnobPosition;
 	}	
 };
 
@@ -346,27 +352,9 @@ maputils.resetSlider = function(sliderType, start, end, totalPixels) {
 
 
 /**
- * If the slider matches the given sliderType, returns the 
- * global variable xxxKnobPosition. Otherwise, returns the 
- * 0 position of the slider (in pixels)
- */
-maputils.getSliderLeftOffset = function(sliderType, start, end) {
-	// set the slider knob position to the value stored in the global var.
-	var leftOffset = 0;
-	if (currentEnhanceSlider == sliderType) {
-		leftOffset = maputils.getCtrlKnobPosition(sliderType);
-	} else {
-		//set the leftOffset to zero position in the slider
-		leftOffset = -1*start / (end-start) * ENHANCE_SLIDER_LENGTH_PIXELS;
-	}
-	return leftOffset;
-};
-
-
-/**
  * Creates slider dom and 'click' and 'drag' listeners for image enhancement sliders
  */
-maputils.createSliderDomAndListeners = function(imageQtreeView, end, start, sliderType) {
+maputils.createSliderDomAndListeners = function(imageQtreeView, start, end, sliderType) {
 	var sliderImageUrl = getSliderImageUrl(sliderType);
 	
 	// create the slider divs
@@ -390,7 +378,7 @@ maputils.createSliderDomAndListeners = function(imageQtreeView, end, start, slid
 			+ ' width: 14px;' + ' height: 23px;'));
 	hiddenDiv.appendChild(knobDiv);
 
-	var leftOffset = maputils.getSliderLeftOffset(sliderType, start, end);
+	var leftOffset = maputils.getCtrlKnobPosition(sliderType, start, end);
 	var ctrlKnob = new ExtDraggableObject(knobDiv, {
 		restrictY : true,
 		container : hiddenDiv,
@@ -414,8 +402,8 @@ maputils.createSliderDomAndListeners = function(imageQtreeView, end, start, slid
 maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView, 
 											sliderType, start, end) {
 	// setup dom listeners
-	google.maps.event.addListener(ctrlKnob, 'drag', function() {
-	});
+	google.maps.event.addListener(ctrlKnob, 'drag', function() {});
+	
 	var overlay = imageQtreeView.model;
 	google.maps.event.addDomListener(sliderDiv, 'click', function(e) {
 		var x = ctrlKnob.valueX();
@@ -425,8 +413,6 @@ maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView
 		data.append('value', value);
 		data.append('overlayId', overlay.id);
 		data.append("enhanceType", sliderType);
-		// mark this slider as 'current'
-		currentEnhanceSlider = sliderType;
 		// make a call to the server to generate new tiles from rotated image.
 		maputils.submitRequestToServer(enhanceImageUrl, data, imageQtreeView);
 	});
@@ -436,8 +422,8 @@ maputils.createSliderDomListeners = function(ctrlKnob, sliderDiv, imageQtreeView
 
 // set up sliders for contrast and brightness controls.
 maputils.createImageEnhacementControls = function(imageQtreeView, mapType) {
-	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "contrast");
-	maputils.createSliderDomAndListeners(imageQtreeView, 3.0, -1.0, "brightness");	
+	maputils.createSliderDomAndListeners(imageQtreeView, -1.0, 3.0, "contrast");
+	maputils.createSliderDomAndListeners(imageQtreeView, -1.0, 3.0,"brightness");	
 };
 
 

@@ -80,6 +80,7 @@ class ImageData(models.Model):
                                         max_length=255, null=True, blank=True)
     contrast = models.FloatField(null=True, blank=True, default=0)
     brightness = models.FloatField(null=True, blank=True, default=0)
+    isOriginal = models.BooleanField(default=False)
 
     def __unicode__(self):
         if self.overlay:
@@ -245,9 +246,6 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
-    # rotation: stores the value of how much the current image is rotated from the original.
-    # this value is an accumulation of user's rotation requests. 
-#     rotation = models.IntegerField(blank=True, default=0, help_text="In integer angles")
     # stores mission roll frame of the image. i.e. "ISS039-E-12345"
     issMRF = models.CharField(max_length=255, null=True, blank=True,
                               help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
@@ -256,14 +254,19 @@ class Overlay(models.Model):
     # be accessed using dot notation. currently used extras subfields
     # include: imageSize, points, transform, bounds, centerPointLatLon, rotatedImageSize
     extras = ExtrasDotField()
-
     # import/export configuration
-#     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-#                     'centerPointLat', 'centerPointLon', 'issMRF', 'totalRotation)
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
                     'issMRF')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform')
+
+
+    def getOriginalImageData(self):
+        """
+        Returns the original image data created upon image upload (not rotated, not enhanced)
+        """
+        imageData = ImageData.objects.filter(overlay__key = self.key).filter(isOriginal = True)
+        return imageData[0]
 
 
     def getAlignedTilesUrl(self):
@@ -364,22 +367,12 @@ class Overlay(models.Model):
     def generateAlignedQuadTree(self):
         if self.extras.get('transform') is None:
             return None
-
-        #instead of just grabbing the imageData in the overlay (which might be rotated), 
         # grab the original image's imageData
-        imagedata = ImageData.objects.filter(overlay__key = self.key).filter(rotationAngle = 0)
-        if imagedata:
-            print "image data has been found for overlay %d" % self.key
-            print imagedata 
-            imagedata = imagedata[0]
-        
-        qt = QuadTree(imageData=imagedata,
+        originalImageData = self.getOriginalImageData()
+        qt = QuadTree(imageData=originalImageData,
                     transform=dumps(self.extras.transform))
-        
         qt.save()
-
         self.alignedQuadTree = qt
-
         return qt
 
     def generateExport(self):
