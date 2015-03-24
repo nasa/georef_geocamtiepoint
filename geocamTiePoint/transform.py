@@ -60,6 +60,7 @@ def metersToPixels(x, y, zoom):
     py = (-y + ORIGIN_SHIFT) / res
     return [px, py]
 
+
 def getProjectiveInverse(matrix):
     # http://www.cis.rit.edu/class/simg782/lectures/lecture_02/lec782_05_02.pdf (p. 33)
     c0 = matrix[0, 0]
@@ -79,10 +80,8 @@ def getProjectiveInverse(matrix):
                           [c3 * c7 - c4 * c6,
                            c1 * c6 - c0 * c7,
                            c0 * c4 - c1 * c3]])
-
     # normalize just for the hell of it
     result /= result[2, 2]
-
     return result
 
 
@@ -144,19 +143,15 @@ class CameraModelTransform(Transform):
     def fit(cls, toPts, fromPts, imageId):
         # extract width and height of image.
         imageId = imageId.split('-')
-        params0 = cls.getInitParams(toPts, fromPts, imageId)
-        print "init params"
-        print params0
-        width = params0[5]
-        height = params0[6]
-        
-        # do the optimization
-        params0 = params0[:5]
+        params0 = cls.getInitParams(toPts, fromPts, imageId)        
+        width = params0[8]
+        height = params0[9]
+        numPts = len(toPts.flatten())
+        params0 = params0[:8]
+        # optimize params
         params = optimize(toPts.flatten(),
                           lambda params: forwardPts(cls.fromParams(params, width, height), fromPts).flatten(),
                           params0)
-        print "optimized params"
-        print params
         return cls.fromParams(params, width, height)
 
     def forward(self, pt):
@@ -167,17 +162,22 @@ class CameraModelTransform(Transform):
         issLat = params[0]
         issLon = params[1]
         issAlt = params[2]
-        foLenX = params[3]
-        foLenY = params[4]
+        issRow = params[3]
+        issPitch = params[4]
+        issYaw = params[5]
+        foLenX = params[6]
+        foLenY = params[7]
+        
         cameraLonLatAlt = (issLon, issLat, issAlt)
-        # need width and heigh there. 
         opticalCenter = (int(self.width / 2.0), int(self.height / 2.0))
         focalLength = (foLenX, foLenY)
+        # convert image pixel coordinates to ecef
         ecef = imageCoordToEcef(cameraLonLatAlt, pt, opticalCenter, focalLength)
+        # convert ecef to lon lat
         lonLatAlt = transformEcefToLonLatAlt(ecef)
         lon = lonLatAlt[0]
         lat = lonLatAlt[1]
-        toPt = [lon, lat]  # needs to be this order (lat, lon)
+        toPt = [lon, lat]  # needs to be this order (lon, lat)
         xy_meters = lonLatToMeters(toPt) 
         return xy_meters
         
@@ -191,6 +191,9 @@ class CameraModelTransform(Transform):
             issLat = imageMetaData['latitude']
             issLon = imageMetaData['longitude']
             issAlt = imageMetaData['altitude']
+            issRow = 0
+            issPitch = 0
+            issYaw = 0
             foLenX = imageMetaData['focalLength'][0]
             foLenY = imageMetaData['focalLength'][1]
             # these values are not going to be optimized. But needs to be passed to fromParams 
@@ -200,7 +203,7 @@ class CameraModelTransform(Transform):
         except Exception as e:
             logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
             print e 
-        return [issLat, issLon, issAlt, foLenX, foLenY, width, height]
+        return [issLat, issLon, issAlt, issRow, issPitch, issYaw, foLenX, foLenY, width, height]
 
     @classmethod
     def fromParams(cls, params, width, height):
@@ -480,17 +483,16 @@ def forwardPts(tform, fromPts):
 
 
 def getTransformClass(n):
-    return QuadraticTransform2
-#     if n < 2:
-#         raise ValueError('not enough tie points')
-#     elif n == 2:
-#         return RotateScaleTranslateTransform
-#     elif n == 3:
-#         return AffineTransform
-#     elif n < 7:
-#         return ProjectiveTransform
-#     else:
-#         return QuadraticTransform2
+    if n < 2:
+        raise ValueError('not enough tie points')
+    elif n == 2:
+        return RotateScaleTranslateTransform
+    elif n == 3:
+        return AffineTransform
+    elif n < 7:
+        return ProjectiveTransform
+    else:
+        return QuadraticTransform2
 
 
 def getTransform(toPts, fromPts):
