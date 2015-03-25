@@ -453,7 +453,7 @@ $(function($) {
     	            // update the label
     	            centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
     	            centerPointMarker.setLabel(centerPtLabel);
-                } else {
+    	        } else {
                 	console.log("Transformation matrix not available. Center point cannot be updated");
                 }
             } });
@@ -475,11 +475,13 @@ $(function($) {
             var center = pixelsToLatLon({x: w / 2.0 , y: h / 2.0}, maxZoom);
             // get the calculated center pt lat lon from the overlay model.
             var centerLatLon = model.get('centerPointLatLon');
-            centerPtLabel = "initial lat, lon: (" + centerLatLon[0]+ " , "
-            				+ centerLatLon[1] + ")";
-            centerPointMarker = maputils.createCenterPointMarker(center,
-                    centerPtLabel,
-                    this.gmap);
+            if (centerLatLon) {
+	            centerPtLabel = "initial lat, lon: (" + centerLatLon[0]+ " , "
+	            				+ centerLatLon[1] + ")";
+	            centerPointMarker = maputils.createCenterPointMarker(center,
+	                    centerPtLabel,
+	                    this.gmap);
+            }
 		},
 		
         updateTiepointFromMarker: function(index, marker, drawMarkerFlag) {
