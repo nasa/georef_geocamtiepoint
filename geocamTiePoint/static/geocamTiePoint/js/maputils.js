@@ -57,20 +57,20 @@ $(function($) {
 	maputils.createCenterPointMarker = function(latLng, label, map, options) {
 		var image = '/static/geocamTiePoint/images/crosshairs.png';
 		var markerOpts = {
-			title : "center point",
+			title : label,
 			draggable : false,
 			position : latLng,
 			map : map,
 			raiseOnDrag : false,
-			label : label,
+			//label : label,
 			icon : image
 
 		};
 		markerOpts = _.extend(markerOpts, options);
 		var marker = new google.maps.Marker(markerOpts);
-		marker.label.span.setAttribute("class", "centerpoint-label")
+//		marker.label.span.setAttribute("class", "centerpoint-label")
 		google.maps.event.addListener(marker, 'click', function() {
-			copyToClipboard(marker.label.text);
+			copyToClipboard(marker.title);
 		});
 		return marker;
 	};
