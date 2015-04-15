@@ -436,7 +436,7 @@ $(function($) {
 
         
     	// applies the current transform to the center point of the image in pixels
-    	// to get a new lat long value for center ponit. 
+    	// to get a new lat long value for center point. 
         updateCenterPointMarker: function() {
         	var model = this.model;
             model.fetch({ 'success': function(model) {
@@ -448,11 +448,11 @@ $(function($) {
                 if (transform && centerPointMarker) {
     	            // calculate the new center
                 	var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
-    	            var lat = transformedCenter.lat().toFixed(2);
-    	            var lon = transformedCenter.lng().toFixed(2);
+    	            var lat = transformedCenter.lat();
+    	            var lon = transformedCenter.lng();
     	            // update the label
-    	            centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
-    	            centerPointMarker.setLabel(centerPtLabel);
+    	            var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
+    	            centerPointMarker.title = centerPtLabel;
     	        } else {
                 	console.log("Transformation matrix not available. Center point cannot be updated");
                 }
@@ -472,15 +472,14 @@ $(function($) {
             var w = imageSize[0];
             var h = imageSize[1];
             var maxZoom = model.maxZoom();
-            var center = pixelsToLatLon({x: w / 2.0 , y: h / 2.0}, maxZoom);
-            // get the calculated center pt lat lon from the overlay model.
-            var centerLatLon = model.get('centerPointLatLon');
-            if (centerLatLon) {
-	            centerPtLabel = "initial lat, lon: (" + centerLatLon[0]+ " , "
-	            				+ centerLatLon[1] + ")";
-	            centerPointMarker = maputils.createCenterPointMarker(center,
-	                    centerPtLabel,
-	                    this.gmap);
+            var centerImageViewLatLon = pixelsToLatLon({x: w / 2.0 , y: h / 2.0}, maxZoom);
+            
+            // get the calculated center pt lat lon from the overlay model.            
+            var centerMapViewLatLon = model.get('centerPointLatLon');
+            if (centerMapViewLatLon) {
+	            centerPointMarker = maputils.createCenterPointMarker(centerImageViewLatLon,
+	            		centerMapViewLatLon,
+	            		this.gmap);
             }
 		},
 		
@@ -581,8 +580,8 @@ $(function($) {
 
         panMapToCenterPoint: function() {
             var centerLatLon = this.model.get('centerPointLatLon');
-            var latLng = new google.maps.LatLng(centerLatLon[0].toFixed(2), 
-            									centerLatLon[1].toFixed(2));
+            var latLng = new google.maps.LatLng(centerLatLon[0], 
+            									centerLatLon[1]);
             this.gmap.panTo(latLng);
 		},
 		

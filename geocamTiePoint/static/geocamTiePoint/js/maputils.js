@@ -45,34 +45,52 @@ $(function($) {
 		});
 	};
 
-	function copyToClipboard(text) {
-		window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
-	}
 
-	maputils.createCenterPointLabelText = function createCenterPointLabelText(
-			lat, lon) {
+	maputils.createCenterPointLabelText = function(lat, lon) {
+        var lat = lat.toFixed(6);
+        var lon = lon.toFixed(6);
 		return "lat,lon:" + lat + "," + lon;
 	};
+	
+	maputils.latLonToCatalogBingMapsClipboardScript = function(lat, lon) {
+		return "http://www.bing.com/maps/&cp="+lat+"~"+lon;
+	};
 
-	maputils.createCenterPointMarker = function(latLng, label, map, options) {
+	maputils.createCenterPointMarker = function(imageViewLatLon, centerMapViewLatLon, map, options) {
 		var image = '/static/geocamTiePoint/images/crosshairs.png';
+		var lat = centerMapViewLatLon[0];
+		var lon = centerMapViewLatLon[1];
+		var label = maputils.createCenterPointLabelText(lat, lon);
 		var markerOpts = {
 			title : label,
 			draggable : false,
-			position : latLng,
+			position : imageViewLatLon,
 			map : map,
 			raiseOnDrag : false,
-			//label : label,
 			icon : image
-
 		};
 		markerOpts = _.extend(markerOpts, options);
 		var marker = new google.maps.Marker(markerOpts);
-//		marker.label.span.setAttribute("class", "centerpoint-label")
 		google.maps.event.addListener(marker, 'click', function() {
-			copyToClipboard(marker.title);
+			var latlon = getLatLonFromMarkerTitle(marker);
+			var lat = latlon[0];
+			var lon = latlon[1];
+			var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
+			copyToClipboard(lat, lon, bingMapScript);
 		});
 		return marker;
+		
+		function getLatLonFromMarkerTitle(marker) {
+			if (marker.title.indexOf(":") != -1) { //if marker title contains ":"
+				var latlon = marker.title.split(":")[1].split(",");
+				return latlon;
+			}
+			
+		}
+		
+		function copyToClipboard(lat, lon, text) {
+			window.prompt("Copy lat,lon: "+lat+", "+lon+" to clipboard: Ctrl+C", text);
+		}
 	};
 
 	maputils.createLabeledMarker = function(latLng, label, map, options) {
