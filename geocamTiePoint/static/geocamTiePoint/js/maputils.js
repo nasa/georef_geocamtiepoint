@@ -47,15 +47,26 @@ $(function($) {
 
 
 	maputils.createCenterPointLabelText = function(lat, lon) {
-        var lat = lat.toFixed(6);
-        var lon = lon.toFixed(6);
-		return "lat,lon:" + lat + "," + lon;
+		if (typeof(lat) == 'number') {
+			lat = lat.toFixed(6);	
+		}
+		if (typeof(lon) == 'number') {
+			lon = lon.toFixed(6);
+		}
+        return "lat,lon:" + lat + "," + lon;
 	};
 	
 	maputils.latLonToCatalogBingMapsClipboardScript = function(lat, lon) {
 		return "http://www.bing.com/maps/&cp="+lat+"~"+lon;
 	};
 
+	maputils.getLatLonFromMarkerTitle = function(marker) {
+		if (marker.title.indexOf(":") != -1) { //if marker title contains ":"
+			var latlon = marker.title.split(":")[1].split(",");
+			return latlon;
+		}
+	}
+	
 	maputils.createCenterPointMarker = function(imageViewLatLon, centerMapViewLatLon, map, options) {
 		var image = '/static/geocamTiePoint/images/crosshairs.png';
 		var lat = centerMapViewLatLon[0];
@@ -72,21 +83,13 @@ $(function($) {
 		markerOpts = _.extend(markerOpts, options);
 		var marker = new google.maps.Marker(markerOpts);
 		google.maps.event.addListener(marker, 'click', function() {
-			var latlon = getLatLonFromMarkerTitle(marker);
+			var latlon = maputils.getLatLonFromMarkerTitle(marker);
 			var lat = latlon[0];
 			var lon = latlon[1];
 			var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
 			copyToClipboard(lat, lon, bingMapScript);
 		});
 		return marker;
-		
-		function getLatLonFromMarkerTitle(marker) {
-			if (marker.title.indexOf(":") != -1) { //if marker title contains ":"
-				var latlon = marker.title.split(":")[1].split(",");
-				return latlon;
-			}
-			
-		}
 		
 		function copyToClipboard(lat, lon, text) {
 			window.prompt("Copy lat,lon: "+lat+", "+lon+" to clipboard: Ctrl+C", text);
@@ -474,7 +477,7 @@ maputils.createRotationControl = function(imageQtreeView, mapType) {
 
 	// create text input box div
 	var rotationInputForm = document.createElement("form");
-	rotationInputForm.id = "rotationInputForm"
+	rotationInputForm.id = "rotationInputForm";
 	var rotationInputSpan = document.createElement('span');
 	rotationInputSpan.className = "input-prepend";
 	spanAddOn = document.createElement('span');
