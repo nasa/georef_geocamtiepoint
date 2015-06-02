@@ -53,9 +53,9 @@ urlpatterns = patterns(
     url(r'^overlay/(?P<key>\d+)/export\.html$', 'overlayExportInterface',
         {}, 'geocamTiePoint_overlayExportInterface'),
 
-    url(r'^overlay/(?P<key>\d+)/export/(?P<fname>[^/]*)$', 'overlayExport',
+    url(r'^overlay/(?P<key>\d+)/export/(?P<type>\w+)/(?P<fname>[^/]*)$', 'overlayExport',
         {}, 'geocamTiePoint_overlayExport'),
-
+    
     url(r'^overlay/(?P<key>\d+)/delete\.html$', 'overlayDelete',
         {}, 'geocamTiePoint_overlayDelete'),
 

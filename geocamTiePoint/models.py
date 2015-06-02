@@ -109,11 +109,21 @@ class QuadTree(models.Model):
     # note: 'exportZip' is a bit of a misnomer since the archive may not
     # be a zipfile (tarball by default).  but no real need to change the
     # field name and force a db migration.
-    exportZipName = models.CharField(max_length=255,
+    htmlExportName = models.CharField(max_length=255,
                                      null=True, blank=True)
-    exportZip = models.FileField(upload_to=getNewExportFileName,
+    htmlExport = models.FileField(upload_to=getNewExportFileName,
                                  max_length=255,
                                  null=True, blank=True)
+    kmlExportName = models.CharField(max_length=255,
+                                     null=True, blank=True)
+    kmlExport = models.FileField(upload_to=getNewExportFileName,
+                                 max_length=255,
+                                 null=True, blank=True)
+    geoTiffExportName = models.CharField(max_length=255,
+                                     null=True, blank=True)
+    geoTiffExport = models.FileField(upload_to=getNewExportFileName,
+                                     max_length=255,
+                                     null=True, blank=True)
 
     # we set unusedTime when a QuadTree is no longer referenced by an Overlay.
     # it will eventually be deleted.
@@ -204,15 +214,27 @@ class QuadTree(models.Model):
         gen.writeQuadTree(writer, slug)
         writer.writeData('meta.json', dumps(metaJson))
 
+        # generate html export
         viewHtmlPath = 'view.html'
         tileRootUrl = './%s' % slug
         html = self.getSimpleViewHtml(tileRootUrl, metaJson, slug)
         logging.debug('html: len=%s head=%s', len(html), repr(html[:10]))
         writer.writeData(viewHtmlPath, html)
 
-        self.exportZipName = '%s.tar.gz' % exportName
-        self.exportZip.save(self.exportZipName,
+        self.htmlExportName = '%s_html.tar.gz' % exportName
+        self.htmlExport.save(self.htmlExportName,
                             ContentFile(writer.getData()))
+        
+        # generate KML export
+#         self.kmlExportName = '%s_kml.tar.gz' % exportName
+#         self.kmlExport.save(self.kmlExportName, 
+#                             None)
+
+        # generate GeoTiff export
+#         self.geoTiffExportName = '%s_geotiff.tar.gz' % exportName
+#         self.geoTiffExport.save(self.geoTiffExportName, 
+#                                 None)
+        
 
 
 class Overlay(models.Model):
@@ -310,10 +332,21 @@ class Overlay(models.Model):
 
             # note: when exportZip has not been set, its value is not
             # None but <FieldFile: None>, which is False in bool() context
-            if self.alignedQuadTree.exportZip:
+            if self.alignedQuadTree.htmlExport: 
                 result['exportUrl'] = reverse('geocamTiePoint_overlayExport',
+                                              args=[self.key, 
+                                                    'html',
+                                                    str(self.alignedQuadTree.htmlExportName)])
+            if self.alignedQuadTree.kmlExport: 
+                result['kmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
                                               args=[self.key,
-                                                    str(self.alignedQuadTree.exportZipName)])
+                                                    'kml',
+                                                    str(self.alignedQuadTree.kmlExportName)])
+            if self.alignedQuadTree.geoTiffExport: 
+                result['geoTiffExportUrl'] = reverse('geocamTiePoint_overlayExport',
+                                              args=[self.key,
+                                                    'geoTiff',
+                                                    str(self.alignedQuadTree.geotiffExportName)])
 
         return result
 
@@ -380,7 +413,7 @@ class Overlay(models.Model):
          (self.getExportName(),
           self.getJsonDict(),
           self.getSlug()))
-        return self.alignedQuadTree.exportZip
+        return self.alignedQuadTree.htmlExport 
 
     def updateAlignment(self):
         toPts, fromPts = transform.splitPoints(self.extras.points)

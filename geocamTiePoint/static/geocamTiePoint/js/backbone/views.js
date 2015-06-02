@@ -1439,7 +1439,7 @@ $(function($) {
             '{{/if}}' +
             '{{#if exportUrl}}' +
             '<div id="download_link">' +
-            '<a href="{{exportUrl}}">Download Exported Archive</a>' +
+            '<a href="{{exportUrl}}">Download HTML</a>' +
             '</div>' +
             '{{else}}' +
             '<div id="export_controls">' +
@@ -1455,8 +1455,18 @@ $(function($) {
             'aligned image.</p>' +
             '{{/if}}' +
             '</div>' +
+            '{{/if}}'+
+            '{{#if kmlExportUrl}}' + 
+            '<div id="download_link">' +
+            '<a href="{{kmlExportUrl}}">Download KML</a>' +
+            '</div>' +
+            '{{/if}}' + 
+            "{{#if geoTiffExportUrl}}" + 
+            '<div id="download_link">' +
+            '<a href="{{geoTiffExportUrl}}">Download GeoTiff</a>' +
+            '</div>' +
             '{{/if}}',
-
+            
         afterRender: function() {
             this.$('#create_archive').click(_.bind(this.requestExport, this));
             if (this.model.exportPending) {
@@ -1465,7 +1475,6 @@ $(function($) {
         },
 
         requestExport: function() {
-            //this.model.unset('exportUrl');
             this.$('#create_archive').attr('disabled', true);
             this.model.startExport({
                 error: function() {

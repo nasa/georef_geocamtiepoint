@@ -44,6 +44,7 @@ from geocamUtil import imageInfo as imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
+# import pydevd
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -697,6 +698,7 @@ def dummyView(*args, **kwargs):
 
 @csrf_exempt
 def overlayGenerateExport(request, key):
+#     pydevd.settrace('128.102.236.49')
     if request.method == 'GET':
         return (HttpResponse
                 ('<form action="." method="post">'
@@ -732,12 +734,13 @@ def overlayExportInterface(request, key):
         return HttpResponseNotAllowed(['GET'])
 
 
-def overlayExport(request, key, fname):
+def overlayExport(request, key, type, fname):
+#     pydevd.settrace('128.102.236.49')
     if request.method == 'GET':
         overlay = get_object_or_404(Overlay, key=key)
-        if not (overlay.alignedQuadTree and overlay.alignedQuadTree.exportZip):
+        if not (overlay.alignedQuadTree and overlay.alignedQuadTree.htmlExport):
             raise Http404('no export archive generated for requested overlay yet')
-        return HttpResponse(overlay.alignedQuadTree.exportZip.file.read(),
+        return HttpResponse(overlay.alignedQuadTree.htmlExport.file.read(),
                             content_type='application/x-tgz')
     else:
         return HttpResponseNotAllowed(['GET'])
