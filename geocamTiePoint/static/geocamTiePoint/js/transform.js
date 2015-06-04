@@ -187,16 +187,17 @@ $(function($) {
      * Camera Model Transform
      **********************************************************************/
   
-    function CameraModelTransform(params) {
+    function CameraModelTransform(params, imageId) {
     	self.params = params;
+    	self.imageId = imageId;
     }
     
     CameraModelTransform.prototype = $.extend(true,
             {},
             Transform.prototype);
 
-    CameraModelTransform.fromParams = function(params) {
-    	return new CameraModelTransform(params);
+    CameraModelTransform.fromParams = function(params, imageId) {
+    	return new CameraModelTransform(params, imageId);
     };
 
     CameraModelTransform.fit = function(cls, toPts, fromPts, imageId) {
@@ -220,11 +221,31 @@ $(function($) {
     		success: function(params){
     			// if server successfully responded, return the values
     			// retrieved from the server.
-    			return params; 
+    			return cls.fromParams(params, imageId);
     		},
-    		error: function() { alert("error occured"); }, 
-    		dataType: "json",
+    		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
+    		dataType: "json"
     	});
+    };
+    
+    CameraModelTransform.prototype.forward = function(pt) {
+    	$(.ajax({
+    		type: 'POST',
+    		url: cameraModelTransformForwardUrl,
+    		data: {'pt': pt, 'params': this.params, 'imageId': this.imageId}, //TODO pass back image width/ height.
+    		success: function(ptInMeters) {
+    			return ptInMeters;
+    		}
+    		error: function() { alert("CameraModelTransform: could not convert pixel coords to meters!"); },
+    		dataType: "json"
+    	}));
+    };
+    
+    CameraModelTransform.prototype.toDict = function() {
+        return {
+            type: 'CameraModelTransform',
+            params: this.params
+        };
     };
     
     
@@ -451,18 +472,18 @@ $(function($) {
      **********************************************************************/
 
     function getTransformClass(n) {
-    	//TODO: Later incorporate CameraModelTransform here!
-    	if (n < 2) {
-            throw 'not enough tie points';
-        } else if (n == 2) {
-            return RotateScaleTranslateTransform;
-        } else if (n == 3) {
-            return AffineTransform;
-        } else if (n < 7) {
-            return ProjectiveTransform;
-        } else {
-            return QuadraticTransform2;
-        }
+    	return CameraModelTransform;
+//    	if (n < 2) {
+//            throw 'not enough tie points';
+//        } else if (n == 2) {
+//            return RotateScaleTranslateTransform;
+//        } else if (n == 3) {
+//            return AffineTransform;
+//        } else if (n < 7) {
+//            return ProjectiveTransform;
+//        } else {
+//            return QuadraticTransform2;
+//        }
     }
 
     function getTransform0(toPts, fromPts, issMRF) {

@@ -19,6 +19,10 @@ urlpatterns = patterns(
     url(r'^cameraModelTransformFit/$', 'cameraModelTransformFit', 
         {}, 'geocamTiePoint_cameraModelTransformFit'),
     
+    ## transform.js sends a ajax request to retrieve tformed pt in meters from server side. ##
+    url(r'^cameraModelTransformForward/$', 'cameraModelTransformForward', 
+        {}, 'geocamTiePoint_cameraModelTransformForward'),
+    
     ## rotation slider sends ajax request to create a new overlay with rotated image ##
     url(r'^rotateOverlay/$', 'rotateOverlay', 
         {}, 'geocamTiePoint_rotateOverlay'), 

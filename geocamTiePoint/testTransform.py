@@ -59,13 +59,11 @@ N = len(POINTS)
 
 def testTransformClass(cls):
     tform = cls.fit(TO_PTS, FROM_PTS)
-    print "Topts should look like"
-    print TO_PTS
-    print "TO_PTS.class"
-    print TO_PTS.__class__
-    print "From pts should be like"
-    print FROM_PTS
     toPtsApprox = transform.forwardPts(tform, FROM_PTS)
+    print "INPUT (to_Pts):"
+    print TO_PTS
+    print "TFROMED (to_pts):"
+    print toPtsApprox
     #print toPtsApprox
     print ('%s: %e'
            % (cls.__name__,
@@ -74,6 +72,10 @@ def testTransformClass(cls):
 def testTransformClass2(cls):
     tform = cls.fit(TO_PTS, FROM_PTS, "ISS039-E-12345")
     toPtsApprox = transform.forwardPts(tform, FROM_PTS)
+    print "INPUT (to_Pts):"
+    print TO_PTS
+    print "TFROMED (to_pts):"
+    print toPtsApprox
     #print toPtsApprox
     print ('%s: %e'
            % (cls.__name__,
