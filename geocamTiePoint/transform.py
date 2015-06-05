@@ -21,6 +21,7 @@ from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef, rotMatrixFromEcefToCamera
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
 
+
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
 TILE_SIZE = 256.
 INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
@@ -141,7 +142,6 @@ class CameraModelTransform(Transform):
     @classmethod
     def fit(cls, toPts, fromPts, imageId):
         # extract width and height of image.
-        imageId = imageId.split('-')
         params0 = cls.getInitParams(toPts, fromPts, imageId)        
         width = params0[len(params0)-2]
         height = params0[len(params0)-1]
@@ -205,9 +205,7 @@ class CameraModelTransform(Transform):
         
     @classmethod
     def getInitParams(cls, toPts, fromPts, imageId):
-        mission = imageId[0]
-        roll = imageId[1]
-        frame = imageId[2]
+        mission, roll, frame = imageId.split('-')
         imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
         try:
             """
@@ -485,17 +483,25 @@ class QuadraticTransform2(Transform):
 
 def makeTransform(transformDict):
     transformType = transformDict['type']
-    transformMatrix = numpy.array(transformDict['matrix'])
-    if transformType == 'projective':
-        return ProjectiveTransform(transformMatrix)
-    elif transformType == 'quadratic':
-        return QuadraticTransform(transformMatrix)
-    elif transformType == 'quadratic2':
-        return QuadraticTransform2(transformMatrix,
-                                   transformDict['quadraticTerms'])
-    else:
-        raise ValueError('unknown transform type %s, expected one of: projective, quadratic'
-                         % transformType)
+    if transformType == 'CameraModelTransform':
+        # construct a new transform from the params.
+        params = transformDict['params']
+        imageId = transformDict['imageId']
+        mission, roll, frame = imageId.split('-')
+        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        return CameraModelTransform(params, imageMetaData['width'], imageMetaData['height'])
+    else: 
+        transformMatrix = numpy.array(transformDict['matrix'])
+        if transformType == 'projective':
+            return ProjectiveTransform(transformMatrix)
+        elif transformType == 'quadratic':
+            return QuadraticTransform(transformMatrix)
+        elif transformType == 'quadratic2':
+            return QuadraticTransform2(transformMatrix,
+                                       transformDict['quadraticTerms'])
+        else:
+            raise ValueError('unknown transform type %s, expected one of: projective, quadratic'
+                             % transformType)
 
 
 def forwardPts(tform, fromPts):

@@ -159,11 +159,15 @@ $(function($) {
             // issMRF will be undefined for all other transforms besides CameraModelFrame
             var issMRF = this.get('issMRF'); 
             // set the 'transform' field of the overlay model with the newly computed tform.
-            this.set('transform',
-                (points ?
-                 geocamTiePoint.transform.getTransform(points, issMRF).toDict() :
-                 {type: '', matrix: []})
-            );
+            
+            var transform = geocamTiePoint.transform.getTransform(points, issMRF, this);
+            if (typeof transform != 'undefined') {
+            	this.set('transform',
+                        (points ?
+                         transform.toDict() :
+                         {type: '', matrix: []})
+                );	
+            }
         },
 
         save: function(attributes, options) {
@@ -197,7 +201,7 @@ $(function($) {
                     model.trigger('warp_success');
                 }
             };
-            this.save({}, saveOptions);
+            this.save({}, saveOptions);  // hits overlayIdJson on serverside
         },
 
         startExport: function(options) {

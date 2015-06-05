@@ -30,7 +30,7 @@ from geocamUtil import anyjson as json
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
 
 from geocamTiePoint import quadTree, transform, settings
-
+import pydevd
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets

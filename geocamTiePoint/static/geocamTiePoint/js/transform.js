@@ -200,7 +200,7 @@ $(function($) {
     	return new CameraModelTransform(params, imageId);
     };
 
-    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId) {
+    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId, overlay) {
     	/**
     	 * Sends a request to the server and retrieves 
     	 * optimized params (iss pose, orientation, focal len, etc)
@@ -218,10 +218,16 @@ $(function($) {
     		type: 'POST', 
     		url: cameraModelTransformFitUrl,
     		data: pts, 
-    		success: function(params){
-    			// if server successfully responded, return the values
-    			// retrieved from the server.
-    			return cls.fromParams(params, imageId);
+    		success: function(data){
+    			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
+    			overlay.save({}, {
+    				success: function(model, response) {
+    					console.log("succesfully saved transform in overlay to the server");
+    					console.log('overlay is: ', overlay);
+    				}, error: function (model, response) {
+    					console.log("could not save the transform to overlay");
+    				}
+    			}); 
     		},
     		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
     		dataType: "json"
@@ -229,22 +235,23 @@ $(function($) {
     };
     
     CameraModelTransform.prototype.forward = function(pt) {
-    	$(.ajax({
+    	$.ajax({
     		type: 'POST',
     		url: cameraModelTransformForwardUrl,
     		data: {'pt': pt, 'params': this.params, 'imageId': this.imageId}, //TODO pass back image width/ height.
     		success: function(ptInMeters) {
     			return ptInMeters;
-    		}
+    		},
     		error: function() { alert("CameraModelTransform: could not convert pixel coords to meters!"); },
     		dataType: "json"
-    	}));
+    	});
     };
     
     CameraModelTransform.prototype.toDict = function() {
         return {
             type: 'CameraModelTransform',
-            params: this.params
+            params: this.params,
+            imageId: this.imageId
         };
     };
     
@@ -486,25 +493,23 @@ $(function($) {
 //        }
     }
 
-    function getTransform0(toPts, fromPts, issMRF) {
-        var n = toPts.w;
-        var cls = getTransformClass(n);
-        var params = null;
-        if ((cls == CameraModelTransform) && (issMRF != 'undefined')) {
-        	//only pass the issMRF field if it is a cameraModelTransform
-        	params = cls.fit(cls, toPts, fromPts, issMRF);
-        } else {
-            params = cls.fit(cls, toPts, fromPts);
-        }
-        return cls.fromParams(params);
-    }
-
-    function getTransform(points, issMRF) {
+    function getTransform(points, issMRF, overlay) {
         var s = splitPoints(points);
         var toPts = s[0];
         var fromPts = s[1];
-        return getTransform0(toPts, fromPts, issMRF);
+        var n = toPts.w;
+        var cls = getTransformClass(n);
+        var params = null;
+        if (((cls == CameraModelTransform) && (typeof issMRF != 'undefined'))
+        		&& (typeof overlay != 'undefined')){
+        	//only pass the issMRF field if it is a cameraModelTransform
+        	cls.fit(cls, toPts, fromPts, issMRF, overlay);  // ajax fcn returns cls.fromParams(params)
+        } else {
+            params = cls.fit(cls, toPts, fromPts);
+            return cls.fromParams(params);
+        }
     }
+    
 
     function deserializeTransform(transformJSON) {
         var classmap = {

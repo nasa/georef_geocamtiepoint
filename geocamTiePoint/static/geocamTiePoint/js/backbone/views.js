@@ -543,7 +543,7 @@ $(function($) {
             
             this.trigger('gmap_loaded');
 
-            /* Events and init for the  qtree overlay */
+            /* Events and init for the qtree overlay */
             this.model.on('change:points', function() {
                 if (_.isUndefined(this.previousPoints) ||
                     ! _.isEqual(this.previousPoints,
