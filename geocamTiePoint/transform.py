@@ -21,7 +21,6 @@ from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef, rotMatrixFromEcefToCamera
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
 
-
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
 TILE_SIZE = 256.
 INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
@@ -153,7 +152,6 @@ class CameraModelTransform(Transform):
                           params0)
         return cls.fromParams(params, width, height)
 
-
     def forward(self, pt):
         """
         Takes in a point in pixel coordinate and returns point in gmap units (meters)
@@ -169,11 +167,10 @@ class CameraModelTransform(Transform):
         ecef = imageCoordToEcef(lonLatAlt, pt, opticalCenter, focalLength)
         # convert ecef to lon lat
         lonLatAlt = transformEcefToLonLatAlt(ecef)
-        toPt = [lonLatAlt[0], lonLatAlt[1]]  # needs to be this order (lon, lat)
+        toPt = [lonLatAlt[0], lonLatAlt[1]]  # [lon, lat]
         xy_meters = lonLatToMeters(toPt) 
         return xy_meters
 
-    
     def reverse(self, pt):
         """
         Takes a point in gmap meters and converts it to image coordinates
@@ -182,8 +179,9 @@ class CameraModelTransform(Transform):
         ptlon, ptlat = metersToLatLon([pt[0], pt[1]])
         ptalt = 0
         # convert lon lat alt to ecef
-        pt = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
-        
+        px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
+        # convert to column vector
+        pt = numpy.array([[px, py, pz, 1]]).transpose()
         lat, lon, alt, Fx, Fy = self.params
         width = self.width
         height = self.height
@@ -191,18 +189,18 @@ class CameraModelTransform(Transform):
                                     [0, Fy, height / 2.0],
                                     [0, 0, 1]],
                                    dtype='float64')  
-        cameraPoseEcef = transformLonLatAltToEcef((lon,lat,alt))
-        rotation = rotMatrixFromEcefToCamera(long, cameraPoseEcef)  # world to camera
-        translation = -1* rotation * numpy.array([[cameraPoseEcef[0]], 
-                                               [cameraPoseEcef[1]], 
-                                               [cameraPoseEcef[2]]])   
-        ptInImage = cameraMatrix * rotation * translation * pt
-        u = ptInImage[0] / ptInImage[2]
-        v = ptInImage[1] / ptInImage[2]
-        ptInImage =  [u[0][0], v[0][0]]  #TODO DOUBLE CHECK
+        x,y,z = transformLonLatAltToEcef((lon,lat,alt))  # camera pose in ecef
+        rotation = rotMatrixFromEcefToCamera(lon, [x,y,z])  # world to camera
+        cameraPoseColVector = numpy.array([[x, y, z]]).transpose()
+        translation = -1* rotation * cameraPoseColVector
+        # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
+        rotTransMat = numpy.c_[rotation, translation]
+        ptInImage = cameraMatrix * rotTransMat * pt
+        u = ptInImage.item(0) / ptInImage.item(2)
+        v = ptInImage.item(1) / ptInImage.item(2)
+        ptInImage =  [u, v]
         return ptInImage
-    
-        
+
     @classmethod
     def getInitParams(cls, toPts, fromPts, imageId):
         mission, roll, frame = imageId.split('-')

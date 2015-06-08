@@ -69,7 +69,7 @@ def getInitialData():
 #     width = imageMetaData['width']
 #     height = imageMetaData['height']
 #     return [lat, lon, alt, Fx, Fy, width, height]
-    if 0:
+    if 1:
         # basically camera is directly above the north pole
         imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
         Fx = imageMetaData['focalLength'][0]
@@ -80,7 +80,7 @@ def getInitialData():
         width = 900
         height = 400
         return [lat, lon, alt, Fx, Fy, width, height]
-    if 1:
+    if 0:
         # camera is at the equator
         # basically camera is directly above the north pole
         imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
@@ -116,28 +116,31 @@ def forward(pt):
 
 def reverse(pt):
     """
-    Takes a 2D point in gmap meters and converts it to image coordinates
+    Takes a point in gmap meters and converts it to image coordinates
     """
     lat, lon, alt, Fx, Fy, width, height = getInitialData()
-                                                          
+    
     #convert point to lat lon, and then to ecef
-    ptlon, ptlat = pt #transform.metersToLatLon([pt[0], pt[1]])
+    ptlon, ptlat = transform.metersToLatLon([pt[0], pt[1]])
     ptalt = 0
     # convert lon lat alt to ecef
-    pt = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
-     
-    cameraMatrix = numpy.array([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
-                                [0, Fy, height / 2.0],
+    px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
+    # convert to column vector
+    pt = numpy.array([[px, py, pz, 1]]).transpose()
+    cameraMatrix = numpy.array([[Fx, 0, width / 2],  # matrix of intrinsic camera parameters
+                                [0, Fy, height / 2],
                                 [0, 0, 1]],
                                dtype='float64')  
-    
-    cameraPoseEcef = transformLonLatAltToEcef((lon,lat,alt))
-    rotation = rotMatrixFromEcefToCamera(lon, cameraPoseEcef)  # world to camera
-    translation = -1* rotation * numpy.array([[cameraPoseEcef[0]], 
-                                           [cameraPoseEcef[1]], 
-                                           [cameraPoseEcef[2]]])   
-    ptInImage = cameraMatrix * rotation * translation * pt
-    ptInImage =  [ptInImage[0] / ptInImage[2], ptInImage[1] / ptInImage[2]]
+    x,y,z = transformLonLatAltToEcef((lon,lat,alt))  # camera pose in ecef
+    rotation = rotMatrixFromEcefToCamera(lon, [x,y,z])  # world to camera
+    cameraPoseColVector = numpy.array([[x, y, z]]).transpose()
+    translation = -1* rotation * cameraPoseColVector
+    # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
+    rotTransMat = numpy.c_[rotation, translation]
+    ptInImage = cameraMatrix * rotTransMat * pt
+    u = ptInImage.item(0) / ptInImage.item(2)
+    v = ptInImage.item(1) / ptInImage.item(2)
+    ptInImage =  [u, v]
     return ptInImage
 
 
@@ -149,11 +152,8 @@ def testTransformClass():
     """
     pt = [width / 2.0, height / 2.0]  # if image coord is at center of image
     fwdRetval = forward(pt)
-    print "ecef should be at 0, some radius, 0"
+    print "ecef should be at 0, 0, some radius"
     print fwdRetval
-#     meters = forward(pt)
-#     print "gmap meters coords should be at -13877359.198523184, 6164031.440801282"
-#     print meters
     
     """
     Reverse
