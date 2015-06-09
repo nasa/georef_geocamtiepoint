@@ -157,6 +157,10 @@ class CameraModelTransform(Transform):
         Takes in a point in pixel coordinate and returns point in gmap units (meters)
         """
         lat, lon, alt, Fx, Fy = self.params
+        #FOR DEBUG ONLY:
+        Fx = 20000
+        Fy = 20000
+        
         width = self.width
         height = self.height
         
@@ -175,6 +179,15 @@ class CameraModelTransform(Transform):
         """
         Takes a point in gmap meters and converts it to image coordinates
         """
+        # lat, lon, alt = position of the camera
+        # Fx, Fy = focal length
+        lat, lon, alt, Fx, Fy = self.params
+        #FOR DEBUG ONLY:
+        Fx = 20000
+        Fy = 20000
+        width = self.width  # image width
+        height = self.height  # image height
+        
         #convert point to lat lon, and then to ecef
         ptlon, ptlat = metersToLatLon([pt[0], pt[1]])
         ptalt = 0
@@ -182,9 +195,6 @@ class CameraModelTransform(Transform):
         px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
         # convert to column vector
         pt = numpy.array([[px, py, pz, 1]]).transpose()
-        lat, lon, alt, Fx, Fy = self.params
-        width = self.width
-        height = self.height
         cameraMatrix = numpy.array([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
                                     [0, Fy, height / 2.0],
                                     [0, 0, 1]],

@@ -44,7 +44,6 @@ from geocamUtil import imageInfo as imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
-# import pydevd
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -605,7 +604,6 @@ def overlayNewJSON(request):
 
 @csrf_exempt
 def overlayIdJson(request, key):
-#     pydevd.settrace('128.102.237.78')
     if request.method == 'GET':
         overlay = get_object_or_404(Overlay, key=key)
         return HttpResponse(dumps(overlay.jsonDict), content_type='application/json')

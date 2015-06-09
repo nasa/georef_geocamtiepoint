@@ -219,15 +219,23 @@ $(function($) {
     		url: cameraModelTransformFitUrl,
     		data: pts, 
     		success: function(data){
+    			cls.fromParams(data['params'], imageId)
     			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
-    			overlay.save({}, {
-    				success: function(model, response) {
-    					console.log("succesfully saved transform in overlay to the server");
-    					console.log('overlay is: ', overlay);
-    				}, error: function (model, response) {
-    					console.log("could not save the transform to overlay");
-    				}
-    			}); 
+    			// need to save again to backbone so that overlayIdJson post is triggered with new transform.
+                saveOptions = {
+                    error: function(model, response) {
+                        if (response.readyState < 4) {
+                            model.trigger('warp_server_unreachable');
+                        } else {
+                            model.trigger('warp_server_error');
+                        }
+                    },
+                    success: function(model, response) {
+                        model.trigger('warp_success');
+                    }
+                };
+    			Backbone.Model.prototype.save.call(overlay, {},
+    												saveOptions);
     		},
     		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
     		dataType: "json"
@@ -503,7 +511,7 @@ $(function($) {
         if (((cls == CameraModelTransform) && (typeof issMRF != 'undefined'))
         		&& (typeof overlay != 'undefined')){
         	//only pass the issMRF field if it is a cameraModelTransform
-        	cls.fit(cls, toPts, fromPts, issMRF, overlay);  // ajax fcn returns cls.fromParams(params)
+        	cls.fit(cls, toPts, fromPts, issMRF, overlay); 
         } else {
             params = cls.fit(cls, toPts, fromPts);
             return cls.fromParams(params);
@@ -515,7 +523,8 @@ $(function($) {
         var classmap = {
             'projective': ProjectiveTransform,
             'quadratic': QuadraticTransform,
-            'quadratic2': QuadraticTransform2
+            'quadratic2': QuadraticTransform2,
+            'CameraModelTransform': CameraModelTransform
         };
         if (! transformJSON.type in classmap) {
             throw 'Unexpected transform type';
@@ -525,6 +534,8 @@ $(function($) {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix),
                                       transformJSON.quadraticTerms);
+        } else if (transformClass === CameraModelTransform) {
+        	return new transformClass(transformJSON.params, transformJSON.imageId);
         } else {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix));
