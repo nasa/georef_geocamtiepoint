@@ -18,7 +18,7 @@ import numpy
 import logging
 from geocamTiePoint.optimize import optimize
 from geocamUtil import imageInfo
-from geocamUtil.registration import imageCoordToEcef, rotMatrixFromEcefToCamera
+from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
 
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
@@ -160,18 +160,15 @@ class CameraModelTransform(Transform):
         #FOR DEBUG ONLY:
         Fx = 20000
         Fy = 20000
-        
         width = self.width
         height = self.height
-        
-        lonLatAlt = (lon, lat, alt)  # camera position in lon,lat,alt
+        camLonLatAlt = (lon, lat, alt)  # camera position in lon,lat,alt
         opticalCenter = (int(width / 2.0), int(height / 2.0))
         focalLength = (Fx, Fy)
-        # convert image pixel coordinates to ecef
-        ecef = imageCoordToEcef(lonLatAlt, pt, opticalCenter, focalLength)
-        # convert ecef to lon lat
-        lonLatAlt = transformEcefToLonLatAlt(ecef)
-        toPt = [lonLatAlt[0], lonLatAlt[1]]  # [lon, lat]
+        rotMatrix = rotMatrixOfCameraInEcef(lon, transformLonLatAltToEcef(camLonLatAlt))  # from camera frame to ecef frame
+        ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix)  # convert image pixel coordinates to ecef
+        ptLonLatAlt = transformEcefToLonLatAlt(ecef)  # convert image pixel coordinates to ecef
+        toPt = [ptLonLatAlt[0], ptLonLatAlt[1]]  # [lon, lat]
         xy_meters = lonLatToMeters(toPt) 
         return xy_meters
 
