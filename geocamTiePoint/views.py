@@ -92,6 +92,7 @@ def backbone(request):
                 'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
                 'settings': export_settings(),
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
+                'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
                 'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
                 'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
             },
@@ -410,6 +411,26 @@ def cameraModelTransformFit(request):
         params = tform.params
         params = ndarrayToList(params)
         return HttpResponse(json.dumps({'params': params}), content_type="application/json")
+    else: 
+        return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
+
+
+@csrf_exempt
+def cameraModelTransformForward(request):
+    if request.is_ajax() and request.method == 'POST':
+        data = request.POST
+        pt = data['pt']
+        params = data['params']
+        mission, roll, frame = data['imageId']
+        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        # get the width and height from imageId
+        width = imageMetaData['width']
+        height = imageMetaData['height']
+        # create a new transform and set its params, width, and height
+        tform = transform.CameraModelTransform(params, width, height)
+        # call forward on it
+        meters = tform.forward(pt)
+        return HttpResponse(json.dumps({'meters': meters}), content_type="application/json")
     else: 
         return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
 

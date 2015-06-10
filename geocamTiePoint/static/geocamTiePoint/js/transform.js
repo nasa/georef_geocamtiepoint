@@ -187,19 +187,20 @@ $(function($) {
      * Camera Model Transform
      **********************************************************************/
   
-    function CameraModelTransform(params) {
+    function CameraModelTransform(params, imageId) {
     	self.params = params;
+    	self.imageId = imageId;
     }
     
     CameraModelTransform.prototype = $.extend(true,
             {},
             Transform.prototype);
 
-    CameraModelTransform.fromParams = function(params) {
-    	return new CameraModelTransform(params);
+    CameraModelTransform.fromParams = function(params, imageId) {
+    	return new CameraModelTransform(params, imageId);
     };
 
-    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId) {
+    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId, overlay) {
     	/**
     	 * Sends a request to the server and retrieves 
     	 * optimized params (iss pose, orientation, focal len, etc)
@@ -217,14 +218,49 @@ $(function($) {
     		type: 'POST', 
     		url: cameraModelTransformFitUrl,
     		data: pts, 
-    		success: function(params){
-    			// if server successfully responded, return the values
-    			// retrieved from the server.
-    			return params; 
+    		success: function(data){
+    			cls.fromParams(data['params'], imageId)
+    			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
+    			// need to save again to backbone so that overlayIdJson post is triggered with new transform.
+                saveOptions = {
+                    error: function(model, response) {
+                        if (response.readyState < 4) {
+                            model.trigger('warp_server_unreachable');
+                        } else {
+                            model.trigger('warp_server_error');
+                        }
+                    },
+                    success: function(model, response) {
+                        model.trigger('warp_success');
+                    }
+                };
+    			Backbone.Model.prototype.save.call(overlay, {},
+    												saveOptions);
     		},
-    		error: function() { alert("error occured"); }, 
-    		dataType: "json",
+    		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
+    		dataType: "json"
     	});
+    };
+    
+    CameraModelTransform.prototype.forward = function(pt) {
+    	$.ajax({
+    		type: 'POST',
+    		url: cameraModelTransformForwardUrl,
+    		data: {'pt': pt, 'params': this.params, 'imageId': this.imageId}, //TODO pass back image width/ height.
+    		success: function(ptInMeters) {
+    			return ptInMeters;
+    		},
+    		error: function() { alert("CameraModelTransform: could not convert pixel coords to meters!"); },
+    		dataType: "json"
+    	});
+    };
+    
+    CameraModelTransform.prototype.toDict = function() {
+        return {
+            type: 'CameraModelTransform',
+            params: this.params,
+            imageId: this.imageId
+        };
     };
     
     
@@ -451,45 +487,44 @@ $(function($) {
      **********************************************************************/
 
     function getTransformClass(n) {
-    	//TODO: Later incorporate CameraModelTransform here!
-    	if (n < 2) {
-            throw 'not enough tie points';
-        } else if (n == 2) {
-            return RotateScaleTranslateTransform;
-        } else if (n == 3) {
-            return AffineTransform;
-        } else if (n < 7) {
-            return ProjectiveTransform;
-        } else {
-            return QuadraticTransform2;
-        }
+    	return CameraModelTransform;
+//    	if (n < 2) {
+//            throw 'not enough tie points';
+//        } else if (n == 2) {
+//            return RotateScaleTranslateTransform;
+//        } else if (n == 3) {
+//            return AffineTransform;
+//        } else if (n < 7) {
+//            return ProjectiveTransform;
+//        } else {
+//            return QuadraticTransform2;
+//        }
     }
 
-    function getTransform0(toPts, fromPts, issMRF) {
-        var n = toPts.w;
-        var cls = getTransformClass(n);
-        var params = null;
-        if ((cls == CameraModelTransform) && (issMRF != 'undefined')) {
-        	//only pass the issMRF field if it is a cameraModelTransform
-        	params = cls.fit(cls, toPts, fromPts, issMRF);
-        } else {
-            params = cls.fit(cls, toPts, fromPts);
-        }
-        return cls.fromParams(params);
-    }
-
-    function getTransform(points, issMRF) {
+    function getTransform(points, issMRF, overlay) {
         var s = splitPoints(points);
         var toPts = s[0];
         var fromPts = s[1];
-        return getTransform0(toPts, fromPts, issMRF);
+        var n = toPts.w;
+        var cls = getTransformClass(n);
+        var params = null;
+        if (((cls == CameraModelTransform) && (typeof issMRF != 'undefined'))
+        		&& (typeof overlay != 'undefined')){
+        	//only pass the issMRF field if it is a cameraModelTransform
+        	cls.fit(cls, toPts, fromPts, issMRF, overlay); 
+        } else {
+            params = cls.fit(cls, toPts, fromPts);
+            return cls.fromParams(params);
+        }
     }
+    
 
     function deserializeTransform(transformJSON) {
         var classmap = {
             'projective': ProjectiveTransform,
             'quadratic': QuadraticTransform,
-            'quadratic2': QuadraticTransform2
+            'quadratic2': QuadraticTransform2,
+            'CameraModelTransform': CameraModelTransform
         };
         if (! transformJSON.type in classmap) {
             throw 'Unexpected transform type';
@@ -499,6 +534,8 @@ $(function($) {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix),
                                       transformJSON.quadraticTerms);
+        } else if (transformClass === CameraModelTransform) {
+        	return new transformClass(transformJSON.params, transformJSON.imageId);
         } else {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix));
