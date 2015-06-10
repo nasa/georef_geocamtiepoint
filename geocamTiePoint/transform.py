@@ -18,8 +18,9 @@ import numpy
 import logging
 from geocamTiePoint.optimize import optimize
 from geocamUtil import imageInfo
-from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera
+from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera, eulFromRot, rotFromEul
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
+# import pydevd
 
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
 TILE_SIZE = 256.
@@ -133,39 +134,43 @@ class Transform(object):
 
 
 class CameraModelTransform(Transform):
-    def __init__(self, params, width, height):
+    def __init__(self, params, width, height, Fx, Fy):
         self.params = params
         self.width = width
         self.height = height
+        self.Fx = Fx
+        self.Fy = Fy
         
     @classmethod
     def fit(cls, toPts, fromPts, imageId):
         # extract width and height of image.
         params0 = cls.getInitParams(toPts, fromPts, imageId)        
-        width = params0[len(params0)-2]
         height = params0[len(params0)-1]
+        width = params0[len(params0) -2]
+        Fy = params0[len(params0) -3]
+        Fx = params0[len(params0) -4]
         numPts = len(toPts.flatten())
-        params0 = params0[:len(params0)-2]
+        params0 = params0[:len(params0)-4]
         # optimize params
         params = optimize(toPts.flatten(),
-                          lambda params: forwardPts(cls.fromParams(params, width, height), fromPts).flatten(),
+                          lambda params: forwardPts(cls.fromParams(params, width, height, Fx, Fy), fromPts).flatten(),
                           params0)
-        return cls.fromParams(params, width, height)
+        return cls.fromParams(params, width, height, Fx, Fy)
 
     def forward(self, pt):
         """
         Takes in a point in pixel coordinate and returns point in gmap units (meters)
         """
-        lat, lon, alt, Fx, Fy = self.params
-        #FOR DEBUG ONLY:
-        Fx = 20000
-        Fy = 20000
+#         lat, lon, alt, roll, pitch, yaw, Fx, Fy = self.params
+        lat, lon, alt, roll, pitch, yaw = self.params
         width = self.width
         height = self.height
+        Fx = self.Fx
+        Fy = self.Fy
         camLonLatAlt = (lon, lat, alt)  # camera position in lon,lat,alt
         opticalCenter = (int(width / 2.0), int(height / 2.0))
         focalLength = (Fx, Fy)
-        rotMatrix = rotMatrixOfCameraInEcef(lon, transformLonLatAltToEcef(camLonLatAlt))  # from camera frame to ecef frame
+        rotMatrix = rotFromEul(roll, pitch, yaw)
         ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix)  # convert image pixel coordinates to ecef
         ptLonLatAlt = transformEcefToLonLatAlt(ecef)  # convert image pixel coordinates to ecef
         toPt = [ptLonLatAlt[0], ptLonLatAlt[1]]  # [lon, lat]
@@ -176,32 +181,26 @@ class CameraModelTransform(Transform):
         """
         Takes a point in gmap meters and converts it to image coordinates
         """
-        # lat, lon, alt = position of the camera
-        # Fx, Fy = focal length
-        lat, lon, alt, Fx, Fy = self.params
-        #FOR DEBUG ONLY:
-        Fx = 20000
-        Fy = 20000
+#         lat, lon, alt, roll, pitch, yaw, Fx, Fy = self.params  # camera parameters (location, orientation, focal length)
+        lat, lon, alt, roll, pitch, yaw = self.params  # camera parameters (location, orientation, focal length)
         width = self.width  # image width
         height = self.height  # image height
-        
-        #convert point to lat lon, and then to ecef
+        Fx = self.Fx
+        Fy = self.Fy
         ptlon, ptlat = metersToLatLon([pt[0], pt[1]])
         ptalt = 0
-        # convert lon lat alt to ecef
         px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
-        # convert to column vector
-        pt = numpy.array([[px, py, pz, 1]]).transpose()
-        cameraMatrix = numpy.array([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
+        pt = numpy.array([[px, py, pz, 1]]).transpose()  # convert to column vector
+        cameraMatrix = numpy.matrix([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
                                     [0, Fy, height / 2.0],
                                     [0, 0, 1]],
                                    dtype='float64')  
         x,y,z = transformLonLatAltToEcef((lon,lat,alt))  # camera pose in ecef
-        rotation = rotMatrixFromEcefToCamera(lon, [x,y,z])  # world to camera
+        rotation = rotFromEul(roll, pitch, yaw)  # euler to matrix
+        rotation = numpy.transpose(rotation)
         cameraPoseColVector = numpy.array([[x, y, z]]).transpose()
         translation = -1* rotation * cameraPoseColVector
-        # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
-        rotTransMat = numpy.c_[rotation, translation]
+        rotTransMat = numpy.c_[rotation, translation]  # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
         ptInImage = cameraMatrix * rotTransMat * pt
         u = ptInImage.item(0) / ptInImage.item(2)
         v = ptInImage.item(1) / ptInImage.item(2)
@@ -213,15 +212,14 @@ class CameraModelTransform(Transform):
         mission, roll, frame = imageId.split('-')
         imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
         try:
-            """
-            For now, we assume that camera frame's axis is defined as 
-            z axis pointing towards Earth along the nadir vector.
-            """
             issLat = imageMetaData['latitude']
             issLon = imageMetaData['longitude']
             issAlt = imageMetaData['altitude']
             foLenX = imageMetaData['focalLength'][0]
             foLenY = imageMetaData['focalLength'][1]
+            camLonLatAlt = (issLon,issLat,issAlt)
+            rotMatrix = rotMatrixOfCameraInEcef(issLon, transformLonLatAltToEcef(camLonLatAlt))  # initially nadir pointing
+            roll, pitch, yaw = eulFromRot(rotMatrix)  # initially set to nadir rotation
             # these values are not going to be optimized. But needs to be passed to fromParams 
             # to set it as member vars.
             width = imageMetaData['width']
@@ -229,12 +227,13 @@ class CameraModelTransform(Transform):
         except Exception as e:
             logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
             print e 
-        return [issLat, issLon, issAlt, foLenX, foLenY, width, height]
+        return [issLat, issLon, issAlt, roll, pitch, yaw, foLenX, foLenY, width, height]
+
 
     @classmethod
-    def fromParams(cls, params, width, height):
+    def fromParams(cls, params, width, height, Fx, Fy):
         # this makes params field passed from getInitParams accessible as a parameter of self!
-        return cls(params, width, height)
+        return cls(params, width, height, Fx, Fy)
     
 
 class LinearTransform(Transform):
@@ -494,7 +493,7 @@ def makeTransform(transformDict):
         imageId = transformDict['imageId']
         mission, roll, frame = imageId.split('-')
         imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
-        return CameraModelTransform(params, imageMetaData['width'], imageMetaData['height'])
+        return CameraModelTransform(params, imageMetaData['width'], imageMetaData['height'], imageMetaData['focalLength'][0], imageMetaData['focalLength'][1])
     else: 
         transformMatrix = numpy.array(transformDict['matrix'])
         if transformType == 'projective':

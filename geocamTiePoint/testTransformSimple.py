@@ -8,7 +8,7 @@ import numpy
 
 from geocamTiePoint import transform
 from geocamUtil import imageInfo
-from geocamUtil.registration import imageCoordToEcef, rotMatrixFromEcefToCamera
+from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera, eulFromRot, rotFromEul
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef, EARTH_RADIUS_METERS
 import math
 POINTS = [
@@ -60,15 +60,16 @@ TO_PTS, FROM_PTS = transform.splitPoints(POINTS)
 N = len(POINTS)
 
 def getInitialData():
-#     imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
-#     lat = imageMetaData['latitude']
-#     lon = imageMetaData['longitude']
-#     alt = imageMetaData['altitude']
-#     Fx = imageMetaData['focalLength'][0]
-#     Fy = imageMetaData['focalLength'][1]
-#     width = imageMetaData['width']
-#     height = imageMetaData['height']
-#     return [lat, lon, alt, Fx, Fy, width, height]
+    if 0: 
+        imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
+        lat = imageMetaData['latitude']
+        lon = imageMetaData['longitude']
+        alt = imageMetaData['altitude']
+        Fx = imageMetaData['focalLength'][0]
+        Fy = imageMetaData['focalLength'][1]
+        width = imageMetaData['width']
+        height = imageMetaData['height']
+        return [lat, lon, alt, Fx, Fy, width, height]
     if 0:
         # basically camera is directly above the north pole
         imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
@@ -81,7 +82,6 @@ def getInitialData():
         height = 400
         return [lat, lon, alt, Fx, Fy, width, height]
     if 0:
-        # camera is at the equator
         # basically camera is directly above the north pole
         imageMetaData = imageInfo.getIssImageInfo("ISS039", "E", "12345")
         Fx = imageMetaData['focalLength'][0]
@@ -113,12 +113,22 @@ def forward(pt):
     Takes in a point in pixel coordinate and returns point in gmap units (meters)
     """
     lat, lon, alt, Fx, Fy, width, height = getInitialData()
-    lonLatAlt = (lon, lat, alt)  # camera position in lon,lat,alt
+    camLonLatAlt = (lon,lat,alt)
+    rotMatrix = rotMatrixOfCameraInEcef(lon, transformLonLatAltToEcef(camLonLatAlt)) 
+    print "rotMatrix"
+    print rotMatrix
+    roll, pitch, yaw = eulFromRot(rotMatrix)
+    print 'roll pitch yaw'
+    print (roll * (180/numpy.pi), pitch * (180/numpy.pi), yaw * (180/numpy.pi))
+    rotMatrix = rotFromEul(roll, pitch, yaw)
+    print "rot matrix back"
+    print rotMatrix
+    
     opticalCenter = (int(width / 2.0), int(height / 2.0))
     focalLength = (Fx, Fy)
     
     # convert image pixel coordinates to ecef
-    ecef = imageCoordToEcef(lonLatAlt, pt, opticalCenter, focalLength)
+    ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix) 
     return ecef
     # convert ecef to lon lat
 #     lonLatAlt = transformEcefToLonLatAlt(ecef)
@@ -133,7 +143,9 @@ def reverse(pt):
     Takes a point in gmap meters and converts it to image coordinates
     """
     lat, lon, alt, Fx, Fy, width, height = getInitialData()
-    
+    camLonLatAlt = (lon,lat,alt)
+    rotMatrix = rotMatrixOfCameraInEcef(lon, transformLonLatAltToEcef(camLonLatAlt)) 
+    roll, pitch, yaw = eulFromRot(rotMatrix)
 #     #convert point to lat lon, and then to ecef
 #     ptlon, ptlat = transform.metersToLatLon([pt[0], pt[1]])
 #     ptalt = 0
@@ -145,16 +157,16 @@ def reverse(pt):
 #     print (px, py, pz)
     
     px, py, pz = (pt[0],pt[1], pt[2])  
-    
-    
-    # convert to column vector
     pt = numpy.array([[px, py, pz, 1]]).transpose()
-    cameraMatrix = numpy.array([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
+    cameraMatrix = numpy.matrix([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
                                 [0, Fy, height / 2.0],
                                 [0, 0, 1]],
                                dtype='float64')  
     x,y,z = transformLonLatAltToEcef((lon,lat,alt))  # camera pose in ecef
-    rotation = rotMatrixFromEcefToCamera(lon, [x,y,z])  # world to camera
+    # euler to matrix
+    rotation = rotFromEul(roll, pitch, yaw)
+    rotation = numpy.transpose(rotation)  # can I do this?
+#         rotation = rotMatrixFromEcefToCamera(lon, [x,y,z])  # world to camera
     cameraPoseColVector = numpy.array([[x, y, z]]).transpose()
     translation = -1* rotation * cameraPoseColVector
     # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
@@ -168,28 +180,41 @@ def reverse(pt):
 
 def testTransformClass():
     lat, lon, alt, Fx, Fy, width, height = getInitialData()
+    camLonLatAlt = (lon, lat, alt)
+    rotMatrix = rotMatrixOfCameraInEcef(lon, transformLonLatAltToEcef(camLonLatAlt))    
+    print "rotation Matrix is"
+    print rotMatrix
+     
+    print "euler angle is"
+    r,p,y = eulFromRot(rotMatrix)
+    print [r,p,y]
+     
+    print "back to rotation Matrix"
+    print rotFromEul(r,p,y)
     
-#     """
-#     Forward
-#     """
+    """
+    Forward
+    """
 #     pt = [width / 2.0, height / 2.0]  # if image coord is at center of image
 #     fwdRetval = forward(pt)
 #     print "ecef should be at 0, 0, some radius"
 #     print fwdRetval
-#     
+#      
 #     print "back to image coordinates"
 #     print reverse(fwdRetval)
-#     
+#      
 #     print"back to ecef"
 #     print forward(reverse(fwdRetval))
-    
+#     
     """
     Reverse
     """
-    # input 0,0,x for ecef and make sure I get center of the image
-    reverseRetval = reverse([EARTH_RADIUS_METERS * math.cos(15/180 * math.pi),EARTH_RADIUS_METERS * math.sin(15/180 * math.pi) , 0])
-    reverseRetval = reverse([0, EARTH_RADIUS_METERS / 2.0, 0])
-    print "imagePt should be center of image with size %s, %s" % (width, height) 
-    print reverseRetval
+#     # input 0,0,x for ecef and make sure I get center of the image
+#     reverseRetval = reverse([EARTH_RADIUS_METERS * math.cos(15/180 * math.pi),EARTH_RADIUS_METERS * math.sin(15/180 * math.pi) , 0])
+#     reverseRetval = reverse([0, EARTH_RADIUS_METERS / 2.0, 0])
+#     print "imagePt should be center of image with size %s, %s" % (width, height) 
+#     print reverseRetval
+
+    
     
 testTransformClass()
