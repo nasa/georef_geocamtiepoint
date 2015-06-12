@@ -417,17 +417,23 @@ def cameraModelTransformFit(request):
 
 @csrf_exempt
 def cameraModelTransformForward(request):
+#     pydevd.settrace('128.102.237.189')
     if request.is_ajax() and request.method == 'POST':
         data = request.POST
-        pt = data['pt']
-        params = data['params']
-        mission, roll, frame = data['imageId']
+        pt = data.getlist('pt[]', None)
+        params = data.getlist('params[]', None)
+        issMRF = data.get('imageId', None)
+        mission, roll, frame = issMRF.split('-')
         imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
         # get the width and height from imageId
         width = imageMetaData['width']
         height = imageMetaData['height']
+        Fx = imageMetaData['focalLength'][0]
+        Fy = imageMetaData['focalLength'][1]
         # create a new transform and set its params, width, and height
-        tform = transform.CameraModelTransform(params, width, height)
+        params = [float(param) for param in params]  # convert params from unicode to float.
+        pt = [float(c) for c in pt]  # convert pt from unicode to float.
+        tform = transform.CameraModelTransform(params, width, height, Fx, Fy)
         # call forward on it
         meters = tform.forward(pt)
         return HttpResponse(json.dumps({'meters': meters}), content_type="application/json")
@@ -613,10 +619,14 @@ def overlayIdJson(request, key):
         overlay.jsonDict = json.loads(request.raw_post_data)
         transformDict = overlay.extras.get('transform')
         if transformDict:
-            overlay.extras.bounds = (quadTree.imageMapBounds
-                                     (overlay.extras.imageSize,
-                                      transform.makeTransform(transformDict)))
-            overlay.generateAlignedQuadTree()
+            try: 
+                overlay.extras.bounds = (quadTree.imageMapBounds
+                                         (overlay.extras.imageSize,
+                                          transform.makeTransform(transformDict)))
+                overlay.generateAlignedQuadTree()
+            except:
+                # could not generate aligned quad tree from opimized params
+                return HttpResponse(dumps(overlay.jsonDict), content_type='application/json')        
         overlay.save()
         return HttpResponse(dumps(overlay.jsonDict), content_type='application/json')
     elif request.method == 'DELETE':
@@ -719,7 +729,6 @@ def dummyView(*args, **kwargs):
 
 @csrf_exempt
 def overlayGenerateExport(request, key):
-#     pydevd.settrace('128.102.236.49')
     if request.method == 'GET':
         return (HttpResponse
                 ('<form action="." method="post">'
@@ -756,7 +765,6 @@ def overlayExportInterface(request, key):
 
 
 def overlayExport(request, key, type, fname):
-#     pydevd.settrace('128.102.236.49')
     if request.method == 'GET':
         overlay = get_object_or_404(Overlay, key=key)
         if not (overlay.alignedQuadTree and overlay.alignedQuadTree.htmlExport):

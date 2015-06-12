@@ -159,7 +159,6 @@ $(function($) {
             // issMRF will be undefined for all other transforms besides CameraModelFrame
             var issMRF = this.get('issMRF'); 
             // set the 'transform' field of the overlay model with the newly computed tform.
-            
             var transform = geocamTiePoint.transform.getTransform(points, issMRF, this);
             if (typeof transform != 'undefined') {
             	this.set('transform',

@@ -191,24 +191,35 @@ $(function($) {
     	// to get a new lat long value for center point. 
         updateCenterPointMarker: function() {
         	var model = this.model;
-            model.fetch({ 'success': function(model) {
-                var transform = (geocamTiePoint.transform.deserializeTransform
-                        (model.get('transform')));
-                var imageSize = model.get('imageSize');
-                var w = imageSize[0];
-                var h = imageSize[1];
-                if (transform && centerPointMarker) {
-    	            // calculate the new center
-                	var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
-    	            var lat = transformedCenter.lat();
-    	            var lon = transformedCenter.lng();
-    	            // update the marker title
-    	            var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
-    	            centerPointMarker.title = centerPtLabel;
-    	        } else {
-                	console.log("Transformation matrix not available. Center point cannot be updated");
-                }
-            } });
+        	model.fetch({ 'success': function(model) {
+        		if (model.get('transform')) {
+        			//TODO: break here and see what deserializeTrnasform returns for CameraModelT
+        			var transform = (geocamTiePoint.transform.deserializeTransform
+        					(model.get('transform')));
+        			var imageSize = model.get('imageSize');
+        			var w = imageSize[0];
+        			var h = imageSize[1];
+        			if (transform && centerPointMarker) {
+        				var updateCenter = false;
+        				if (transform.toDict().type == 'CameraModelTransform') {
+        					// if it is a cameraModelTransform, center will be updated in the 
+        					// forward function.
+        					updateCenter = true; 
+        				}
+    					// calculate the new center
+    					var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2}, updateCenter);
+    					if (updateCenter == false) {
+							var lat = transformedCenter.lat();
+							var lon = transformedCenter.lng();
+							// update the marker title
+							var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
+							centerPointMarker.title = centerPtLabel;
+    					}
+        			} else {
+        				console.log("Transformation matrix not available. Center point cannot be updated");
+        			}
+        		}
+        	}});
         }
     });
 
@@ -297,13 +308,6 @@ $(function($) {
             this.markers.push(marker);
             this.updateTiepointFromMarker(index, marker, false);
             app.currentView.selectMarker(index);
-            
-            //if transform is there, update the center point
-            console.log("handleclick,  transform: ", this.model.get('transform'));
-	        if (this.model.get('transform')) {
-	        	console.log("handleclick, center point updated!");
-	         	this.updateCenterPointMarker();
-	        }
         },
 
         initGmapUIHandlers: function() {
@@ -374,11 +378,6 @@ $(function($) {
     			 imageQtreeView.drawCenterPointMarker.apply(imageQtreeView);
     			 imageQtreeView.trigger('gmap_loaded');
                  if (imageQtreeView.options.debug) imageQtreeView.debugInstrumentation.apply(imageQtreeView);
-                 
-                 console.log("idle: transform: ", this.model.get('transform'));
-                 if (this.model.get('transform')) {
-                	 this.updateCenterPointMarker();
-                 }
                  //add rotation control slider
                  var mapType = new maputils.ImageMapType(imageQtreeView.model);
                  maputils.createRotationControl(imageQtreeView, mapType);
@@ -562,6 +561,7 @@ $(function($) {
             this.on('dragstart', this.destroyAlignedImageQtree, this);
             this.model.on('add_point', this.destroyAlignedImageQtree, this);
             this.model.on('warp_success', this.refreshAlignedImageQtree, this);
+            this.model.on('warp_success', this.updateCenterPointMarker, this); 
             if (this.model.get('transform') &&
                 this.model.get('transform').type) {
                 this.initAlignedImageQtree();
@@ -577,8 +577,8 @@ $(function($) {
                 this.gmap.overlayMapTypes.insertAt(0, mapType);
                 if (_.isUndefined(this.model.overlayOpacity)) {
                     this.model.overlayOpacity = DEFAULT_OPACITY;
-                }
-                maputils.createOpacityControl(this.gmap, mapType, this.model);
+                }                
+                maputils.createOpacityControl(this.gmap, mapType, this.model);	
             }
         },
 

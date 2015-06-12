@@ -43,9 +43,7 @@ $(function($) {
         for (var i = 0; i < n; i++) {
             var x = fromPts.values[0][i];
             var y = fromPts.values[1][i];
-
             var out = tform.forward([x, y]);
-
             toPts.values[0][i] = out[0];
             toPts.values[1][i] = out[1];
         }
@@ -188,8 +186,8 @@ $(function($) {
      **********************************************************************/
   
     function CameraModelTransform(params, imageId) {
-    	self.params = params;
-    	self.imageId = imageId;
+    	this.params = params;
+    	this.imageId = imageId;
     }
     
     CameraModelTransform.prototype = $.extend(true,
@@ -219,7 +217,6 @@ $(function($) {
     		url: cameraModelTransformFitUrl,
     		data: pts, 
     		success: function(data){
-    			cls.fromParams(data['params'], imageId)
     			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
     			// need to save again to backbone so that overlayIdJson post is triggered with new transform.
                 saveOptions = {
@@ -242,15 +239,29 @@ $(function($) {
     	});
     };
     
-    CameraModelTransform.prototype.forward = function(pt) {
+    CameraModelTransform.prototype.forward = function(pt, updateCenter) {
+    	// set updateCenter to false if it is not defined.
+    	updateCenter = typeof updateCenter !== 'undefined' ? updateCenter : false;
+    	var data = {'pt': [pt.x, pt.y], 'params': this.params, 'imageId': this.imageId}
     	$.ajax({
     		type: 'POST',
     		url: cameraModelTransformForwardUrl,
-    		data: {'pt': pt, 'params': this.params, 'imageId': this.imageId}, //TODO pass back image width/ height.
-    		success: function(ptInMeters) {
+    		data: data,
+    		success: function(data) {
+    			var ptInMeters = data['meters'];
+    			if (updateCenter = true) {
+    				ptInMeters.x = ptInMeters[0];
+    				ptInMeters.y = ptInMeters[1];
+    				var pt = metersToLatLon(ptInMeters);
+    				var centerPtLabel = maputils.createCenterPointLabelText(pt.lat(), pt.lng());
+    				centerPointMarker.title = centerPtLabel;
+    				return;
+    			}
     			return ptInMeters;
     		},
-    		error: function() { alert("CameraModelTransform: could not convert pixel coords to meters!"); },
+    		error: function() { 
+    			console.log("CameraModelTransform: could not convert pixel coords to meters!"); 
+    		},
     		dataType: "json"
     	});
     };
@@ -487,18 +498,20 @@ $(function($) {
      **********************************************************************/
 
     function getTransformClass(n) {
-    	return CameraModelTransform;
-//    	if (n < 2) {
-//            throw 'not enough tie points';
-//        } else if (n == 2) {
-//            return RotateScaleTranslateTransform;
-//        } else if (n == 3) {
-//            return AffineTransform;
-//        } else if (n < 7) {
-//            return ProjectiveTransform;
-//        } else {
-//            return QuadraticTransform2;
-//        }
+    	if (n < 2) {
+            throw 'not enough tie points';
+        } else if (n == 2) {
+        	console.log("n is 2 so get the CameraModelTransform");
+        	return CameraModelTransform;
+        } else if (n == 3) {
+        	console.log("n is 3 so get the CameraModelTransform");
+        	return CameraModelTransform;
+        } else if (n < 7) {
+        	console.log("n is "+n+" so get the ProjectiveTransform");
+            return ProjectiveTransform;
+        } else {
+            return QuadraticTransform2;
+        }
     }
 
     function getTransform(points, issMRF, overlay) {
@@ -547,7 +560,6 @@ $(function($) {
      **********************************************************************/
 
     var ns = geocamTiePoint.transform;
-
     ns.getTransform = getTransform;
     ns.splitPoints = splitPoints;
     ns.forwardPoints = forwardPoints;

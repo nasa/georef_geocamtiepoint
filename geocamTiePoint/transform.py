@@ -20,7 +20,6 @@ from geocamTiePoint.optimize import optimize
 from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera, eulFromRot, rotFromEul
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
-# import pydevd
 
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
 TILE_SIZE = 256.
@@ -154,14 +153,13 @@ class CameraModelTransform(Transform):
         # optimize params
         params = optimize(toPts.flatten(),
                           lambda params: forwardPts(cls.fromParams(params, width, height, Fx, Fy), fromPts).flatten(),
-                          params0)
+                          params0)   
         return cls.fromParams(params, width, height, Fx, Fy)
 
     def forward(self, pt):
         """
         Takes in a point in pixel coordinate and returns point in gmap units (meters)
         """
-#         lat, lon, alt, roll, pitch, yaw, Fx, Fy = self.params
         lat, lon, alt, roll, pitch, yaw = self.params
         width = self.width
         height = self.height
@@ -172,7 +170,10 @@ class CameraModelTransform(Transform):
         focalLength = (Fx, Fy)
         rotMatrix = rotFromEul(roll, pitch, yaw)
         ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix)  # convert image pixel coordinates to ecef
-        ptLonLatAlt = transformEcefToLonLatAlt(ecef)  # convert image pixel coordinates to ecef
+        try: 
+            ptLonLatAlt = transformEcefToLonLatAlt(ecef)  # convert image pixel coordinates to ecef
+        except:
+            return None
         toPt = [ptLonLatAlt[0], ptLonLatAlt[1]]  # [lon, lat]
         xy_meters = lonLatToMeters(toPt) 
         return xy_meters
@@ -181,7 +182,6 @@ class CameraModelTransform(Transform):
         """
         Takes a point in gmap meters and converts it to image coordinates
         """
-#         lat, lon, alt, roll, pitch, yaw, Fx, Fy = self.params  # camera parameters (location, orientation, focal length)
         lat, lon, alt, roll, pitch, yaw = self.params  # camera parameters (location, orientation, focal length)
         width = self.width  # image width
         height = self.height  # image height
@@ -488,7 +488,6 @@ class QuadraticTransform2(Transform):
 def makeTransform(transformDict):
     transformType = transformDict['type']
     if transformType == 'CameraModelTransform':
-        # construct a new transform from the params.
         params = transformDict['params']
         imageId = transformDict['imageId']
         mission, roll, frame = imageId.split('-')

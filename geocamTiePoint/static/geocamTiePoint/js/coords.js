@@ -88,13 +88,17 @@ function getNormalizedCoord(coord, zoom) {
 }
 
 
-function forwardTransformPixel(transform, pixelcoords) {
+function forwardTransformPixel(transform, pixelcoords, updateCenter) {
+	// set updateCenter to false if it is not defined.
+	updateCenter = typeof updateCenter !== 'undefined' ? updateCenter : false;
     pixelcoords[0] = pixelcoords.x;
     pixelcoords[1] = pixelcoords.y;
-    var transformedMeters = transform.forward(pixelcoords);
-    transformedMeters.x = transformedMeters[0];
-    transformedMeters.y = transformedMeters[1];
-    return metersToLatLon(transformedMeters);
+	var transformedMeters = transform.forward(pixelcoords, updateCenter);
+	if (!updateCenter) {
+		transformedMeters.x = transformedMeters[0];
+		transformedMeters.y = transformedMeters[1];
+		return metersToLatLon(transformedMeters);
+	}
 }
 
 
