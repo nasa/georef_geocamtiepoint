@@ -13,5 +13,7 @@
 /geocamTiePoint/build
 /geocamTiePoint/static/geocamTiePoint/overlay_images/
 /geocamTiePoint/testrpc/*.vrt
-/geocamTiePoint/testrpc/conus_rpc.tif
+/geocamTiePoint/testrpc/conus_rpc*
 /geocamTiePoint/testrpc/out.tif
+/geocamTiePoint/testrpc/tiles
+/geocamTiePoint/testrpc/vwTiles
