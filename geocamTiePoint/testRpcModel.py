@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import os
 
 import pyproj
 import numpy as np
@@ -10,8 +11,16 @@ import rpcModel
 import gdalUtil
 
 
+def dosys(cmd):
+    logging.info('running: %s', cmd)
+    ret = os.system(cmd)
+    if ret != 0:
+        logging.warn('command exited with non-zero return value %s', ret)
+    return ret
+
+
 def testFit(imgPath):
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
     handle = gdal.Open(imgPath, gdal.GA_ReadOnly)
     img = gdalUtil.GdalImage(handle)
@@ -47,9 +56,28 @@ def testFit(imgPath):
 
 def testRpcModel():
     imgPath = 'testrpc/conus.tif'
+    resultPath = 'testrpc/out.tif'
+    tilesPath = 'testrpc/tiles'
+    vwTilesPath = 'testrpc/vwTiles'
+
     T_rpc = testFit(imgPath)
+    srs = gdalUtil.EPSG_4326
+    # srs = gdalUtil.GOOGLE_MAPS_SRS
     gdalUtil.reprojectWithRpcMetadata(imgPath, T_rpc.getVrtMetadata(),
-                                      gdalUtil.GOOGLE_MAPS_SRS, 'testrpc/out.tif')
+                                      srs, resultPath)
+    dosys('rm -rf %s' % tilesPath)
+    logging.info('fetch mostly-working version of gdal2tiles.py from here: http://www.klokan.cz/projects/gdal2tiles/gdal2tiles.py')
+    dosys('./gdal2tiles.py -forcekml %s %s'
+          % (resultPath, tilesPath))
+    logging.info('')
+    logging.info('*** view testrpc/tiles/openlayers.html ***')
+    logging.info('*** view testrpc/tiles/doc.kml ***')
+
+    logging.info('')
+    logging.info('NOTE: now trying an alternate way to make tiles that only works if you have NASA Vision Workbench installed -- this approach seems to make better KML output')
+    dosys('rm -rf %s' % vwTilesPath)
+    dosys('image2qtree testrpc/out.tif -o %s' % vwTilesPath)
+    logging.info('*** view testrpc/vwTiles/vwTiles.kml ***')
 
 
 def main():
