@@ -269,6 +269,10 @@ class TarWriter(object):
         self.tar = tarfile.open(fileobj=self.out, mode='w:gz')
         self.tar.addfile(getDirTarInfo(self.dirName))
         self.closed = False
+    
+    def addFile(self, path, arcname):
+        assert not self.closed
+        self.tar.add(path, arcname=arcname)
 
     def writeData(self, path, data):
         assert not self.closed

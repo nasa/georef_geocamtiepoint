@@ -183,7 +183,6 @@ class RpcTransform(object):
         @fixed is a dictionary specifying the fixed parameters that
           don't get optimized (offsets and scales).
         """
-
         params0 = cls.getInitParams(v, u, fixed)
         errorFunc = cls.getErrorFunc(v, u, fixed)
         params, _cov = scipy.optimize.leastsq(errorFunc, params0)
@@ -234,7 +233,14 @@ def findRootOrDefault(f, a, b, dflt):
     if f(a) > 0 and f(b) > 0:
         return dflt
     else:
-        return findRoot(f, a, b)
+        try: 
+            root = findRoot(f, a, b)
+        except ValueError: 
+            print "root cannot be found"
+            print "a and b are %.2f %.2f" % (a,b)
+            print "f(a) is %.2f" % (f(a))
+            print "f(b) is %.2f" % (f(b))
+        return root
 
 
 def getApproxImageFootprintBoundingBox(T,
@@ -295,6 +301,7 @@ def getSubRandomSamples(bbox, numSamples, isValidFunc):
 
     result = []
     while len(result) < numSamples:
+        print "at iteration %d" % len(result)
         i = len(result)
         x0 = (dx * i) % 1
         y0 = (dy * i) % 1
@@ -312,8 +319,8 @@ def fitRpcToModel(T,
                   clon, clat,
                   maxDistanceDegrees=10):
     """
-    @T is a transform function (projection model) such that v = T(u)
-      where @v is a 3 x n matrix of n 3D points in WGS84 (lon, lat, alt)
+    @T is a transform function (projection model) such that v = T(u) where 
+            @v is a 3 x n matrix of n 3D points in WGS84 (lon, lat, alt)
             @u is a 2 x n matrix of n 2D points in image (px, py)
     @imageWidth and @imageHeight are the size of the image in pixels
     @clon, @clat should be the "geographic center point" i.e. the approximate (lon, lat)
@@ -321,11 +328,11 @@ def fitRpcToModel(T,
     @maxDistanceDegrees is used to limit the area over which we do the RPC
       fit to a bounding box around (clon, clat) with maxDistanceDegrees.
     """
-
     bbox = getApproxImageFootprintBoundingBox(T,
                                               imageWidth, imageHeight,
                                               clon, clat,
                                               maxDistanceDegrees)
+
     [lonMin, latMin, lonMax, latMax] = bbox
     logging.info('bbox: %s', bbox)
 

@@ -44,7 +44,6 @@ from geocamUtil import imageInfo as imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
-# import pydevd
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -417,7 +416,6 @@ def cameraModelTransformFit(request):
 
 @csrf_exempt
 def cameraModelTransformForward(request):
-#     pydevd.settrace('128.102.237.189')
     if request.is_ajax() and request.method == 'POST':
         data = request.POST
         pt = data.getlist('pt[]', None)
@@ -769,8 +767,16 @@ def overlayExport(request, key, type, fname):
         overlay = get_object_or_404(Overlay, key=key)
         if not (overlay.alignedQuadTree and overlay.alignedQuadTree.htmlExport):
             raise Http404('no export archive generated for requested overlay yet')
-        return HttpResponse(overlay.alignedQuadTree.htmlExport.file.read(),
-                            content_type='application/x-tgz')
+        if type == 'html': 
+            return HttpResponse(overlay.alignedQuadTree.htmlExport.file.read(),
+                                content_type='application/x-tgz')
+        elif type == 'kml':
+            return HttpResponse(overlay.alignedQuadTree.kmlExport.file.read(),
+                                content_type='application/x-tgz')
+        elif type == 'geoTiff':
+            return HttpResponse(overlay.alignedQuadTree.geoTiffExport.file.read(),
+                                content_type='application/x-tgz')
+            
     else:
         return HttpResponseNotAllowed(['GET'])
 

@@ -18,6 +18,9 @@ except ImportError:
     from StringIO import StringIO
 
 import PIL.Image
+import pyproj
+import numpy as np
+from osgeo import gdal
 
 from django.db import models
 from django.core.urlresolvers import reverse
@@ -27,9 +30,9 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 
 from geocamUtil import anyjson as json
+from geocamUtil import gdal2tiles
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
-
-from geocamTiePoint import quadTree, transform, settings
+from geocamTiePoint import quadTree, transform, settings, rpcModel, gdalUtil
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
@@ -55,6 +58,14 @@ def dumps(obj):
 class MissingData(object):
     pass
 MISSING = MissingData()
+
+
+def dosys(cmd):
+    logging.info('running: %s', cmd)
+    ret = os.system(cmd)
+    if ret != 0:
+        logging.warn('command exited with non-zero return value %s', ret)
+    return ret
 
 
 class ImageData(models.Model):
@@ -207,35 +218,96 @@ class QuadTree(models.Model):
                                  'tileUrlTemplate': '%s/[ZOOM]/[X]/[Y].png' % slug,
                                  'tileSize': 256})
 
+    def reversePts(self, toPts):
+        """
+        Helper needed for fitRpcToModel. 
+        Does v = T(u).
+            @v is a 3 x n matrix of n 3D points in WGS84 (lon, lat, alt)
+            @u is a 2 x n matrix of n 2D points in image (px, py)
+        """
+        transformDict  = json.loads(self.transform)
+        tform =  transform.makeTransform(transformDict)
+        pixels = None
+        for column in toPts.T:
+            # convert column (3D pts in WGS84) to gmap meters
+            lonlat = column[:2]
+            gmap_meters = transform.lonLatToMeters(lonlat)
+            px, py = tform.reverse(gmap_meters)
+            newCol = np.array([[px],[py]])
+            if pixels is None:
+                pixels = newCol
+            else:
+                pixels = np.column_stack((pixels, newCol))
+        return pixels        
+
+
     def generateExport(self, exportName, metaJson, slug):
         gen = self.getGeneratorWithCache(self.id)
-        writer = quadTree.TarWriter(exportName)
-        gen.writeQuadTree(writer, slug)
-        writer.writeData('meta.json', dumps(metaJson))
-
+        now = datetime.datetime.utcnow()
+        timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
+        
         # generate html export
+        htmlExportName = exportName + ('-small-html_%s' % timestamp)  #TODO: make the image size a variable.
         viewHtmlPath = 'view.html'
         tileRootUrl = './%s' % slug
         html = self.getSimpleViewHtml(tileRootUrl, metaJson, slug)
         logging.debug('html: len=%s head=%s', len(html), repr(html[:10]))
+        # tar the html export
+        writer = quadTree.TarWriter(htmlExportName)
+        gen.writeQuadTree(writer, slug)
         writer.writeData(viewHtmlPath, html)
-
-        self.htmlExportName = '%s_html.tar.gz' % exportName
+        writer.writeData('meta.json', dumps(metaJson))
+        self.htmlExportName = '%s.tar.gz' % htmlExportName
         self.htmlExport.save(self.htmlExportName,
                             ContentFile(writer.getData()))
         
-        # generate KML export
-#         self.kmlExportName = '%s_kml.tar.gz' % exportName
-#         self.kmlExport.save(self.kmlExportName, 
-#                             None)
-
-        # generate GeoTiff export
-#         self.geoTiffExportName = '%s_geotiff.tar.gz' % exportName
-#         self.geoTiffExport.save(self.geoTiffExportName, 
-#                                 None)
+        # get image width and height
+        overlay = Overlay.objects.get(alignedQuadTree = self) 
+        imageWidth, imageHeight = overlay.extras.imageSize
+        # update the center point with current transform and use those values
+        transformDict  = overlay.extras.transform
+        tform =  transform.makeTransform(transformDict)
+        center_meters = tform.forward([imageWidth / 2, imageHeight / 2])
+        clon, clat  = transform.metersToLatLon(center_meters)
+        # get the RPC values 
+        T_rpc = rpcModel.fitRpcToModel(self.reversePts, 
+                                     imageWidth, imageHeight,
+                                     clon, clat)
+        srs = gdalUtil.EPSG_4326
         
-
-
+        # tmp dir stores raw data products for tar compression. 
+        tmpPath = settings.DATA_ROOT + 'geocamTiePoint/export/tmp'
+        dosys('mkdir %s' % tmpPath)  # create a tmp folder 
+        # get image path of the overlay (for reprojection).
+        imgPath = overlay.imageData.image.url.replace('/data/', settings.DATA_ROOT)
+        
+        #generate geoTiff
+        resultPath = tmpPath + '/out.tif'
+        gdalUtil.reprojectWithRpcMetadata(imgPath, T_rpc.getVrtMetadata(),
+                                          srs, resultPath)
+        # tar the geotiff       
+        geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp) 
+        geotiff_writer = quadTree.TarWriter(geotiffExportName)        
+        geotiff_writer.addFile(resultPath, geotiffExportName + '/' + geotiffExportName + '.tif')        
+        self.geoTiffExportName = '%s.tar.gz' % geotiffExportName
+        self.geoTiffExport.save(self.geoTiffExportName,
+                                ContentFile(geotiff_writer.getData()))
+        
+        # this generates the kml and the tiles.
+        kmlExportName = exportName + ('-small-kml_%s' % timestamp)
+        tilesPath = tmpPath + '/' + kmlExportName
+        dosys('rm -rf %s' % tilesPath)
+        g2t = gdal2tiles.GDAL2Tiles(["--force-kml", str(resultPath), str(tilesPath)])
+        g2t.process()
+        # tar the kml
+        kml_writer = quadTree.TarWriter(kmlExportName)
+        kml_writer.addFile(tilesPath, kmlExportName)
+        self.kmlExportName = '%s.tar.gz' % kmlExportName
+        self.kmlExport.save(self.kmlExportName, 
+                            ContentFile(kml_writer.getData()))        
+        dosys('rm -rf %s' % tmpPath)  # delete the tmp folder 
+        
+        
 class Overlay(models.Model):
     key = models.AutoField(primary_key=True, unique=True)
     # author: user who owns this overlay in the MapFasten system
@@ -345,7 +417,7 @@ class Overlay(models.Model):
                 result['geoTiffExportUrl'] = reverse('geocamTiePoint_overlayExport',
                                               args=[self.key,
                                                     'geoTiff',
-                                                    str(self.alignedQuadTree.geotiffExportName)])
+                                                    str(self.alignedQuadTree.geoTiffExportName)])
 
         return result
 
@@ -379,13 +451,16 @@ class Overlay(models.Model):
         super(Overlay, self).save(*args, **kwargs)
 
     def getSlug(self):
-        return re.sub('[^\w]', '_', os.path.splitext(self.name)[0])
+#         return re.sub('[^\w]', '_', os.path.splitext(self.name)[0])
+        return os.path.splitext(self.name)[0]  # returns image name without the file format (i.e. ISS039-E-12345)
+
 
     def getExportName(self):
         now = datetime.datetime.utcnow()
-        return ('mapfasten-%s-%s'
-                % (self.getSlug(),
-                   now.strftime('%Y-%m-%d-%H%M%S-UTC')))
+        return 'mapfasten-%s' % self.getSlug() 
+#         return ('mapfasten-%s-%s'
+#                 % (self.getSlug(),
+#                    now.strftime('%Y-%m-%d-%H%M%S-UTC')))
 
     def generateUnalignedQuadTree(self):
         qt = QuadTree(imageData=self.imageData)

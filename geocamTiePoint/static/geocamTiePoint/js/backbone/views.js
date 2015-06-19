@@ -193,7 +193,6 @@ $(function($) {
         	var model = this.model;
         	model.fetch({ 'success': function(model) {
         		if (model.get('transform')) {
-        			//TODO: break here and see what deserializeTrnasform returns for CameraModelT
         			var transform = (geocamTiePoint.transform.deserializeTransform
         					(model.get('transform')));
         			var imageSize = model.get('imageSize');
@@ -214,6 +213,8 @@ $(function($) {
 							// update the marker title
 							var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
 							centerPointMarker.title = centerPtLabel;
+							// update the overlay model's center pt in db
+							model.set('centerPointLatLon', [lat, lon])
     					}
         			} else {
         				console.log("Transformation matrix not available. Center point cannot be updated");
@@ -1454,7 +1455,7 @@ $(function($) {
             '<p>Add at least 2 tiepoint pairs before exporting the ' +
             'aligned image.</p>' +
             '{{/if}}' +
-            '</div>' +
+            '</div>' + 
             '{{/if}}'+
             '{{#if kmlExportUrl}}' + 
             '<div id="download_link">' +
@@ -1466,6 +1467,7 @@ $(function($) {
             '<a href="{{geoTiffExportUrl}}">Download GeoTiff</a>' +
             '</div>' +
             '{{/if}}',
+            
             
         afterRender: function() {
             this.$('#create_archive').click(_.bind(this.requestExport, this));

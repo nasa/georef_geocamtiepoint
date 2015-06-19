@@ -188,15 +188,15 @@ def lm(y, f, x0,
 
 
 def optimize(y, f, x0):
-    if HAVE_SCIPY_LEASTSQ:
-        # ack! scipy.optimize.leastsq is not thread-safe
-        scipyLeastSqLockG.acquire()
-        x, _cov = leastsq(lambda x: y - f(x), x0)
-        scipyLeastSqLockG.release()
-        return x
-    else:
-        x, _status = lm(y, f, x0)
-        return x
+#     if HAVE_SCIPY_LEASTSQ:
+#         # ack! scipy.optimize.leastsq is not thread-safe
+#         scipyLeastSqLockG.acquire()
+#         x, _cov = leastsq(lambda x: y - f(x), x0)
+#         scipyLeastSqLockG.release()
+#         return x
+#     else:
+    x, _status = lm(y, f, x0)
+    return x
 
 
 def test():

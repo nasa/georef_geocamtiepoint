@@ -106,18 +106,17 @@ def solveQuad(a, p):
     else:
         # avoid divide by zero
         return p
-
+    
 
 class Transform(object):
     @classmethod
     def fit(cls, toPts, fromPts):
         params0 = cls.getInitParams(toPts, fromPts)
-        # lambada is a function that takes "params" as argument
+        # lambda is a function that takes "params" as argument
         # and returns the toPts calculated from fromPts and params.
         params = optimize(toPts.flatten(),
                           lambda params: forwardPts(cls.fromParams(params), fromPts).flatten(),
                           params0)
-        
         return cls.fromParams(params)
 
     @classmethod
@@ -187,6 +186,7 @@ class CameraModelTransform(Transform):
         height = self.height  # image height
         Fx = self.Fx
         Fy = self.Fy
+        # convert input pt from meters to lat lon
         ptlon, ptlat = metersToLatLon([pt[0], pt[1]])
         ptalt = 0
         px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])

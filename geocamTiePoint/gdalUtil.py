@@ -7,7 +7,6 @@ import numpy.linalg
 from osgeo import gdal, osr
 import pyproj
 
-
 def dosys(cmd):
     logging.info('running: %s', cmd)
     ret = os.system(cmd)
@@ -99,22 +98,11 @@ def buildVrtWithRpcMetadata(imgPath, rpcMetadata):
     noSuffix = os.path.splitext(imgPath)[0]
     geotiffName = noSuffix + '_rpc.tif'
     vrt0Name = noSuffix + '_rpc0.vrt'
-    stripMetaPng = noSuffix + '_rpc.png'
-
-    if 0:
-        # make a bogus geotiff with same image contents so gdalbuildvrt will build a vrt for us
-        dosys('gdal_translate -a_srs "+proj=latlong" -a_ullr -30 30 30 -30 %s %s'
-              % (imgPath, geotiffName))
-
-        # create raw vrt
-        dosys('gdalbuildvrt %s %s' % (vrt0Name, geotiffName))
-
-    if 1:
-        dosys('rm -f %s' % stripMetaPng)
-        dosys('gdal_translate -of png -expand rgba %s %s' % (imgPath, stripMetaPng))
-        dosys('rm -f %s' % vrt0Name)
-        dosys('gdal_translate -of vrt %s %s' % (stripMetaPng, vrt0Name))
-
+    # make a bogus geotiff with same image contents so gdalbuildvrt will build a vrt for us
+    dosys('gdal_translate -a_srs "+proj=latlong" -a_ullr -30 30 30 -30 %s %s'
+          % (imgPath, geotiffName))
+    # create raw vrt
+    dosys('gdalbuildvrt %s %s' % (vrt0Name, geotiffName)) 
     # edit vrt -- delete srs and geoTransform sections, add RPC metadata
     vrtName = noSuffix + '_rpc.vrt'
     vrt0 = open(vrt0Name, 'r').read().splitlines()

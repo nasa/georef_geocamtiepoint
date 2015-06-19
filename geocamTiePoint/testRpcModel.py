@@ -28,8 +28,8 @@ def testFit(imgPath):
     lonLatAlt = img.getCenterLonLatAlt()
     clon, clat, _ = lonLatAlt[:, 0]
 
-    T = img.mapPixelsFromLonLatAlts
-
+    T = img.mapPixelsFromLonLatAlts  # forward function (lon lat alt -> pixel xy) In the function, it takes in array of lon lat alts, and returns array of pixel coords.
+                                     # I want to use mine instead.
     T_rpc = rpcModel.fitRpcToModel(T,
                                    imageWidth, imageHeight,
                                    clon, clat)
