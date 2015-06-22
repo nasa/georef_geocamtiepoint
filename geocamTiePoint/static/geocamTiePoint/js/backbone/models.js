@@ -20,14 +20,6 @@ $(function($) {
             // so they can be passed around as event handlers and such.
             _.bindAll(this);
             this.on('before_warp', this.beforeWarp);
-            this.on('change:exportUrl', function() {
-                if (this.exportPending && this.get('exportUrl')) {
-                    console.log('Export trigger.');
-                }
-            }, this);
-            this.on('export_ready', function() {
-                console.log('Export Ready!');
-            });
         },
 
         url: function() {
@@ -178,7 +170,9 @@ $(function($) {
 
         beforeWarp: function() {
             // We have to clear this because this.fetch() won't.
-            this.unset('exportUrl');
+            this.unset('htmlExportUrl');
+            this.unset('kmlExportUrl');
+            this.unset('geotiffExportUrl');
         },
 
         warp: function(options) {
@@ -203,47 +197,44 @@ $(function($) {
             this.save({}, saveOptions);  // hits overlayIdJson on serverside
         },
 
+        getExportPendingObj: function(type) {
+            switch(type) {
+            case 'html':
+                return this.htmlExportPending;
+            case 'kml':
+            	return this.kmlExportPending;
+            case 'geotiff':
+            	return this.geotiffExportPending;
+            default:
+            	return null;
+            }	
+        },
+        
         startExport: function(options) {
-            //this.unset('exportUrl');
-            assert(! this.get('exportUrl'), 'Model has an exportUrl already.');
+            var exportType = options.exportType;
+            var exportUrl = exportType + 'ExportUrl';
+            var event = exportType + '_export_ready';
+            
+            assert(! this.get(exportUrl), 'Model has an exportUrl already.');
             var request_url = this.get('url').replace('.json',
-                                                      '/generateExport/');
-            this.exportPending = true;
+                                                      '/generateExport/'+exportType);
+            var exportPending = this.getExportPendingObj(exportType);
+            exportPending = true;
             var model = this;
-            model.on('export_ready', function() {this.exportPending = false;},
-                     this);
+            model.on(event, function() {
+            		exportPending = false;},
+            	this);
             $.post(request_url, '', function() {
                 model.fetch({ success: function() {
-                    /* on app engine our request to generate an export
-                       gets an immediate response from the server
-                       because the actual work is done in the background
-                       on a backend instance. thus we'll ignore the
-                       server response and detect completion by polling
-                       the meta-data url until we see an exportUrl field
-                       appear.
-                    */
+                	if (model.get(exportUrl)) {
+                		model.trigger(event);
+                	}
                 } });
             }, 'json')
             .error(function(xhr, status, error) {
                  this.exportPending = false;
                  if (options.error) options.error();
             });
-            this.pollUntilExportComplete(model);
-        },
-
-        pollUntilExportComplete: function pollForExportComplete(model,
-                                                                timeout) {
-            if (!model.exportPending) return false;
-            this.fetch();
-            if (this.get('exportUrl')) {
-                model.trigger('export_ready');
-                return false;
-            }
-            // exponential backoff on polling
-            var timeout = timeout ? 1.5 * timeout : 1000;
-            console.log('polling overlay: ' + timeout);
-            this.pollTimer = setTimeout(_.bind(pollForExportComplete, this),
-                                        timeout, model, timeout);
         }
     });
 

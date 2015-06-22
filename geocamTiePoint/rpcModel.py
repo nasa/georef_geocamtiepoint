@@ -301,7 +301,6 @@ def getSubRandomSamples(bbox, numSamples, isValidFunc):
 
     result = []
     while len(result) < numSamples:
-        print "at iteration %d" % len(result)
         i = len(result)
         x0 = (dx * i) % 1
         y0 = (dy * i) % 1

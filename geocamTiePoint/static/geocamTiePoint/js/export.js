@@ -46,7 +46,7 @@ function sendExportRequest() {
 function checkForExportComplete() {
     $.getJSON(overlay.url, function(response) {
         overlay = response;
-        if (overlay.exportUrl) {
+        if (overlay.htmlExportUrl) {
             renderDownloadLink();
             cancelPollForExportComplete();
         }
@@ -91,7 +91,7 @@ function renderExportButton() {
 function renderDownloadLink() {
     ($('#exportMain').html
      ('<a href="' +
-      overlay.exportUrl +
+      overlay.htmlExportUrl +
       '">Download aligned overlay in tar.gz file format</a>'));
 }
 
@@ -102,7 +102,7 @@ function renderSorry() {
 }
 
 function initialize() {
-    if (overlay.exportUrl) {
+    if (overlay.htmlExportUrl) {
         renderDownloadLink();
     } else {
         if (overlay.alignedTilesUrl) {

@@ -1438,65 +1438,114 @@ $(function($) {
             ' download and serve from your web site' +
             '</a></div>' +
             '{{/if}}' +
-            '{{#if exportUrl}}' +
-            '<div id="download_link">' +
-            '<a href="{{exportUrl}}">Download HTML</a>' +
-            '</div>' +
+            '</br>' + 
+            '{{#if htmlExportUrl}}' +
+	            '<div id="download_link">' +
+	            '<a href="{{htmlExportUrl}}">Download HTML</a>' +
+	            '</div>' +
             '{{else}}' +
-            '<div id="export_controls">' +
-            '{{#if alignedTilesUrl}}' +
-            '<div id="export_container">' +
-            '<span id="export_button"><button id="create_archive">' +
-            'Create Export Archive (this could take a few minutes)' +
-            '</button></span>' +
-            '<span id="exportError" style="color:red"></span>' +
-            '</div>' +
-            '{{else}}' +
-            '<p>Add at least 2 tiepoint pairs before exporting the ' +
-            'aligned image.</p>' +
-            '{{/if}}' +
+	            '<div id="html_export_controls">' +
+	            '{{#if alignedTilesUrl}}' +
+		            '<div id="html_export_container">' +
+		            '<span id="html_export_button"><button id="create_html_archive">' +
+		            'Create HTML Export Archive (this could take a few minutes)' +
+		            '</button></span>' +
+		            '<span id="htmlExportError" style="color:red"></span>' +
+		            '</div>' +
+	            '{{else}}' +
+		            '<p>Add at least 2 tiepoint pairs before exporting the ' +
+		            'aligned image.</p>' +
+	            '{{/if}}' +
             '</div>' + 
             '{{/if}}'+
-            '{{#if kmlExportUrl}}' + 
-            '<div id="download_link">' +
-            '<a href="{{kmlExportUrl}}">Download KML</a>' +
-            '</div>' +
-            '{{/if}}' + 
-            "{{#if geoTiffExportUrl}}" + 
-            '<div id="download_link">' +
-            '<a href="{{geoTiffExportUrl}}">Download GeoTiff</a>' +
-            '</div>' +
-            '{{/if}}',
+            '</br>' + 
+            "{{#if geotiffExportUrl}}" + 
+	            '<div id="download_link">' +
+	            '<a href="{{geotiffExportUrl}}">Download GeoTiff</a>' +
+	            '</div>' +
+	            '</br>' + 
+	            // only make kmlExportUrl available if geotiffUrl is available. (need the tif file to make the tiles)
+	            '{{#if kmlExportUrl}}' + 
+		            '<div id="download_link">' +
+		            '<a href="{{kmlExportUrl}}">Download KML</a>' +
+		            '</div>' +
+	            '{{else}}' +
+		            '<div id="kml_export_controls">' +
+		            '{{#if alignedTilesUrl}}' +
+			            '<div id="kml_export_container">' +
+			            '<span id="kml_export_button"><button id="create_kml_archive">' +
+			            'Create KML Export Archive (this could take a few minutes)' +
+			            '</button></span>' +
+			            '<span id="kmlExportError" style="color:red"></span>' +
+			            '</div>' +
+		            '{{else}}' +
+			            '<p>Add at least 2 tiepoint pairs before exporting the ' +
+			            'aligned image.</p>' +
+		            '{{/if}}' +
+	            '</div>' + 
+	            '{{/if}}'+
+	            '</br>' + 
+	        '{{else}}' +
+	            '<div id="geotiff_export_controls">' +
+	            '{{#if alignedTilesUrl}}' +
+		            '<div id="geotiff_export_container">' +
+		            '<span id="geotiff_export_button"><button id="create_geotiff_archive">' +
+		            'Create GeoTiff Export Archive (this takes about six to seven minutes)' +
+		            '</button></span>' +
+		            '<span id="geotiffExportError" style="color:red"></span>' +
+		            '</div>' +
+	            '{{else}}' +
+		            '<p>Add at least 2 tiepoint pairs before exporting the ' +
+		            'aligned image.</p>' +
+	            '{{/if}}' +
+	            '</div>' + 
+            '{{/if}}',            
             
             
         afterRender: function() {
-            this.$('#create_archive').click(_.bind(this.requestExport, this));
-            if (this.model.exportPending) {
-                this.startSpinner();
+            this.$('#create_html_archive').click(_.bind(this.requestExport, this, 'html'));
+            if (this.model.htmlExportPending) {
+                this.startSpinner('html');
+            }
+            
+            this.$('#create_kml_archive').click(_.bind(this.requestExport, this, 'kml'));
+            if (this.model.kmlExportPending) {
+                this.startSpinner('kml');
+            }
+            
+            this.$('#create_geotiff_archive').click(_.bind(this.requestExport, this, 'geotiff'));
+            if (this.model.geotiffExportPending) {
+                this.startSpinner('geotiff');
             }
         },
 
-        requestExport: function() {
-            this.$('#create_archive').attr('disabled', true);
+        requestExport: function(type) {
+        	var createArchiveElem = '#create_' + type + '_archive'; 
+            this.$(createArchiveElem).attr('disabled', true);
             this.model.startExport({
                 error: function() {
                     $('#exportError').html('Error during export: ' + error);
-                }
+                }, 
+                exportType: type
             });
-            this.startSpinner();
+            this.startSpinner(type);
         },
 
-        startSpinner: function() {
+        startSpinner: function(type) {
             thisView = this;
-            this.model.on('export_ready', function onExportReady() {
+            var event = type + '_export_ready';
+            var createArchiveElem = '#create_' + type + '_archive';
+            var exportBtn = '#' + type + '_export_button';
+            
+            this.model.on(event , function onExportReady() {
                 this.model.off(null, onExportReady, null);
                 if (app.currentView === thisView) this.render();
             }, this);
-            this.$('#create_archive').attr('disabled', true);
-            (this.$('#export_button').html
+            this.$(createArchiveElem).attr('disabled', true);
+            (this.$(exportBtn).html
              ('<img src="/static/geocamTiePoint/images/loading.gif">' +
               '&nbsp;' +
-              'Creating export archive (this could take a few minutes)...'));
+              'Creating ' + type + ' export archive (this could take a few minutes)...'));
         }
 
     }); //end ExportOverlayView

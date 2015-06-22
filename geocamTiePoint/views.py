@@ -160,9 +160,7 @@ def getImage(imageData, flag):
         if flag == ENHANCED:
             image = PIL.Image.open(imageData.enhancedImage.file)
         elif flag == UNENHANCED:
-            print "inside getImage unenhanced"
             image = PIL.Image.open(imageData.unenhancedImage.file)
-            print "unenhanced image here"
         elif flag == DISPLAY:
             image = PIL.Image.open(imageData.image.file)
     except: 
@@ -368,8 +366,6 @@ def rotateOverlay(request):
             checkAndApplyEnhancement(overlay.imageData)
         if rotatedImage == None:
             rotatedImage = getImage(overlay.imageData, UNENHANCED)
-            print "Got the unenahnced image from rotated image data because rotated image was none"
-            print rotatedImage
         overlay.extras.rotatedImageSize = rotatedImage.size # width, height
         overlay.save()
         overlay.generateUnalignedQuadTree()
@@ -726,7 +722,7 @@ def dummyView(*args, **kwargs):
 
 
 @csrf_exempt
-def overlayGenerateExport(request, key):
+def overlayGenerateExport(request, key, type):
     if request.method == 'GET':
         return (HttpResponse
                 ('<form action="." method="post">'
@@ -744,7 +740,16 @@ def overlayGenerateExport(request, key):
                 return HttpResponse('{"result": "ok"}',
                                     content_type='application/json')
         overlay = get_object_or_404(Overlay, key=key)
-        overlay.generateExport()
+        if type == 'html':
+            overlay.generateHtmlExport()
+        elif type == 'kml':
+            overlay.generateKmlExport()
+        elif type == 'geotiff':
+            overlay.generateGeotiffExport()
+        else: 
+            return HttpRepsonse('{"result": "error! Export type invalid."}',
+                            content_type='application/json')
+ 
         return HttpResponse('{"result": "ok"}',
                             content_type='application/json')
     else:
@@ -773,10 +778,9 @@ def overlayExport(request, key, type, fname):
         elif type == 'kml':
             return HttpResponse(overlay.alignedQuadTree.kmlExport.file.read(),
                                 content_type='application/x-tgz')
-        elif type == 'geoTiff':
-            return HttpResponse(overlay.alignedQuadTree.geoTiffExport.file.read(),
+        elif type == 'geotiff':
+            return HttpResponse(overlay.alignedQuadTree.geotiffExport.file.read(),
                                 content_type='application/x-tgz')
-            
     else:
         return HttpResponseNotAllowed(['GET'])
 

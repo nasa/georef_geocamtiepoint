@@ -129,9 +129,9 @@ class QuadTree(models.Model):
     kmlExport = models.FileField(upload_to=getNewExportFileName,
                                  max_length=255,
                                  null=True, blank=True)
-    geoTiffExportName = models.CharField(max_length=255,
+    geotiffExportName = models.CharField(max_length=255,
                                      null=True, blank=True)
-    geoTiffExport = models.FileField(upload_to=getNewExportFileName,
+    geotiffExport = models.FileField(upload_to=getNewExportFileName,
                                      max_length=255,
                                      null=True, blank=True)
 
@@ -241,7 +241,7 @@ class QuadTree(models.Model):
         return pixels        
 
 
-    def generateExport(self, exportName, metaJson, slug):
+    def generateHtmlExport(self, exportName, metaJson, slug):
         gen = self.getGeneratorWithCache(self.id)
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
@@ -261,6 +261,12 @@ class QuadTree(models.Model):
         self.htmlExport.save(self.htmlExportName,
                             ContentFile(writer.getData()))
         
+    def generateGeotiffExport(self, exportName, metaJson, slug):
+        """
+        This generates a geotiff from RPC.
+        """
+        now = datetime.datetime.utcnow()
+        timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         # get image width and height
         overlay = Overlay.objects.get(alignedQuadTree = self) 
         imageWidth, imageHeight = overlay.extras.imageSize
@@ -281,7 +287,7 @@ class QuadTree(models.Model):
         # get image path of the overlay (for reprojection).
         imgPath = overlay.imageData.image.url.replace('/data/', settings.DATA_ROOT)
         
-        #generate geoTiff
+        #generate geotiff
         resultPath = tmpPath + '/out.tif'
         gdalUtil.reprojectWithRpcMetadata(imgPath, T_rpc.getVrtMetadata(),
                                           srs, resultPath)
@@ -289,11 +295,20 @@ class QuadTree(models.Model):
         geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp) 
         geotiff_writer = quadTree.TarWriter(geotiffExportName)        
         geotiff_writer.addFile(resultPath, geotiffExportName + '/' + geotiffExportName + '.tif')        
-        self.geoTiffExportName = '%s.tar.gz' % geotiffExportName
-        self.geoTiffExport.save(self.geoTiffExportName,
+        self.geotiffExportName = '%s.tar.gz' % geotiffExportName
+        self.geotiffExport.save(self.geotiffExportName,
                                 ContentFile(geotiff_writer.getData()))
-        
-        # this generates the kml and the tiles.
+    
+    def generateKmlExport(self, exportName, metaJson, slug):
+        """
+        this generates the kml and the tiles.
+        """
+        now = datetime.datetime.utcnow()
+        timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
+        # tmp dir stores raw data products for tar compression. 
+        tmpPath = settings.DATA_ROOT + 'geocamTiePoint/export/tmp'
+        #generate geoTiff
+        resultPath = tmpPath + '/out.tif'
         kmlExportName = exportName + ('-small-kml_%s' % timestamp)
         tilesPath = tmpPath + '/' + kmlExportName
         dosys('rm -rf %s' % tilesPath)
@@ -404,7 +419,7 @@ class Overlay(models.Model):
             # note: when exportZip has not been set, its value is not
             # None but <FieldFile: None>, which is False in bool() context
             if self.alignedQuadTree.htmlExport: 
-                result['exportUrl'] = reverse('geocamTiePoint_overlayExport',
+                result['htmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
                                               args=[self.key, 
                                                     'html',
                                                     str(self.alignedQuadTree.htmlExportName)])
@@ -413,11 +428,11 @@ class Overlay(models.Model):
                                               args=[self.key,
                                                     'kml',
                                                     str(self.alignedQuadTree.kmlExportName)])
-            if self.alignedQuadTree.geoTiffExport: 
-                result['geoTiffExportUrl'] = reverse('geocamTiePoint_overlayExport',
+            if self.alignedQuadTree.geotiffExport: 
+                result['geotiffExportUrl'] = reverse('geocamTiePoint_overlayExport',
                                               args=[self.key,
-                                                    'geoTiff',
-                                                    str(self.alignedQuadTree.geoTiffExportName)])
+                                                    'geotiff',
+                                                    str(self.alignedQuadTree.geotiffExportName)])
 
         return result
 
@@ -451,9 +466,7 @@ class Overlay(models.Model):
         super(Overlay, self).save(*args, **kwargs)
 
     def getSlug(self):
-#         return re.sub('[^\w]', '_', os.path.splitext(self.name)[0])
-        return os.path.splitext(self.name)[0]  # returns image name without the file format (i.e. ISS039-E-12345)
-
+        return re.sub('[^\w]', '_', os.path.splitext(self.name)[0])
 
     def getExportName(self):
         now = datetime.datetime.utcnow()
@@ -482,12 +495,26 @@ class Overlay(models.Model):
         self.alignedQuadTree = qt
         return qt
 
-    def generateExport(self):
-        (self.alignedQuadTree.generateExport
+    def generateHtmlExport(self):
+        (self.alignedQuadTree.generateHtmlExport
          (self.getExportName(),
           self.getJsonDict(),
           self.getSlug()))
         return self.alignedQuadTree.htmlExport 
+
+    def generateKmlExport(self):
+        (self.alignedQuadTree.generateKmlExport
+         (self.getExportName(),
+          self.getJsonDict(),
+          self.getSlug()))
+        return self.alignedQuadTree.kmlExport 
+
+    def generateGeotiffExport(self):
+        (self.alignedQuadTree.generateGeotiffExport
+         (self.getExportName(),
+          self.getJsonDict(),
+          self.getSlug()))
+        return self.alignedQuadTree.geotiffExport 
 
     def updateAlignment(self):
         toPts, fromPts = transform.splitPoints(self.extras.points)
