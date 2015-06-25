@@ -1507,12 +1507,10 @@ $(function($) {
             if (this.model.htmlExportPending) {
                 this.startSpinner('html');
             }
-            
             this.$('#create_kml_archive').click(_.bind(this.requestExport, this, 'kml'));
             if (this.model.kmlExportPending) {
                 this.startSpinner('kml');
             }
-            
             this.$('#create_geotiff_archive').click(_.bind(this.requestExport, this, 'geotiff'));
             if (this.model.geotiffExportPending) {
                 this.startSpinner('geotiff');
