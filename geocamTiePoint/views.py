@@ -11,6 +11,7 @@ import time
 import rfc822
 import urllib2
 import numpy
+import csv
 
 from fileinput import filename
 try:
@@ -783,6 +784,40 @@ def overlayExport(request, key, type, fname):
                                 content_type='application/x-tgz')
     else:
         return HttpResponseNotAllowed(['GET'])
+
+
+@csrf_exempt
+def getExportFilesList(request):
+    """
+    Downloads a csv file containing list of all available export products (kml, geotiff, html).
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="GeoRefExportProductsList.csv"'
+    exports = QuadTree.objects.values_list('htmlExportName', 'geotiffExportName', 'kmlExportName')
+    writer = csv.writer(response)
+    for set in exports:
+        for data in set:
+            if data is not None:
+                writer.writerow([data])
+    return response
+
+
+@csrf_exempt
+def getExportFile(request, name):
+    if "kml" in name:
+        quadTree = QuadTree.objects.filter(kmlExportName = name)[0]
+        return HttpResponse(quadTree.kmlExport.file.read(),
+                            content_type='application/x-tgz')
+    elif "geotiff" in name:
+        quadTree = QuadTree.objects.filter(geotiffExportName = name)[0]
+        return HttpResponse(quadTree.geotiffExport.file.read(),
+                            content_type='application/x-tgz')
+    elif "html" in name:
+        quadTree = QuadTree.objects.filter(htmlExportName = name)[0]
+        return HttpResponse(quadTree.htmlExport.file.read(),
+                            content_type='application/x-tgz')
+    else:
+        raise Http404('Export file of the name %s does not exist' % name)
 
 
 @csrf_exempt

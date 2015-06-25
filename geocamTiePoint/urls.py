@@ -15,6 +15,13 @@ urlpatterns = patterns(
     url(r'^b/$', 'backbone',
         {}, 'geocamTiePoint_backbone'),
 
+    ## for export data products (kml, geotiff, html) ##
+    url(r'^getExportFilesList$', 'getExportFilesList', 
+        {}, 'geocamTiePoint_getExportFilesList'),
+
+    url(r'^getExportFile/(?P<name>.*)$', 'getExportFile',
+        {}, 'geocamTiePoint_getExportFile'),
+
     ## transform.js sends a ajax request to retrieve camera model transform value from server side. ##
     url(r'^cameraModelTransformFit/$', 'cameraModelTransformFit', 
         {}, 'geocamTiePoint_cameraModelTransformFit'),
