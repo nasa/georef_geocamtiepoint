@@ -496,23 +496,35 @@ $(function($) {
     /**********************************************************************
      * top-level functions
      **********************************************************************/
-
     function getTransformClass(n) {
-    	if (n < 2) {
+        if (n < 2) {
             throw 'not enough tie points';
         } else if (n == 2) {
-        	console.log("n is 2 so get the CameraModelTransform");
-        	return CameraModelTransform;
+            return RotateScaleTranslateTransform;
         } else if (n == 3) {
-        	console.log("n is 3 so get the CameraModelTransform");
-        	return CameraModelTransform;
+            return AffineTransform;
         } else if (n < 7) {
-        	console.log("n is "+n+" so get the ProjectiveTransform");
             return ProjectiveTransform;
         } else {
             return QuadraticTransform2;
         }
     }
+//    function getTransformClass(n) {
+//    	if (n < 2) {
+//            throw 'not enough tie points';
+//        } else if (n == 2) {
+//        	console.log("n is 2 so get the CameraModelTransform");
+//        	return CameraModelTransform;
+//        } else if (n == 3) {
+//        	console.log("n is 3 so get the CameraModelTransform");
+//        	return CameraModelTransform;
+//        } else if (n < 7) {
+//        	console.log("n is "+n+" so get the ProjectiveTransform");
+//            return ProjectiveTransform;
+//        } else {
+//            return QuadraticTransform2;
+//        }
+//    }
 
     function getTransform(points, issMRF, overlay) {
         var s = splitPoints(points);
