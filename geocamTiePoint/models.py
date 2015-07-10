@@ -364,9 +364,9 @@ class Overlay(models.Model):
     extras = ExtrasDotField()
     # import/export configuration
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-                    'issMRF')
+                    'issMRF', 'centerPointLatLon')
     importFields = ('name', 'description', 'imageSourceUrl')
-    importExtrasFields = ('points', 'transform')
+    importExtrasFields = ('points', 'transform', 'centerPointLatLon')
 
 
     def getOriginalImageData(self):

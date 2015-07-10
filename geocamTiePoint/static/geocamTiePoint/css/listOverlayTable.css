@@ -8,7 +8,9 @@ th.placeholder{
 }
 
 table.overlay_list {
-	overflow: scroll;
+ 	overflow-y: scroll;
+ 	height: 350px;
+	display: block; 
 }
 
 table.overlay_list th {

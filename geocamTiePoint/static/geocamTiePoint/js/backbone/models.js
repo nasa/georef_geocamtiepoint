@@ -121,8 +121,6 @@ $(function($) {
             points[pointIndex] = tiepoint;
             this.set('points', points);
             if (points.length > initial_length) this.trigger('add_point');
-            // Manually trigger this, because the value of model.points
-            // (an array reference) hasn't actually changed.
             // if it is a map side or if the draw marker flag is on, trigger overlay's drawMarker call.
             if (!clickedOnImageViewFlag) { 
             	// we don't want to call this if it is new point on the 
@@ -134,7 +132,6 @@ $(function($) {
 
         deleteTiepoint: function(index) {
             actionPerformed();
-
             points = this.get('points');
             points.splice(index, 1);
             this.set('points', points);
