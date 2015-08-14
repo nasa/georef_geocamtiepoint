@@ -75,61 +75,9 @@ $(function($) {
     }
     
     app.views.ListOverlaysView = app.views.View.extend({
-        template:
-        '<a class="btn btn-primary" href="#overlays/new">New Overlay</a>' +
-            '<h1>Choose an overlay:</h1>' +
-            '{{debug}}' +
-            // table
-            '<table id="overlay_list" class="overlay_list">' +
-            // headers
-            '<thead>' +
-            '<th> Image Name </th>' +
-            '<th> Edit </th>'+
-            '<th> Delete </th>' + 
-            '<th> Center Lat/Lon </th>' + 
-            '<th> Last Modified Time </th>' +
-            '<th> # of Tiepoints </th>'+
-            '</thead>'+
-            '{{#each overlays.models }}<tr>' +
-            // image name
-            '<td>{{#if attributes.alignedTilesUrl}}' +
-            '<a href="#overlay/{{id}}">' +
-            '{{/if}}' +
-            '{{get "name"}}' +
-            '{{#if attributes.alignedTilesUrl}}</a>{{/if}}</td>' +
-            // edit
-            '<td><a id="edit_{{id}}" class="edit" ' +
-            'href="#overlay/{{id}}/edit">' +
-            '[edit]</a></td>' +
-            // delete
-            '<td><a id="delete_{{id}}" class="delete" href="#overlays/"' +
-            ' onClick="app.currentView.deleteOverlay({{id}})">' +
-            '[delete]</a></td>' +
-            // center point
-            '<td>{{attributes.centerPointLatLon}}</td>' + 
-            // last modified time
-            '<td>{{attributes.lastModifiedTimeHumanReadable}}</td>'+
-            // number of tie points
-            '<td>{{attributes.numTiePts}}</td>'+
-            // end of row
-            '</tr>{{/each}}' +
-            '</table>' +
-            // confirm delete modal
-            '<div class="modal hide" id="confirmDelete" aria-hidden="true">' +
-                '<div class="modal-body">' +
-                    '<p>Delete this overlay?</p>' +
-                '</div>' +
-                '<div class="modal-footer">' +
-                    '<button class="btn" ' +
-                    'onClick="$(\'#confirmDelete\').modal(\'hide\');">' +
-                    'No!</button>' +
-                    '<button id="deleteYesBtn" class="btn btn-primary">' +
-                    'Yes</button>' +
-                '</div>' +
-            '</div>',
-
+        template: $('#list-overlays').html(),
         initialize: function() {
-            app.views.View.prototype.initialize.apply(this, arguments);
+        	app.views.View.prototype.initialize.apply(this, arguments);
             app.overlays.forEach(function(overlay) {
             	var lastModifiedTime = overlay.attributes.lastModifiedTime
             	if (lastModifiedTime) {
@@ -159,7 +107,6 @@ $(function($) {
             });
             dialog.modal('show');
         }
-
     });
 
 
@@ -1143,9 +1090,9 @@ $(function($) {
 		                	'<div style="padding-left: 2px;">' +
 		                	'<input type="radio" name="imageSize" value="small" checked> Small' + 
 		                	'</div>' +
-//		                	'<div style="padding-left: 2px;">' +
-//		                	'<input type="radio" name="imageSize" value="large"> Large' + 
-//		                	'</div>' +
+		                	'<div style="padding-left: 2px;">' +
+		                	'<input type="radio" name="imageSize" value="large"> Large' + 
+		                	'</div>' +
 		                '</div>' +
 		                '<input class="btn newOverlayFormSubmitButton"' +
 		                   ' type="button" value="Submit" />' +

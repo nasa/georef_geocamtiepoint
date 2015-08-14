@@ -200,7 +200,6 @@ def getRotatedImageData(overlayId, totalRotation):
     else:
         return None
 
-
 def saveImageToDatabase(PILimage, imageData, flags):
     """
     Given PIL image object, saves the image bits to the imageData object.

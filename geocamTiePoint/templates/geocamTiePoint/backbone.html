@@ -9,9 +9,11 @@
 {% block style %}
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}external/css/bootstrap.min.css"></link>
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}external/css/jquery.dataTables.min.css"></link>
 <link rel="stylesheet" type="text/css" href="/static/mapFasten/css/base.css"></link>
 <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}geocamTiePoint/css/backbone.css"></link>
 <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}geocamTiePoint/css/listOverlayTable.css"></link>
+
 {% endblock style %}
 
 {% block scripts %}
@@ -21,6 +23,7 @@
 window.csrf_token = "{% csrf_token %}";
 </script>
 <script type="text/javascript" src="/static/external/js/jquery-1.7.2.min.js"></script>
+<script type="text/javascript" src="/static/external/js/jquery.dataTables.min.js"></script>
 <script type="text/javascript" src="//maps.googleapis.com/maps/api/js?v=3.10&sensor=true&libraries=places"></script>
 <script type="text/javascript" src="/static/external/js/markerwithlabel_2.js"></script>
 <script type="text/javascript" src="/static/external/js/handlebars-1.0.0.beta.6.js"></script>
@@ -42,38 +45,41 @@ window.csrf_token = "{% csrf_token %}";
 <script type="text/javascript" src="/static/geocamTiePoint/js/backbone/views.js"></script>
 <script type="text/javascript" src="/static/geocamTiePoint/js/backbone/router.js"></script>
 
-    <script type="text/javascript">
-        window.settings = {{settings|safe}};
+<script type="text/javascript">
+	window.settings = {{settings|safe}};
+	
+	$(function($){
+	    app.overlays = app.overlays || new app.models.OverlayCollection;
+	    {% if initial_overlays_json %}
+	    // Seed app.overlays with initally loaded data
+	    var overlay_bootstrap = {{ initial_overlays_json|safe }};
+	    app.overlays.reset(overlay_bootstrap);
+	    {% endif %}
+	    app.navbar = new app.views.NavbarView({el: $('#navbar').addClass('navbar')});
+	    app.navbar.render();
+	    app.router.start(); // initializes the app view based on url fragment.
+	});
+	
+	// urls from the server side, often needed for ajax calls
+	var cameraModelTransformFitUrl = "{{ cameraModelTransformFitUrl }}";
+	var cameraModelTransformForwardUrl = "{{ cameraModelTransformForwardUrl }}";
+	var rotateOverlayUrl = "{{ rotateOverlayUrl }}";
+	var enhanceImageUrl = "{{ enhanceImageUrl }}";
 
-        $(function($){
-            app.overlays = app.overlays || new app.models.OverlayCollection;
-            {% if initial_overlays_json %}
-            // Seed app.overlays with initally loaded data
-            var overlay_bootstrap = {{ initial_overlays_json|safe }};
-            app.overlays.reset(overlay_bootstrap);
-            {% endif %}
-            app.navbar = new app.views.NavbarView({el: $('#navbar').addClass('navbar')});
-            app.navbar.render();
-            app.router.start(); // initializes the app view based on url fragment.
-        });
-        
-        // urls from the server side, often needed for ajax calls
-        var cameraModelTransformFitUrl = "{{ cameraModelTransformFitUrl }}";
-        var cameraModelTransformForwardUrl = "{{ cameraModelTransformForwardUrl }}";
-        var rotateOverlayUrl = "{{ rotateOverlayUrl }}";
-    	var enhanceImageUrl = "{{ enhanceImageUrl }}";
-    	
-    	// image enhancement slider values (x offset in pixels)
-    	var contrastKnobPosition = null;
-    	var brightnessKnobPosition = null;
-    	
-    	// rotation slider value (x offset in pixels)
-		var rotateKnobPosition = null;
-    	
-    	// total length (in pixels) of image  sliders
-    	var ENHANCE_SLIDER_LENGTH_PIXELS = 57;
-    	var ROTATION_MAX_PIXELS = 556; // slider spans 556 pixels
-    </script>
+	// image enhancement slider values (x offset in pixels)
+	var contrastKnobPosition = null;
+	var brightnessKnobPosition = null;
+	
+	// rotation slider value (x offset in pixels)
+	var rotateKnobPosition = null;
+ 	
+	// total length (in pixels) of image  sliders
+	var ENHANCE_SLIDER_LENGTH_PIXELS = 57;
+	var ROTATION_MAX_PIXELS = 556; // slider spans 556 pixels
+</script>
+
+<script type="text/javascript" src="/static/geocamUtil/js/datatable_helpers.js"></script>
+<script type="text/javascript" src="/static/geocamTiePoint/js/listOverlayTable.js"></script>
 
 {% endblock scripts %}
 
@@ -83,6 +89,26 @@ window.csrf_token = "{% csrf_token %}";
 {% endblock header %}
 
 {% block contents %}
+
+<!--  handlebar for list overlays data table -->
+<script id="list-overlays" type="text/x-handlebars-template">
+<table cellpadding="0" cellspacing="0" border="0"  id="overlays_table">
+<thead class="table_header">
+	<tr>
+		<th>Name</th>
+	    <th>Timestamp</th>
+	    <th>Source</th>
+	    <th>Latitude</th>
+	    <th>Longitude</th>
+	    <th>Altitude</th>
+    </tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</script>
+
 <div id='backbone_app_container'>
 </div>
 {% endblock contents %}

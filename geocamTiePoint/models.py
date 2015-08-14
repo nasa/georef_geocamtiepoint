@@ -198,15 +198,13 @@ class QuadTree(models.Model):
 
     def getGenerator(self):
         image = self.getImage()
-
         if self.transform:
-            return (quadTree.WarpedQuadTreeGenerator
-                    (self.id,
-                     image,
-                     json.loads(self.transform)))
+            return quadTree.WarpedQuadTreeGenerator(self.id,
+                                                   image,
+                                                   json.loads(self.transform))
         else:
             return quadTree.SimpleQuadTreeGenerator(self.id,
-                                                    image)
+                                                image)
 
     @staticmethod
     def getSimpleViewHtml(tileRootUrl, metaJson, slug):
