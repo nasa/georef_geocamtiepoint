@@ -1,0 +1,53 @@
+<a class="btn btn-primary" href="#overlays/new">New Overlay</a>
+<h1>Choose an overlay:</h1>
+{{debug}}
+
+<table cellpadding="0" cellspacing="0" border="0"  id="overlays_table">
+<thead class="table_header">
+	<tr>
+		<th>Name</th>
+	    <th>Edit</th>
+	    <th>Delete</th>
+	    <th>Center lat/lon</th>
+	    <th>Last modified</th>
+	    <th># of tie points</th>
+    </tr>
+</thead>
+
+{{#each overlays.models }}
+	<tr>
+		<td> 
+			{{#if attributes.alignedTilesUrl}}
+				<a href="#overlay/{{id}}">
+			{{/if}}
+			{{get "name"}}
+			{{#if attributes.alignedTilesUrl}}
+				</a> 
+			{{/if}}
+		</td>
+    	<td>
+			<a id="edit_{{id}}" class="edit" href="#overlay/{{id}}/edit">[edit]</a>
+		</td>
+    	<td>
+			<a id="delete_{{id}}" class="delete" href="#overlays/" onClick="app.currentView.deleteOverlay({{id}})"> [delete]</a>
+		</td>
+    	<td> {{attributes.centerPointLatLon}} </td> 
+    	<td> {{attributes.lastModifiedTimeHumanReadable}} </td>
+    	<td> {{attributes.numTiePts}} </td>
+	</tr> 
+{{/each}}
+
+</table>
+
+<div class="modal hide" id="confirmDelete" aria-hidden="true">
+	<div class="modal-body">
+		<p>Delete this overlay?</p>
+	</div>
+	<div class="modal-footer">
+		'<button class="btn" 
+		'onClick="$(\'#confirmDelete\').modal(\'hide\');">
+		'No!</button>
+		'<button id="deleteYesBtn" class="btn btn-primary">
+		'Yes</button>
+	</div>
+</div>

@@ -8,6 +8,7 @@ import os
 import json
 import logging
 import time
+import glob
 import rfc822
 import urllib2
 import numpy
@@ -65,6 +66,22 @@ DISPLAY = 2
 ENHANCED = 1 
 UNENHANCED = 0
 
+_template_cache = None
+
+
+def get_handlebars_templates(source):
+    global _template_cache
+    if settings.GEOCAM_TIE_POINT_TEMPLATE_DEBUG or not _template_cache:
+        templates = {}
+        for thePath in source:
+            inp = os.path.join(settings.PROJ_ROOT, 'apps', thePath)
+            for template_file in glob.glob(os.path.join(inp, '*.handlebars')):
+                with open(template_file, 'r') as infile:
+                    template_name = os.path.splitext(os.path.basename(template_file))[0]
+                    templates[template_name] = infile.read()
+        _template_cache = templates
+    return _template_cache
+
 
 def transparentPngData():
     return (TRANSPARENT_PNG_BINARY, 'image/png')
@@ -86,9 +103,12 @@ def export_settings(export_vars=None):
 @login_required
 def backbone(request):
     initial_overlays = Overlay.objects.order_by('pk')
+    templates = get_handlebars_templates(settings.GEOCAM_TIE_POINT_HANDLEBARS_DIR)
+    
     if request.method == 'GET':
         return render_to_response('geocamTiePoint/backbone.html',
             {
+                'templates': templates,
                 'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
                 'settings': export_settings(),
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 

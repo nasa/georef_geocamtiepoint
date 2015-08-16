@@ -3,6 +3,7 @@
 # the Administrator of the National Aeronautics and Space Administration.
 # All Rights Reserved.
 # __END_LICENSE__
+import os
 
 MAX_IMPORT_FILE_SIZE = 4000000  # bytes 
 
@@ -21,6 +22,9 @@ GEOCAM_TIE_POINT_DEFAULT_MAP_VIEWPORT = {
 
 # set to 'INFO' or 'DEBUG' to get more debug information from L-M optimizer
 GEOCAM_TIE_POINT_OPTIMIZE_LOG_LEVEL = 'WARNING'
+
+GEOCAM_TIE_POINT_TEMPLATE_DEBUG = True  # If this is true, handlebars templates will not be cached.
+GEOCAM_TIE_POINT_HANDLEBARS_DIR = [os.path.join('geocamTiePoint', 'templates', 'handlebars')]
 
 # once the map zoom level exceeds the resolution of the original overlay
 # image, zooming further doesn't provide more information. use this

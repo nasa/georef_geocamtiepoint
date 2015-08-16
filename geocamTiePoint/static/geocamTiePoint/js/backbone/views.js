@@ -75,7 +75,7 @@ $(function($) {
     }
     
     app.views.ListOverlaysView = app.views.View.extend({
-        template: $('#list-overlays').html(),
+        template: $('#template-list-overlays').html(),
         initialize: function() {
         	app.views.View.prototype.initialize.apply(this, arguments);
             app.overlays.forEach(function(overlay) {
