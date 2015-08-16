@@ -79,8 +79,6 @@
 	</script>
 	
 	<script type="text/javascript" src="/static/geocamUtil/js/datatable_helpers.js"></script>
-	<script type="text/javascript" src="/static/geocamTiePoint/js/listOverlayTable.js"></script>
-	
 	{% for template_name, template in templates.items %}
 		<script type="text/handlebars" id="template-{{template_name}}">
 			{{template|safe}}
@@ -94,12 +92,10 @@
 {% endblock header %}
 
 {% block contents %}
-<div id='backbone_app_container'>
-</div>
+<div id='backbone_app_container'></div>
+
 {% endblock contents %}
 
 {% block jsInit %}
 {{ block.super }}
-$(
-);
 {% endblock jsInit %}

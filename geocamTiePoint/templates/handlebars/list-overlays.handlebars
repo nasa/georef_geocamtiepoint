@@ -51,3 +51,10 @@
 		'Yes</button>
 	</div>
 </div>
+
+<!-- Initialize the list overlay table as jquery data table --> 
+<script type="text/javascript">
+if ( ! $.fn.DataTable.isDataTable( '#overlays_table' ) ) {
+  $('#overlays_table').DataTable(defaultOptions);
+}
+</script>
