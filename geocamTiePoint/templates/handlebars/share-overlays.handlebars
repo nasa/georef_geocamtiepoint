@@ -1,0 +1,71 @@
+<h1>Share Overlay {{name}}</h1>
+	{{#if alignedTilesUrl}}
+	<div id="simple_viewer">
+		<a href="/overlay/{{key}}/simpleViewer_{{nospecials name}}.html" target="simpleViewer">
+			View a web page displaying your aligned overlay that you can download and serve from your web site
+		</a>
+	</div>
+	{{/if}}
+	</br> 
+	
+	{{#if htmlExportUrl}}
+		<div id="download_link">
+		<a href="{{htmlExportUrl}}">Download HTML</a>
+		</div>
+	{{else}}
+		<div id="html_export_controls">
+			{{#if alignedTilesUrl}}
+				<div id="html_export_container">
+				<span id="html_export_button"><button id="create_html_archive">
+					Create HTML Export Archive (this could take a few minutes)
+					</button>
+				</span>
+				<span id="htmlExportError" style="color:red"></span>
+				</div>
+			{{else}}
+		<p>Add at least 2 tiepoint pairs before exporting the aligned image.</p>
+		{{/if}}
+		</div> 
+	{{/if}}
+	
+	</br> 
+	
+	{{#if geotiffExportUrl}}
+		<div id="download_link">
+			<a href="{{geotiffExportUrl}}">Download GeoTiff</a>
+		</div>
+		</br> 
+		<!-- only make kmlExportUrl available if geotiffUrl is available. (need the tif file to make the tiles) -->
+		{{#if kmlExportUrl}}
+			<div id="download_link">
+			<a href="{{kmlExportUrl}}">Download KML</a>
+			</div>
+		{{else}}
+			<div id="kml_export_controls">
+			{{#if alignedTilesUrl}}
+				<div id="kml_export_container">
+				<span id="kml_export_button"><button id="create_kml_archive">
+				Create KML Export Archive (this could take a few minutes)
+				</button></span>
+				<span id="kmlExportError" style="color:red"></span>
+				</div>
+			{{else}}
+				<p>Add at least 2 tiepoint pairs before exporting the aligned image.</p>
+			{{/if}}
+ 		</div> 
+    	{{/if}}
+		</br> 
+	{{else}}
+		<div id="geotiff_export_controls">
+		{{#if alignedTilesUrl}}
+			<div id="geotiff_export_container">
+			<span id="geotiff_export_button"><button id="create_geotiff_archive">
+			Create GeoTiff Export Archive (this takes about six to seven minutes)
+			</button></span>
+			<span id="geotiffExportError" style="color:red"></span>
+			</div>
+		{{else}}
+			<p>Add at least 2 tiepoint pairs before exporting the aligned image.</p>
+		{{/if}}
+			</div>
+      {{/if}}      

@@ -56,17 +56,11 @@ urlpatterns = patterns(
     url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', 'createOverlayFromUrl', 
         {}, 'geocamTiePoint_createOverlayFromUrl'),
     
-#     # API for getting the exported data product.               
-#     url(r'^/data/export/(?P<mrf>\w+)/(?P<imageSize>\w+)/(?<exportType>\w+)/$', 'getExportDataProduct',
-#         {}, 'geocamTiePoint_getExportDataProduct'),
 
     # duplicate url that starts with 'backend' so we can set 'login: admin'
     # on the backend version of the view.
     url(r'^backend/overlay/(?P<key>\d+)/generateExport/$', 'overlayGenerateExport',
         {}, 'geocamTiePoint_overlayGenerateExportBackend'),
-
-    url(r'^overlay/(?P<key>\d+)/export\.html$', 'overlayExportInterface',
-        {}, 'geocamTiePoint_overlayExportInterface'),
 
     url(r'^overlay/(?P<key>\d+)/export/(?P<type>\w+)/(?P<fname>[^/]*)$', 'overlayExport',
         {}, 'geocamTiePoint_overlayExport'),

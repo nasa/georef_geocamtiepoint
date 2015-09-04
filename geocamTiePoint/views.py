@@ -767,7 +767,7 @@ def overlayGenerateExport(request, key, type):
         elif type == 'geotiff':
             overlay.generateGeotiffExport()
         else: 
-            return HttpRepsonse('{"result": "error! Export type invalid."}',
+            return HttpResponse('{"result": "error! Export type invalid."}',
                             content_type='application/json')
  
         return HttpResponse('{"result": "ok"}',
@@ -776,29 +776,25 @@ def overlayGenerateExport(request, key, type):
         return HttpResponseNotAllowed(['GET', 'POST'])
 
 
-def overlayExportInterface(request, key):
-    if request.method == 'GET':
-        overlay = get_object_or_404(Overlay, key=key)
-        return render_to_response('geocamTiePoint/export.html',
-                                  {'overlay': overlay,
-                                   'overlayJson': dumps(overlay.jsonDict)},
-                                  context_instance=RequestContext(request))
-    else:
-        return HttpResponseNotAllowed(['GET'])
-
-
 def overlayExport(request, key, type, fname):
+    """
+    Displays the generated exports.
+    """
     if request.method == 'GET':
         overlay = get_object_or_404(Overlay, key=key)
-        if not (overlay.alignedQuadTree and overlay.alignedQuadTree.htmlExport):
-            raise Http404('no export archive generated for requested overlay yet')
         if type == 'html': 
+            if not (overlay.alignedQuadTree and overlay.alignedQuadTree.htmlExport):
+                raise Http404('no export archive generated for requested overlay yet')
             return HttpResponse(overlay.alignedQuadTree.htmlExport.file.read(),
                                 content_type='application/x-tgz')
         elif type == 'kml':
+            if not (overlay.alignedQuadTree and overlay.alignedQuadTree.kmlExport):
+                raise Http404('no export archive generated for requested overlay yet')
             return HttpResponse(overlay.alignedQuadTree.kmlExport.file.read(),
                                 content_type='application/x-tgz')
         elif type == 'geotiff':
+            if not (overlay.alignedQuadTree and overlay.alignedQuadTree.geotiffExport):
+                raise Http404('no export archive generated for requested overlay yet')
             return HttpResponse(overlay.alignedQuadTree.geotiffExport.file.read(),
                                 content_type='application/x-tgz')
     else:
