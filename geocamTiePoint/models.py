@@ -309,6 +309,8 @@ class QuadTree(models.Model):
         # get the path to latest geotiff file
         inputFile = self.geotiffExportName.replace('.tar.gz', '')
         inputFile = settings.DATA_ROOT + 'geocamTiePoint/export/' + inputFile + '/' + inputFile + ".tif"
+        #TODO: make this call the gdal2tiles
+        
         g2t = gdal2tiles.GDAL2Tiles(["--force-kml", str(inputFile), str(outputDir)])
         g2t.process()
         
