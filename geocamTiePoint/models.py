@@ -79,8 +79,8 @@ class ImageData(models.Model):
     # we set unusedTime when a QuadTree is no longer referenced by an Overlay.
     # it will eventually be deleted.
     unusedTime = models.DateTimeField(null=True, blank=True)
-    # works like caching. If certain angle is requested and image data is 
-    # is available in db, we can just pull up that image.
+    # If certain angle is requested and image data is available in db, 
+    # we can just pull up that image.
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
     # holds image that hasn't been enhanced (but may have been rotated)
     unenhancedImage = models.ImageField(upload_to = getNewImageFileName,
@@ -281,7 +281,8 @@ class QuadTree(models.Model):
                                      clon, clat)
         srs = gdalUtil.EPSG_4326
         # get original image
-        imgPath = overlay.imageData.image.url.replace('/data/', settings.DATA_ROOT)
+        imgPath = overlay.getOriginalImageData().image.url.replace('/data/', settings.DATA_ROOT)
+        
         # reproject and tar the output tiff
         geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp)
         outputDir = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName

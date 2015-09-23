@@ -7,7 +7,6 @@ import numpy as np
 import numpy.linalg
 from scipy.optimize import brentq as findRoot
 
-
 def spaceSeparated(x):
     return ' '.join(['%s' % xi for xi in x])
 
@@ -117,7 +116,6 @@ class RpcTransform(object):
         x = self.sampOff + c * self.sampScale
         y = self.lineOff + r * self.lineScale
         v = np.vstack([x, y])
-
         return v
 
     @classmethod
@@ -186,7 +184,8 @@ class RpcTransform(object):
         params0 = cls.getInitParams(v, u, fixed)
         errorFunc = cls.getErrorFunc(v, u, fixed)
         params, _cov = scipy.optimize.leastsq(errorFunc, params0)
-
+        print "RPC values: "
+        print params
         return params
 
     def getVrtMetadata(self):
@@ -356,11 +355,21 @@ def fitRpcToModel(T,
     }
     params = RpcTransform.fit(v, u, fixed)
     T_rpc = RpcTransform.fromParams(params, fixed)
-
-    if 1:
+    if 1:    
         vp = T_rpc.forward(u)
+        # Begin debugging code
+        f = open('testfile.txt','w')
+        numPts = len(u[0])
+        for i in range(numPts):
+            f.write('u: ' + str(u[0][i]) + ',' + str(u[1][i]) + '\n')
+            f.write('v: ' + str(vp[0][i]) + ',' + str(vp[1][i])  + '\n')
+        f.close()
+        # end 
+        np.savetxt('test.txt', u)
         n = u.shape[1]
         rms = math.sqrt(numpy.linalg.norm(vp - v) / n)
+        print "rms (see if this number is too high)"
+        print rms
         logging.debug('rms: %s pixels', rms)
 
     return T_rpc
