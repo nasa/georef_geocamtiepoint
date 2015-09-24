@@ -282,16 +282,17 @@ class QuadTree(models.Model):
         srs = gdalUtil.EPSG_4326
         # get original image
         imgPath = overlay.getOriginalImageData().image.url.replace('/data/', settings.DATA_ROOT)
-        
         # reproject and tar the output tiff
         geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp)
-        outputDir = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
-        dosys('mkdir %s' % outputDir)
-        resultPath = outputDir + '/' + geotiffExportName +'.tif'
-        gdalUtil.reprojectWithRpcMetadata(imgPath, T_rpc.getVrtMetadata(), srs, resultPath)
-        geotiff_writer = quadTree.TarWriter(outputDir)
+        geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
+        dosys('mkdir %s' % geotiffFolderPath)
+
+        fullFilePath = geotiffFolderPath + '/' + geotiffExportName +'.tif'
+        gdalUtil.reprojectWithRpcMetadata(imgPath, T_rpc.getVrtMetadata(), srs, fullFilePath)
+
+        geotiff_writer = quadTree.TarWriter(geotiffExportName)
         arcName = geotiffExportName + '.tif'
-        geotiff_writer.addFile(resultPath, arcName)  # double check this line (second arg may not be necessary)
+        geotiff_writer.addFile(fullFilePath, geotiffExportName + '/' + arcName)  # double check this line (second arg may not be necessary)
         self.geotiffExportName = '%s.tar.gz' % geotiffExportName
         self.geotiffExport.save(self.geotiffExportName,
                                 ContentFile(geotiff_writer.getData()))
@@ -305,20 +306,19 @@ class QuadTree(models.Model):
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
         kmlExportName = exportName + ('-small-kml_%s' % timestamp)
-        outputDir = settings.DATA_ROOT + 'geocamTiePoint/export/' + kmlExportName
+        kmlFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + kmlExportName
         
         # get the path to latest geotiff file
         inputFile = self.geotiffExportName.replace('.tar.gz', '')
         inputFile = settings.DATA_ROOT + 'geocamTiePoint/export/' + inputFile + '/' + inputFile + ".tif"
         #TODO: make this call the gdal2tiles
         
-        g2t = gdal2tiles.GDAL2Tiles(["--force-kml", str(inputFile), str(outputDir)])
+        g2t = gdal2tiles.GDAL2Tiles(["--force-kml", str(inputFile), str(kmlFolderPath)])
         g2t.process()
         
         # tar the kml
-        kml_writer = quadTree.TarWriter(outputDir)
-        arcName = kmlExportName
-        kml_writer.addFile(outputDir, arcName)  # double check. second arg may not be necessary
+        kml_writer = quadTree.TarWriter(kmlExportName)
+        kml_writer.addFile(kmlFolderPath, kmlExportName)  # double check. second arg may not be necessary
         self.kmlExportName = '%s.tar.gz' % kmlExportName
         self.kmlExport.save(self.kmlExportName, 
                             ContentFile(kml_writer.getData()))      

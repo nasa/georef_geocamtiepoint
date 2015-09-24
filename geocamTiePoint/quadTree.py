@@ -271,6 +271,8 @@ class TarWriter(object):
         self.closed = False
     
     def addFile(self, path, arcname):
+        # need full path of the file I am adding for "path"
+        # arcname is the file name I want to give it for the tar.
         assert not self.closed
         self.tar.add(path, arcname=arcname)
 
