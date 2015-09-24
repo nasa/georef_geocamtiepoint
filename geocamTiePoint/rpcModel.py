@@ -184,8 +184,6 @@ class RpcTransform(object):
         params0 = cls.getInitParams(v, u, fixed)
         errorFunc = cls.getErrorFunc(v, u, fixed)
         params, _cov = scipy.optimize.leastsq(errorFunc, params0)
-        print "RPC values: "
-        print params
         return params
 
     def getVrtMetadata(self):
@@ -357,19 +355,8 @@ def fitRpcToModel(T,
     T_rpc = RpcTransform.fromParams(params, fixed)
     if 1:    
         vp = T_rpc.forward(u)
-        # Begin debugging code
-        f = open('testfile.txt','w')
-        numPts = len(u[0])
-        for i in range(numPts):
-            f.write('u: ' + str(u[0][i]) + ',' + str(u[1][i]) + '\n')
-            f.write('v: ' + str(vp[0][i]) + ',' + str(vp[1][i])  + '\n')
-        f.close()
-        # end 
-        np.savetxt('test.txt', u)
         n = u.shape[1]
         rms = math.sqrt(numpy.linalg.norm(vp - v) / n)
-        print "rms (see if this number is too high)"
-        print rms
         logging.debug('rms: %s pixels', rms)
 
     return T_rpc
