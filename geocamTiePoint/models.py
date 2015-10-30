@@ -68,6 +68,29 @@ def dosys(cmd):
     return ret
 
 
+class ISSimage:
+    def __init__(self, mission, roll, frame, sizeType):
+        self.mission = mission
+        self.roll = roll
+        self.frame = frame
+        self.sizeType = sizeType
+        self.infoUrl = "http://eol.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
+        self.imageUrl = self.__getImageUrl()
+    
+    def __getImageUrl(self):
+        if self.sizeType == 'small':
+            if (self.roll == "E") or (self.roll == "ESC"):
+                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/small" 
+            else: 
+                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ISD/lowres"
+        else: 
+            if (self.roll == "E") or (self.roll == "ESC"):
+                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/large" 
+            else: 
+                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ISD/highres"
+        return  rootUrl + "/" + self.mission + "/" + self.mission + "-" + self.roll + "-" + self.frame + ".jpg"
+    
+
 class ImageData(models.Model):
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key

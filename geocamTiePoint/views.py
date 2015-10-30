@@ -38,7 +38,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 
 from geocamTiePoint import forms, settings
-from geocamTiePoint.models import Overlay, QuadTree, ImageData
+from geocamTiePoint.models import Overlay, QuadTree, ImageData, ISSimage
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
 from geocamUtil import registration as register
@@ -456,7 +456,7 @@ def cameraModelTransformForward(request):
 
 
 @transaction.commit_on_success
-def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
+def createOverlay(author, imageName, imageFB, imageType, issImage): #mission, roll, frame, sizeType):
     """
     Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
@@ -519,10 +519,10 @@ def createOverlay(author, imageName, imageFB, imageType, mission, roll, frame):
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
     width, height = image.size
     # set center point
-    if mission:
-        centerPtDict = register.getCenterPoint(width, height, mission, roll, frame)
+    if issImage:
+        centerPtDict = register.getCenterPoint(width, height, issImage)
         overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
-        overlay.issMRF = mission + '-' + roll + '-' + str(frame)
+        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
     overlay.save()
     
     # generate initial quad tree
@@ -541,19 +541,20 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
     imageFB = None
     imageType = None
     overlay = None
-     
-    imageUrl = imageInfo.getUrlForImage(mission, roll, frame, size)
+      
+    issImage = ISSimage(mission, roll, frame, size)
+    imageUrl = issImage.imageUrl
     retval = imageInfo.getImageDataFromImageUrl(imageUrl)
     if checkIfErrorJSONResponse(retval):
         return retval
     else:
         imageName, imageFB, imageType, imageId = retval
-    
-    overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
+     
+    overlay = createOverlay(request.user, imageName, imageFB, imageType, issImage)
     # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
     if checkIfErrorJSONResponse(overlay):
         return retval
-            
+             
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
@@ -570,9 +571,7 @@ def overlayNewJSON(request):
             imageFB = None
             imageType = None
             imageName = None
-            mission = None
-            roll = None
-            frame = None
+            issImage = None
             # test to see if there is an image file
             if imageRef:
                 # file takes precedence over image url
@@ -593,25 +592,25 @@ def overlayNewJSON(request):
                     mission = form.cleaned_data['mission']
                     roll = form.cleaned_data['roll']
                     frame = form.cleaned_data['frame']
-                    imageSmallOrLarge = form.cleaned_data['imageSize']
+                    sizeType = form.cleaned_data['imageSize']  # small or large
                     # if user didn't input anything, error.
                     if not (mission and roll and frame): 
                         # what did the user even do
                         return ErrorJSONResponse("No image url or mission id in returned form data")
                     # get image url from mission roll frame input
-                    imageUrl = imageInfo.getUrlForImage(mission, roll, frame, imageSmallOrLarge)
+                    issImage = ISSimage(mission, roll, frame, sizeType)
                 # get image data from url
-                retval = imageInfo.getImageDataFromImageUrl(imageUrl)
+                retval = imageInfo.getImageDataFromImageUrl(issImage.imageUrl)
                 if checkIfErrorJSONResponse(retval):
                     return retval
                 else:
                     imageName, imageFB, imageType, imageId = retval
-                # if mission wasn't set by the user, get it from imageId in url.
-                if not mission:  
-                    if imageId: 
-                        mission, roll, frame = imageId.split('-')
-                        frame = frame.split('.')[0]
-            overlay = createOverlay(request.user, imageName, imageFB, imageType, mission, roll, frame)
+#                 # if mission wasn't set by the user, get it from imageId in url.
+#                 if not issImage.mission:  
+#                     if imageId: 
+#                         mission, roll, frame = imageId.split('-')
+#                         frame = frame.split('.')[0]
+            overlay = createOverlay(request.user, imageName, imageFB, imageType, issImage)
             # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
             if checkIfErrorJSONResponse(overlay):
                 return retval

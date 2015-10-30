@@ -1088,10 +1088,10 @@ $(function($) {
 		                  'style="width: 10%"/>' +
 		                '<div style="padding-bottom: 10px;">' +
 		                	'<div style="padding-left: 2px;">' +
-		                	'<input type="radio" name="imageSize" value="small" checked> Small' + 
+		                	'<input type="radio" name="imageSize" value="small"> Small' + 
 		                	'</div>' +
 		                	'<div style="padding-left: 2px;">' +
-		                	'<input type="radio" name="imageSize" value="large"> Large' + 
+		                	'<input type="radio" name="imageSize" value="large" checked> Large' + 
 		                	'</div>' +
 		                '</div>' +
 		                '<input class="btn newOverlayFormSubmitButton"' +
