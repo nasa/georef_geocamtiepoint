@@ -68,11 +68,6 @@ $(function($) {
             '<a href="/accounts/logout/">Logout</a></p>' +
             '</div>'
     });
-
-    function getLastModifiedTime(time) {
-    	var time = time.split('T');
-    	return time[0] + ' ' +time.split('S')[0];
-    }
     
     app.views.ListOverlaysView = app.views.View.extend({
         template: $('#template-list-overlays').html(),
@@ -111,12 +106,12 @@ $(function($) {
 
 
     app.views.HomeView = app.views.ListOverlaysView;
-
     /*
      * OverlayView: id-accepting base class for views that deal with a
      * single Overlay.
      * Base class for both OverlayGoogleMapsView and SplitOverlayView
      */
+    
     app.views.OverlayView = app.views.View.extend({
         initialize: function(options) {
             app.views.View.prototype.initialize.apply(this, arguments);
@@ -142,7 +137,6 @@ $(function($) {
      * Implements Google Maps and Marker initialization & management
      */
     app.views.OverlayGoogleMapsView = app.views.OverlayView.extend({
-
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
             this.markers = [];

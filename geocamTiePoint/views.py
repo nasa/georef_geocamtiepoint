@@ -37,6 +37,9 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 
+from django.dispatch import receiver
+from django.db.models.signals import pre_save, post_save, post_delete
+
 from geocamTiePoint import forms, settings
 from geocamTiePoint.models import Overlay, QuadTree, ImageData, ISSimage
 from geocamTiePoint import quadTree, transform, garbage
@@ -46,6 +49,7 @@ from geocamUtil import imageInfo as imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
+
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -114,7 +118,7 @@ def backbone(request):
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
                 'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
                 'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
-                'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
+#                 'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
             },
             context_instance=RequestContext(request))
     else:
@@ -172,179 +176,173 @@ def ndarrayToList(ndarray):
     return list(ndarray.flatten())
 
 
-def getImage(imageData, flag):
-    """
-    Returns the PIL image object from imageData based on the flag.
-    """
-    image = None
+# def getImage(imageData, flag):
+#     """
+#     Returns the PIL image object from imageData based on the flag.
+#     """
+#     image = None
+#     try: 
+#         if flag == ENHANCED:
+#             image = PIL.Image.open(imageData.enhancedImage.file)
+#         elif flag == UNENHANCED:
+#             image = PIL.Image.open(imageData.unenhancedImage.file)
+#         elif flag == DISPLAY:
+#             image = PIL.Image.open(imageData.image.file)
+#     except: 
+#         logging.error("image cannot be read from the image data")
+#         return None
+#     return image
+
+def getPILimage(imageData):
     try: 
-        if flag == ENHANCED:
-            image = PIL.Image.open(imageData.enhancedImage.file)
-        elif flag == UNENHANCED:
-            image = PIL.Image.open(imageData.unenhancedImage.file)
-        elif flag == DISPLAY:
-            image = PIL.Image.open(imageData.image.file)
+        image = PIL.Image.open(imageData.image.file) 
     except: 
         logging.error("image cannot be read from the image data")
         return None
     return image
 
-    
-def getOriginalImage(overlay):
-    """
-    Searches through the image data objects and finds 
-    one that has no rotation value and belongs to the overlay
-    with key = overlayId.
-    
-    It returns a PIL image object. 
-    """
-    originalImageData = overlay.getOriginalImageData()
-    if originalImageData:
-        return getImage(originalImageData, UNENHANCED)
-    else:
-        return None
+
+# def getRotatedImageData(overlayId, totalRotation):
+#     """
+#     For Re-using image data that already exists in the db. 
+#     
+#     Searches thru image data objects to find the one
+#     that has the given rotation value. If that doesn't exist, 
+#     returns None
+#     """
+#     imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = totalRotation)
+#     if imagedata:
+#         imagedata = imagedata[0]
+#         return imagedata
+#     else:
+#         return None
+
+# def saveImageToDatabase(PILimage, imageData, flags):
+#     """
+#     Given PIL image object, saves the image bits to the imageData object.
+#     flags is a list that determines whether image should be saved as 
+#     enhancedImage, unenhancedImage, or image in the imageData object in db. 
+#     """
+#     out = StringIO()
+#     PILimage.save(out, format='png')
+#     convertedBits = out.getvalue()
+#     # the file name is dummy because it gets set to a new file name on save
+#     if ENHANCED in flags: 
+#         imageData.enhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
+#     if UNENHANCED in flags: 
+#         imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
+#     if DISPLAY in flags:
+#         imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+#     imageData.contentType = 'image/png'
+#     imageData.save()
 
 
-def getRotatedImageData(overlayId, totalRotation):
-    """
-    For Re-using image data that already exists in the db. 
-    
-    Searches thru image data objects to find the one
-    that has the given rotation value. If that doesn't exist, 
-    returns None
-    """
-    imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = totalRotation)
-    if imagedata:
-        imagedata = imagedata[0]
-        return imagedata
-    else:
-        return None
+# def saveEnhancementValToDB(imageData, enhancementType, value):
+#     """
+#     Given type of the enhancement, stores the value in appropriate 
+#     enhancement parameter inside image data.
+#     """
+#     if enhancementType == "contrast":
+#         imageData.contrast = value
+#     elif enhancementType == "brightness":
+#         imageData.brightness = value
+#     imageData.save()
+# 
+# 
+# def getEnhanceValue(enhanceType, imageData):
+#     """
+#     Given enhancement type, returns the value stored in imageData object.
+#     """
+#     if enhanceType == "contrast":
+#         return imageData.contrast
+#     elif enhanceType == "brightness":
+#         return imageData.brightness
+# 
+# 
+# def getEnhancer(type):
+#     """
+#     Given image enhancement type, returns the PIL's enhancer.
+#     """
+#     if type == u'contrast':
+#         return PIL.ImageEnhance.Contrast
+#     elif type == u'brightness':
+#         return PIL.ImageEnhance.Brightness
+#     else: 
+#         logging.error("invalid type provided for image enhancer")
+#         return None
+# 
+# 
+# def enhanceImage(enhanceType, value, im):
+#     """
+#     Processes image thru an enhancer and returns an enhanced image.
+#     enhanceType specifies whether it's 'contrast' or 'brightness' 
+#     operation. value is input to the enhancer. im is the input image.
+#     """
+#     # enhance the image
+#     enhancer = getEnhancer(enhanceType)
+#     enhancer = enhancer(im)
+#     enhancedIm = enhancer.enhance(value) 
+#     return enhancedIm
 
-def saveImageToDatabase(PILimage, imageData, flags):
-    """
-    Given PIL image object, saves the image bits to the imageData object.
-    flags is a list that determines whether image should be saved as 
-    enhancedImage, unenhancedImage, or image in the imageData object in db. 
-    """
-    out = StringIO()
-    PILimage.save(out, format='png')
-    convertedBits = out.getvalue()
-    # the file name is dummy because it gets set to a new file name on save
-    if ENHANCED in flags: 
-        imageData.enhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    if UNENHANCED in flags: 
-        imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    if DISPLAY in flags:
-        imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    imageData.contentType = 'image/png'
-    imageData.save()
-
-
-def saveEnhancementValToDB(imageData, enhancementType, value):
-    """
-    Given type of the enhancement, stores the value in appropriate 
-    enhancement parameter inside image data.
-    """
-    if enhancementType == "contrast":
-        imageData.contrast = value
-    elif enhancementType == "brightness":
-        imageData.brightness = value
-    imageData.save()
-
-
-def getEnhanceValue(enhanceType, imageData):
-    """
-    Given enhancement type, returns the value stored in imageData object.
-    """
-    if enhanceType == "contrast":
-        return imageData.contrast
-    elif enhanceType == "brightness":
-        return imageData.brightness
-
-
-def getEnhancer(type):
-    """
-    Given image enhancement type, returns the PIL's enhancer.
-    """
-    if type == u'contrast':
-        return PIL.ImageEnhance.Contrast
-    elif type == u'brightness':
-        return PIL.ImageEnhance.Brightness
-    else: 
-        logging.error("invalid type provided for image enhancer")
-        return None
-
-
-def enhanceImage(enhanceType, value, im):
-    """
-    Processes image thru an enhancer and returns an enhanced image.
-    enhanceType specifies whether it's 'contrast' or 'brightness' 
-    operation. value is input to the enhancer. im is the input image.
-    """
-    # enhance the image
-    enhancer = getEnhancer(enhanceType)
-    enhancer = enhancer(im)
-    enhancedIm = enhancer.enhance(value) 
-    return enhancedIm
+# 
+# @csrf_exempt
+# def createEnhancedImageTiles(request):
+#     """
+#     Receives request from the client to enhance the images. The
+#     type of enhancement and value are specified in the 'data' json
+#     package from client.
+#     """
+#     if request.is_ajax() and request.method == 'POST':
+#         data = request.POST
+#         value = data['value']
+#         value = float(value)
+#         overlayId = data["overlayId"]
+#         overlay = Overlay.objects.get(key=overlayId)
+#         previousQuadTree = None
+#         if overlay.imageData.isOriginal != True: 
+#             previousQuadTree = overlay.unalignedQuadTree
+#         imageData = overlay.imageData
+#         enhanceType = data['enhanceType']
+#         # save the new enhancement value only for 'enhanceType' in database
+#         saveEnhancementValToDB(imageData, enhanceType, value)   
+#         checkAndApplyEnhancement(imageData)     
+#         overlay.imageData.save()
+#         overlay.save()
+#         overlay.generateUnalignedQuadTree()  # generate tiles
+#         if previousQuadTree != None:
+#             previousQuadTree.delete()  # delete the old tiles
+#         data = {'status': 'success', 'id': overlay.key}
+#         return HttpResponse(json.dumps(data))
 
 
-@csrf_exempt
-def createEnhancedImageTiles(request):
-    """
-    Receives request from the client to enhance the images. The
-    type of enhancement and value are specified in the 'data' json
-    package from client.
-    """
-    if request.is_ajax() and request.method == 'POST':
-        data = request.POST
-        value = data['value']
-        value = float(value)
-        overlayId = data["overlayId"]
-        overlay = Overlay.objects.get(key=overlayId)
-        previousQuadTree = None
-        if overlay.imageData.isOriginal != True: 
-            previousQuadTree = overlay.unalignedQuadTree
-        imageData = overlay.imageData
-        enhanceType = data['enhanceType']
-        # save the new enhancement value only for 'enhanceType' in database
-        saveEnhancementValToDB(imageData, enhanceType, value)   
-        checkAndApplyEnhancement(imageData)     
-        overlay.imageData.save()
-        overlay.save()
-        overlay.generateUnalignedQuadTree()  # generate tiles
-        if previousQuadTree != None:
-            previousQuadTree.delete()  # delete the old tiles
-        data = {'status': 'success', 'id': overlay.key}
-        return HttpResponse(json.dumps(data))
-
-
-def checkAndApplyEnhancement(imageData):
-    """
-    If any of the imageData's enhancement parameters (contrast, brightness)
-    are non-zero, apply the enhancement to the unenhanced image and set it as the 'image' field
-    of imageData
-    """
-    unenhancedIm = getImage(imageData, UNENHANCED)
-    enhancedIm = unenhancedIm
-    saveToDB = False
-    if imageData.contrast != 0:
-        enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
-        saveToDB = True
-    if imageData.brightness != 0:
-        enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)
-        saveToDB = True
-    if saveToDB:
-        saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
-      
-        
+# def checkAndApplyEnhancement(imageData):
+#     """
+#     If any of the imageData's enhancement parameters (contrast, brightness)
+#     are non-zero, apply the enhancement to the unenhanced image and set it as the 'image' field
+#     of imageData
+#     """
+#     unenhancedIm = getImage(imageData, UNENHANCED)
+#     enhancedIm = unenhancedIm
+#     saveToDB = False
+#     if imageData.contrast != 0:
+#         enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
+#         saveToDB = True
+#     if imageData.brightness != 0:
+#         enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)
+#         saveToDB = True
+#     if saveToDB:
+#         saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
+   
+"""
+TODO: When you replace the imageData, delete the old imageData.
+"""
 @csrf_exempt
 def rotateOverlay(request):
     """
     Called in response to the ajax request sent from the client when 
     user moves the rotation slider or inputs rotation. 
-    
-    It creates a new overlay with an image that has been rotated by PIL
-    and re-renders the page.
+
+    re renders page with rotated image.
     """
     if request.is_ajax() and request.method == 'POST':
         data = request.POST
@@ -357,43 +355,47 @@ def rotateOverlay(request):
         overlay = Overlay.objects.get(key=overlayId)
         # add the user's new rotation request to the total rotation
         overlay.extras.totalRotation = rotationAngle
+       
         # original image uploaded by the user
-        originalImage = getOriginalImage(overlay)
+        rawImageData = overlay.getRawImageData()
+        rawPILimage = getPILimage(rawImageData)
         # save out the original image size
-        overlay.extras.orgImageSize = originalImage.size
+        overlay.extras.orgImageSize = rawPILimage.size
         #rotate the image (minus sign since PIL rotates counter clockwise)
-        rotatedImage = originalImage.rotate(-1*overlay.extras.totalRotation, 
+        rotatedImage = rawPILimage.rotate(-1*overlay.extras.totalRotation, 
                                             PIL.Image.BICUBIC, expand=1)
-        previousQuadTree = None
-        if overlay.imageData.isOriginal is True: 
-            # make a deep copy of the image data 
-            rotatedImageData = overlay.imageData
-            rotatedImageData.pk = None # set the primary key to None to make a deep copy
-            rotatedImageData.isOriginal = False
-            rotatedImageData.rotationAngle = overlay.extras.totalRotation             
-            saveImageToDatabase(rotatedImage, rotatedImageData, [DISPLAY, UNENHANCED])
-            # apply image enhancement if there is a non-zero value in imageData parameters
-            checkAndApplyEnhancement(rotatedImageData)
-            # set the imageData field of the current overlay to this new imageData that has the rotated image.
-            overlay.imageData = rotatedImageData
-        else:
-            # save out the overlay's quad tree
-            previousQuadTree = overlay.unalignedQuadTree
-            # overwrite the existing image data
-            overlay.imageData.isOriginal = False
-            overlay.imageData.rotationAngle = overlay.extras.totalRotation
-            saveImageToDatabase(rotatedImage, overlay.imageData, [DISPLAY, UNENHANCED])
-            checkAndApplyEnhancement(overlay.imageData)
-        if rotatedImage == None:
-            rotatedImage = getImage(overlay.imageData, UNENHANCED)
-        overlay.extras.rotatedImageSize = rotatedImage.size # width, height
+        
+        # to be deleted later
+        isRaw = overlay.imageData.raw
+        previousImageDataId = overlay.imageData.id
+        previousQuadTreeId = overlay.unalignedQuadTree.id
+        
+        # create a new image data object with new image
+        newImageData = overlay.imageData
+        newImageData.pk = None
+        newImageData.raw = False
+        # save the rotated image to the new ImageData object
+        out = StringIO()
+        rotatedImage.save(out, format='png')
+        convertedBits = out.getvalue()
+        newImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+        newImageData.contentType = 'image/png'
+        newImageData.rotationAngle = overlay.extras.totalRotation
+        newImageData.save()
+        # replace the imageData of overlay
+        overlay.imageData = newImageData
+        overlay.extras.rotatedImageSize = rotatedImage.size
         overlay.save()
+        # generate new set of tiles
         overlay.generateUnalignedQuadTree()
-        if previousQuadTree != None:
-            previousQuadTree.delete()
+        
+        if not isRaw:
+            QuadTree.objects.get(id=previousQuadTreeId).delete()
+            ImageData.objects.get(id=previousImageDataId).delete()
+        
         data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
-
+        
 
 @csrf_exempt
 def cameraModelTransformFit(request):
@@ -497,15 +499,18 @@ def createOverlay(author, imageName, imageFB, imageType, issImage): #mission, ro
         else:
             imageData.contentType = imageType
     imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
-    imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
+
+#     imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
+
     # create and save new empty overlay so we can refer to it
     # this causes a ValueError if the user isn't logged in
     overlay = Overlay(author=author,
                              isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     overlay.save()
     imageData.overlay = overlay
-    # set this image data as the 'original', unenhanced / rotated image
-    imageData.isOriginal = True
+    
+    # set this image data as the raw image.
+    imageData.raw = True
     imageData.save()
 
     if image is None:

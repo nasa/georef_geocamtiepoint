@@ -105,15 +105,9 @@ class ImageData(models.Model):
     # If certain angle is requested and image data is available in db, 
     # we can just pull up that image.
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
-    # holds image that hasn't been enhanced (but may have been rotated)
-    unenhancedImage = models.ImageField(upload_to = getNewImageFileName,
-                                        max_length=255, null=True, blank=True)
-    #holds image that has been enhanced (and may have been rotated)
-    enhancedImage = models.ImageField(upload_to = getNewImageFileName,
-                                        max_length=255, null=True, blank=True)
     contrast = models.FloatField(null=True, blank=True, default=0)
     brightness = models.FloatField(null=True, blank=True, default=0)
-    isOriginal = models.BooleanField(default=False)
+    raw = models.BooleanField(default=False)
 
     def __unicode__(self):
         if self.overlay:
@@ -304,7 +298,7 @@ class QuadTree(models.Model):
                                      clon, clat)
         srs = gdalUtil.EPSG_4326
         # get original image
-        imgPath = overlay.getOriginalImageData().image.url.replace('/data/', settings.DATA_ROOT)
+        imgPath = overlay.getRawImageData().image.url.replace('/data/', settings.DATA_ROOT)
         # reproject and tar the output tiff
         geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp)
         geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
@@ -392,14 +386,12 @@ class Overlay(models.Model):
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerPointLatLon')
 
-
-    def getOriginalImageData(self):
+    def getRawImageData(self):
         """
         Returns the original image data created upon image upload (not rotated, not enhanced)
         """
-        imageData = ImageData.objects.filter(overlay__key = self.key).filter(isOriginal = True)
+        imageData = ImageData.objects.filter(overlay__key = self.key).filter(raw = True)
         return imageData[0]
-
 
     def getAlignedTilesUrl(self):
         if self.isPublic:
@@ -512,7 +504,7 @@ class Overlay(models.Model):
         if self.extras.get('transform') is None:
             return None
         # grab the original image's imageData
-        originalImageData = self.getOriginalImageData()
+        originalImageData = self.getRawImageData()
         qt = QuadTree(imageData=originalImageData,
                     transform=dumps(self.extras.transform))
         qt.save()
