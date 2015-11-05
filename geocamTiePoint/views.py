@@ -118,7 +118,7 @@ def backbone(request):
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
                 'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
                 'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
-#                 'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
+                'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
             },
             context_instance=RequestContext(request))
     else:
@@ -284,20 +284,20 @@ def getPILimage(imageData):
 #     enhancedIm = enhancer.enhance(value) 
 #     return enhancedIm
 
-# 
-# @csrf_exempt
-# def createEnhancedImageTiles(request):
-#     """
-#     Receives request from the client to enhance the images. The
-#     type of enhancement and value are specified in the 'data' json
-#     package from client.
-#     """
-#     if request.is_ajax() and request.method == 'POST':
-#         data = request.POST
+ 
+@csrf_exempt
+def createEnhancedImageTiles(request):
+    """
+    Receives request from the client to enhance the images. The
+    type of enhancement and value are specified in the 'data' json
+    package from client.
+    """
+    if request.is_ajax() and request.method == 'POST':
+        data = request.POST
 #         value = data['value']
 #         value = float(value)
-#         overlayId = data["overlayId"]
-#         overlay = Overlay.objects.get(key=overlayId)
+        overlayId = data["overlayId"]
+        overlay = Overlay.objects.get(key=overlayId)
 #         previousQuadTree = None
 #         if overlay.imageData.isOriginal != True: 
 #             previousQuadTree = overlay.unalignedQuadTree
@@ -311,8 +311,8 @@ def getPILimage(imageData):
 #         overlay.generateUnalignedQuadTree()  # generate tiles
 #         if previousQuadTree != None:
 #             previousQuadTree.delete()  # delete the old tiles
-#         data = {'status': 'success', 'id': overlay.key}
-#         return HttpResponse(json.dumps(data))
+        data = {'status': 'success', 'id': overlay.key}
+        return HttpResponse(json.dumps(data))
 
 
 # def checkAndApplyEnhancement(imageData):
@@ -333,9 +333,7 @@ def getPILimage(imageData):
 #     if saveToDB:
 #         saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
    
-"""
-TODO: When you replace the imageData, delete the old imageData.
-"""
+
 @csrf_exempt
 def rotateOverlay(request):
     """
@@ -355,7 +353,6 @@ def rotateOverlay(request):
         overlay = Overlay.objects.get(key=overlayId)
         # add the user's new rotation request to the total rotation
         overlay.extras.totalRotation = rotationAngle
-       
         # original image uploaded by the user
         rawImageData = overlay.getRawImageData()
         rawPILimage = getPILimage(rawImageData)
@@ -364,12 +361,10 @@ def rotateOverlay(request):
         #rotate the image (minus sign since PIL rotates counter clockwise)
         rotatedImage = rawPILimage.rotate(-1*overlay.extras.totalRotation, 
                                             PIL.Image.BICUBIC, expand=1)
-        
-        # to be deleted later
+        # data that needs to be deleted after overlay save
         isRaw = overlay.imageData.raw
         previousImageDataId = overlay.imageData.id
         previousQuadTreeId = overlay.unalignedQuadTree.id
-        
         # create a new image data object with new image
         newImageData = overlay.imageData
         newImageData.pk = None

@@ -296,13 +296,13 @@ $(function($) {
                 	 data.append('overlayId', overlayId);
                 	 // set the rotateKnob position
                 	 rotateKnobPosition = maputils.getRotationSliderPosition(angle);
-                	 // submit the rotation angle to the server to generate
-                	 // new tiles for rotated image.
+                	 // save current zoom level
+                	 var zoom = imageQtreeView.gmap.zoom;
+                	 // submit the rotation angle to the server to generate new tiles for rotated image.
 					 maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);
              	}, event, imageQtreeView);
-                 
                  //add image enhancement control sliders
-                 maputils.createImageEnhacementControls(imageQtreeView, mapType);
+//                 maputils.createImageEnhacementControls(imageQtreeView, mapType);
     		}, this)));
         },
         
@@ -522,12 +522,13 @@ $(function($) {
 			// shows the lat lon of where the cursor is on the map
         	// shows current center point value
 			var positionBox = $('<div id="positionBox">' +
+				'<div id="imageID"><strong>' + this.model.attributes.issMRF + '</strong></div>' + 
 				'<div id="mapPos"> </div>' +
 				'<div id="centerPtLatLon"> </div>' +
 				'</div>');
 			$('#workflow_controls').before(positionBox);
 			var mapPos = positionBox.find('#mapPos');
-			var centerPtLatLon = positionBox.find('#centerPtLatLon')
+			var centerPtLatLon = positionBox.find('#centerPtLatLon');
 			google.maps.event.addListener(this.gmap, 'mousemove', function (event) {
 				mapPos.text("Cursor (lat, lon): " + event.latLng);
 				var latlon = maputils.getLatLonFromMarkerTitle(centerPointMarker);
@@ -540,24 +541,6 @@ $(function($) {
     app.views.SplitOverlayView = app.views.OverlayView.extend({
 
         helpSteps: [
-            {
-                promptText: 'Use "Go to Location" to zoom the map ' +
-                    'to the neighborhood of your overlay.',
-                videoId: 'sHp_OGcgckQ',
-                helpFunc: function() {
-//                     this.$('#locationSearch').focus();
-//                     flicker(
-//                         function() {
-//                             (this.$('#locationSearch')
-//                              .css('background-color', '#aaf'));
-//                         },
-//                         function() {
-//                             (this.$('#locationSearch')
-//                              .css('background-color', '#fff'));
-//                         },
-//                         500, 8);
-                }
-            },
             {
                 promptText: 'Click matching landmarks on both sides' +
                     ' to add tiepoints and align your overlay.',
@@ -581,72 +564,8 @@ $(function($) {
              }
         ],
 
-        template:
-        '<div id="location" class="btn-toolbar">' +
-            '<span class="input-prepend">' +
-                '<span class="add-on">Go to</span>' +
-                '<input type="text" id="locationSearch" ' +
-                'placeholder="Location"></input>' +
-            '</span>' +
-            '<span class="alert instructions-prompt">' +
-                '<strong style="float:left; margin-right:1em;">Tips:</strong>' +
-                '<div class="btn-group floatleft"' +
-                    ' style="margin-right: 10px;">' +
-                    '<a id="promptPrevStep" class="btn btn-mini">&lt;&lt;</a>' +
-                    '<a id="promptNextStep" class="btn btn-mini">&gt;&gt;</a>' +
-                '</div>' +
-                '<span id="userPromptText">Add matching tiepoints on both' +
-                ' sides to align your overlay.</span>' +
-                '<button id="video" class="btn btn-mini">Video</button>' +
-                '<a class="close" data-dismiss="alert">&times;</a>' +
-            '</span>' +
-        '</div>' +
-        '<div id="workflow_controls" class="btn-toolbar">' +
-            '<div class="btn-group">' +
-                '<button class="btn" id="help"">Help</button>' +
-            '</div>' +
-            '<div class="btn-group">' +
-                '<button class="btn" id="undo" onclick="undo()">Undo</button>' +
-                '<button class="btn" id="redo" onclick="redo()">Redo</button>' +
-                '<button class="btn" id="delete" disabled=true>' +
-                'Delete</button>' +
-            '</div>' +
-            '<div id="zoom_group" class="btn-group" style="margin-left:10px">' +
-                '<button class="btn" id="zoom_100">Zoom Max</button>' +
-                '<button class="btn" id="zoom_fit">Zoom Fit</button>' +
-            '</div>' +
-                '<button class="btn"><label for="show_preview">' +
-                   '<input id="show_preview" type="checkbox" ' +
-                   'checked="true"/>Show Preview</label>' +
-                '</button>' +
-            '<div id="save-export" class="btn-group">' +
-                '<button class="btn" id="export">Share</button>' +
-                '<button class="btn" id="save">Save</button>' +
-                '<span id="saveStatus" ' +
-                  'data-saving-text="Saving..." ' +
-                  'data-changed-text="Changed since last save" ' +
-                  'data-saved-text="Saved." ' +
-                  'data-server-error="Server Error" ' +
-                  'data-server-unreachable="Server unreachable">' +
-                '</span>' +
-            '</div>' +
-        '</div>' +
-        '<div id="split_container">' +
-            '<div id="split_left"></div>' +
-            '<div id="split_right"></div>' +
-        '</div>' +
-        '<div id="helpText" class="modal hide">' +
-            '<div class="modal-header">' +
-                '<button type="button" class="close" ' +
-                  'data-dismiss="modal" aria-hidden="true">&times;</button>' +
-                '<h3>MapFasten Help</h3>' +
-            '</div>' +
-            '<div id="modalBody" class="modal-body"></div>' +
-            '<div class="modal-footer">' +
-                '<button id="helpCloseBtn">Okay</button>' +
-            '</div>' +
-        '</div>',
-
+        template: $('#template-overlay-dashboard').html(),
+ 
         beforeRender: function() {
             if (this.helpIndex == null) {
                 if (this.model.get('alignedTilesUrl')) {

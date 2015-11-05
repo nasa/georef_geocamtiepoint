@@ -7,7 +7,6 @@ $(function($) {
 	 * constants defined in in coords.js. and fitNamedBounds, defined in
 	 * utils.js
 	 */
-
 	maputils.handleNoGeolocation = function(gmap, errorFlag) {
 		assert(!_.isUndefined(fitNamedBounds), 'Missing global: fitNamedBounds');
 		fitNamedBounds(settings.GEOCAM_TIE_POINT_DEFAULT_MAP_VIEWPORT, gmap);
@@ -291,7 +290,33 @@ maputils.rotateTiePt = function(pixelCoord, overlay) {
 };
 
 
-maputils.submitRequestToServer = function(url, data, imageQtreeView) {
+
+function submitSuccess(response, imageQtreeView) {
+	try {
+		var json = JSON.parse(response);
+	} catch (error) {
+		console.log('Failed to parse response as JSON: ' + error.message);
+		return;
+	}
+	if (json['status'] == 'success') {
+		var overlay = imageQtreeView.model;
+		overlay.fetch({
+			'success' : function(overlay) {
+				imageQtreeView.render();
+			}
+		});
+	}
+}
+
+function submitError() {
+	console.log("server failed to tile the rotated image");
+}
+
+maputils.submitRequestToServer = function(url, data, imageQtreeView, successCallBack, errorCallBack) {
+	// if not defined, use default
+	successCallBack = typeof successCallBack !== 'undefined' ? successCallBack : submitSuccess;
+	errorCallBack = typeof errorCallBack !== 'undefined' ? errorCallBack : submitError;
+	
 	$.ajax({
 		url : url,
 		crossDomain : false,
@@ -300,30 +325,13 @@ maputils.submitRequestToServer = function(url, data, imageQtreeView) {
 		contentType : false,
 		processData : false,
 		type : 'POST',
-		success : (_.bind(submitSuccess, this)),
-		error : (_.bind(submitError, this))
+		success: function(response) {
+			successCallBack(response, imageQtreeView)
+		}, 
+		error: function() {
+			errorCallBack()
+		}
 	});
-	
-	function submitSuccess(data) {
-		try {
-			var json = JSON.parse(data);
-		} catch (error) {
-			console.log('Failed to parse response as JSON: ' + error.message);
-			return;
-		}
-		if (json['status'] == 'success') {
-			var overlay = imageQtreeView.model;
-			overlay.fetch({
-				'success' : function(overlay) {
-					imageQtreeView.render();
-				}
-			});
-		}
-	}
-
-	function submitError() {
-		console.log("server failed to tile the rotated image");
-	}
 };
 
 
