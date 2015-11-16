@@ -4,7 +4,7 @@
 # All Rights Reserved.
 # __END_LICENSE__
 
-from django.conf.urls.defaults import url, patterns
+from django.conf.urls import patterns, url, include
 from django.shortcuts import redirect
 from django.core.urlresolvers import reverse
 
@@ -56,7 +56,6 @@ urlpatterns = patterns(
     url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', 'createOverlayFromUrl', 
         {}, 'geocamTiePoint_createOverlayFromUrl'),
     
-
     # duplicate url that starts with 'backend' so we can set 'login: admin'
     # on the backend version of the view.
     url(r'^backend/overlay/(?P<key>\d+)/generateExport/$', 'overlayGenerateExport',

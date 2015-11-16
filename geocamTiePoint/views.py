@@ -693,6 +693,8 @@ def neverExpires(response):
 
 def getTile(request, quadTreeId, zoom, x, y):
     quadTreeId = int(quadTreeId)
+    print "zoom is "
+    print zoom
     zoom = int(zoom)
     x = int(x)
     y = int(os.path.splitext(y)[0])
