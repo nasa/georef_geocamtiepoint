@@ -75,11 +75,19 @@ urlpatterns = patterns(
         'dummyView',
         {}, 'geocamTiePoint_tileRoot'),
 
+    url(r'^tile/(?P<quadTreeId>[^/]+)/\[ZOOM\]/\[X\]/\[Y\].png$',
+        'getTile',
+        {}, 'geocamTiePoint_tile'),
+                       
     url(r'^tile/(?P<quadTreeId>[^/]+)/(?P<zoom>[^/]+)/(?P<x>[^/]+)/(?P<y>[^/]+)$',
         'getTile',
         {}, 'geocamTiePoint_tile'),
 
     url(r'^public/tile/(?P<quadTreeId>[^/]+)/(?P<zoom>[^/]+)/(?P<x>[^/]+)/(?P<y>[^/]+)$',
+        'getPublicTile',
+        {}, 'geocamTiePoint_publicTile'),
+
+    url(r'^public/tile/(?P<quadTreeId>[^/]+)/\[ZOOM\]/\[X\]/\[Y\].png$',
         'getPublicTile',
         {}, 'geocamTiePoint_publicTile'),
 

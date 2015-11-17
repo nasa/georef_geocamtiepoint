@@ -399,10 +399,12 @@ class Overlay(models.Model):
         else:
             urlName = 'geocamTiePoint_tile'
         return reverse(urlName,
-                       args=[str(self.alignedQuadTree.id),
-                             '[ZOOM]',
-                             '[X]',
-                             '[Y].png'])
+                       args=[str(self.alignedQuadTree.id)])            
+#         return reverse(urlName,
+#                        args=[str(self.alignedQuadTree.id),
+#                              '[ZOOM]',
+#                              '[X]',
+#                              '[Y].png'])
 
     def getJsonDict(self):
         # export all schema-free subfields of extras
@@ -424,10 +426,12 @@ class Overlay(models.Model):
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
         if self.unalignedQuadTree is not None:
             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
-                                                  args=[str(self.unalignedQuadTree.id),
-                                                        '[ZOOM]',
-                                                        '[X]',
-                                                        '[Y].jpg'])
+                                                  args=[str(self.unalignedQuadTree.id)])
+#             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
+#                                                   args=[str(self.unalignedQuadTree.id),
+#                                                         '[ZOOM]',
+#                                                         '[X]',
+#                                                         '[Y].jpg'])
             result['unalignedTilesZoomOffset'] = quadTree.ZOOM_OFFSET
         if self.alignedQuadTree is not None:
             result['alignedTilesUrl'] = self.getAlignedTilesUrl()

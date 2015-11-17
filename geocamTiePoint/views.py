@@ -50,7 +50,6 @@ from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResp
 from geocamUtil.icons import rotate
 import re
 
-
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
@@ -629,7 +628,7 @@ def overlayIdJson(request, key):
         return HttpResponse(dumps(overlay.jsonDict), content_type='application/json')
     elif request.method in ('POST', 'PUT'):
         overlay = get_object_or_404(Overlay, key=key)
-        overlay.jsonDict = json.loads(request.raw_post_data)
+        overlay.jsonDict = json.loads(request.body)
         transformDict = overlay.extras.get('transform')
         if transformDict:
             try: 
@@ -693,12 +692,10 @@ def neverExpires(response):
 
 def getTile(request, quadTreeId, zoom, x, y):
     quadTreeId = int(quadTreeId)
-    print "zoom is "
-    print zoom
     zoom = int(zoom)
     x = int(x)
     y = int(os.path.splitext(y)[0])
-
+    
     key = quadTree.getTileCacheKey(quadTreeId, zoom, x, y)
     data = cache.get(key)
     if data is None:
