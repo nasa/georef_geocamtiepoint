@@ -811,7 +811,8 @@ def getExportFilesList(request):
     for set in exports:
         for data in set:
             if data is not None:
-                writer.writerow([data])
+                if data is not "":
+                    writer.writerow([data])
     return response
 
 
