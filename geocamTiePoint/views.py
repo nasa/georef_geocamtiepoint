@@ -804,14 +804,15 @@ def getExportFilesList(request):
     """
     Downloads a csv file containing list of all available export products (kml, geotiff, html).
     """
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="GeoRefExportProductsList.csv"'
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename="GeoRefExportProductsList.txt"'
     exports = QuadTree.objects.values_list('htmlExportName', 'geotiffExportName', 'kmlExportName')
     writer = csv.writer(response)
     for set in exports:
-        for data in set:
-            if data is not None:
-                writer.writerow([data])
+        if set is not (None, None, None):
+	    for data in set:
+	    	if (data != None) and (data != ''):
+                    writer.writerow([data])
     return response
 
 
