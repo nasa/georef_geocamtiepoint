@@ -254,14 +254,21 @@ class QuadTree(models.Model):
             else:
                 pixels = np.column_stack((pixels, newCol))
         return pixels        
-
+    
+    def getImageSizeType(self):
+        imgWidth = self.imageData.overlay.extras.imageSize[0]
+        imgSize = "large"
+        if imgWidth < 1200:
+            imgSize = "small"   
+        return imgSize
 
     def generateHtmlExport(self, exportName, metaJson, slug):
+        imgSize = self.getImageSizeType()
         gen = self.getGeneratorWithCache(self.id)
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         # generate html export
-        htmlExportName = exportName + ('-small-html_%s' % timestamp)
+        htmlExportName = exportName + ('-%s-html_%s' % (imgSize, timestamp))
         viewHtmlPath = 'view.html'
         tileRootUrl = './%s' % slug
         html = self.getSimpleViewHtml(tileRootUrl, metaJson, slug)
@@ -280,6 +287,7 @@ class QuadTree(models.Model):
         """
         This generates a geotiff from RPC.
         """
+        imgSize = self.getImageSizeType()
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
@@ -300,7 +308,7 @@ class QuadTree(models.Model):
         # get original image
         imgPath = overlay.getRawImageData().image.url.replace('/data/', settings.DATA_ROOT)
         # reproject and tar the output tiff
-        geotiffExportName = exportName + ('-small-geotiff_%s' % timestamp)
+        geotiffExportName = exportName + ('-%s-geotiff_%s' % (imgSize, timestamp))
         geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
         dosys('mkdir %s' % geotiffFolderPath)
 
@@ -319,10 +327,11 @@ class QuadTree(models.Model):
         """
         this generates the kml and the tiles.
         """
+        imgSize = self.getImageSizeType()
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
-        kmlExportName = exportName + ('-small-kml_%s' % timestamp)
+        kmlExportName = exportName + ('-%s-kml_%s' % (imgSize, timestamp))
         kmlFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + kmlExportName
         
         # get the path to latest geotiff file
