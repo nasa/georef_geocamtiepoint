@@ -519,7 +519,7 @@ $(function($) {
         },
         
         showCurrentInfo: function() {
-			// shows the lat lon of where the cursor is on the map
+	/*			// shows the lat lon of where the cursor is on the map
         	// shows current center point value
 			var positionBox = $('<div id="positionBox">' +
 				'<div id="imageID"><strong>' + this.model.attributes.issMRF + '</strong></div>' + 
@@ -534,7 +534,7 @@ $(function($) {
 				var latlon = maputils.getLatLonFromMarkerTitle(centerPointMarker);
                 centerPtLatLon.text('Image Center Point (lat,lon): ' + latlon[0] + ', ' + latlon[1]);
 			});        	
-		}, 
+	*/	}, 
 
     }); // end MapView
 

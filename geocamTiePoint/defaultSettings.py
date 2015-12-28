@@ -5,7 +5,7 @@
 # __END_LICENSE__
 import os
 
-MAX_IMPORT_FILE_SIZE = 4000000  # bytes 
+MAX_IMPORT_FILE_SIZE = 6000000  # bytes 
 
 # This feature is rigged to be disabled due to the planned removal of the Appengine PDF service
 PDF_IMPORT_ENABLED = True
