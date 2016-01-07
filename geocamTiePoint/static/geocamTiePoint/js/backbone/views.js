@@ -32,10 +32,6 @@ $(function($) {
             if (! this._renderedTemplate) {
                 this._renderedTemplate = Handlebars.compile(this.template);
             }
-            /*
-              assert(this.context || this.model.toJSON,
-              'Could note find a a context for the template.');
-            */
             if (! this.context && ! this.model) { this.context = {}; }
             var context;
             if (this.context) {
@@ -961,99 +957,14 @@ $(function($) {
         '[Size < 2 MB. Acceptable formats: JPEG, PDF, PNG, and others]';
 
     app.views.NewOverlayView = app.views.View.extend({
-        template:
-            '<div id="new_overlay_view">' +
-            '<h3>Create a New Overlay: Import Overlay Image</h3>' +
-            '<ul class="nav nav-tabs" id="formTabs">' +
-            '  <li data-target="#imageIdSubmit"><a href="#imageIdSubmit">' +
-            'From an ID </a></li>' +
-            '  <li class="active" data-target="#fileUpload">' +
-            '<a href="#fileUpload">Upload</a></li>' +
-            '  <li data-target="#urlSubmit"><a href="#urlSubmit">' +
-            'From a URL</a></li>' +
-            '</ul>' +
-            ' ' +
-            '<div class="tab-content">' +
-	            '<div class="tab-pane active" id="imageIdSubmit">' + 
-	        		'<form encytype="multipart/form-data" ' + 
-		        		'id="imageIdForm">' + 
-		        	'<div id="uploadControlGroup" class="control-group">' +
-		                '<label>Mission' +
-		                    '<span class="import-requirements">' +
-		                    '[required]' + 
-		                    '</span>' + 
-		                '</label>' +
-		                '<input type="text" id="mission" ' +
-		                  'style="width: 10%"/>' +
-		                '<label>Roll' +
-		                    '<span class="import-requirements">' +
-		                    '[required]' + 
-		                    '</span>' + 
-		                '</label>' +
-		                '<input type="text" id="roll" value="E" ' +
-		                  'style="width: 10%"/>' +
-		                '<label>Frame' +
-		                    '<span class="import-requirements">' +
-		                    '[required]' + 
-		                    '</span>' + 
-		                  '</label>' +
-		                '<input type="text" id="frame" ' +
-		                  'style="width: 10%"/>' +
-		                '<div style="padding-bottom: 10px;">' +
-		                	'<div style="padding-left: 2px;">' +
-		                	'<input type="radio" name="imageSize" value="small"> Small' + 
-		                	'</div>' +
-		                	'<div style="padding-left: 2px;">' +
-		                	'<input type="radio" name="imageSize" value="large" checked> Large' + 
-		                	'</div>' +
-		                '</div>' +
-		                '<input class="btn newOverlayFormSubmitButton"' +
-		                   ' type="button" value="Submit" />' +
-		                window.csrf_token +
-		            '</div>' +
-		            '</form>' + 
-	            '</div>' + 
-            	'<div class="tab-pane" id="fileUpload">' +
-                    '<form encytype="multipart/form-data" ' +
-                    'id="overlayUploadForm">' +
-                    '<div id="uploadControlGroup" class="control-group">' +
-                        '<label>Choose an image to upload' +
-                        '<span class="import-requirements">' +
-                          importRequirementsText + '</span>' +
-                        '</label>' +
-                        '<div>' +
-                          '<input type="file" name="file"' +
-                            ' id="newOverlayFile" />' +
-                        '</div>' +
-                        '<input class="btn newOverlayFormSubmitButton" ' +
-                        'type="button" value="Upload" />' +
-                        window.csrf_token +
-                    '</div>' +
-                    '</form>' +
-                '</div>' +
-                '<div class="tab-pane" id="urlSubmit">' +
-                    '<form encytype="multipart/form-data" ' +
-                      'id="overlayUrlForm">' +
-                    '<div id="uploadControlGroup" class="control-group">' +
-                        '<label>Image URL' +
-                        '<span class="import-requirements">' +
-                          importRequirementsText + '</span>' +
-                        '</label>' +
-                        '<input type="text" id="imageUrl" ' +
-                          'style="width: 98%"/>' +
-                        '<input class="btn newOverlayFormSubmitButton"' +
-                           ' type="button" value="Submit" />' +
-                        window.csrf_token +
-                    '</div>' +
-                    '</form>' +
-                '</div>' +
-            '</div>' +
-            '<div id="formErrorContainer"></div>' +
-        '</div>',
+        template: $('#template-create-overlay').html(),
 
         initialize: function() {
             app.views.View.prototype.initialize.apply(this, arguments);
-            this.context = { overlays: app.overlays.toJSON() };
+            this.context = { overlays: app.overlays.toJSON(),
+            		importRequirementsText: importRequirementsText,
+            		token: window.csrf_token
+            		};
         },
 
         afterRender: function() {
