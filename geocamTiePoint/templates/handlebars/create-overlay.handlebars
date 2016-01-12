@@ -13,6 +13,7 @@
 		<div class="tab-pane active" id="imageIdSubmit">
 			<form encytype="multipart/form-data" action="/overlays/new.json"
 				method="post">
+				<table>
 				<tr>
 					<th><label for="id_mission">Mission:</label></th>
 					<td><input id="id_mission" name="mission" type="text" /></td>
@@ -26,16 +27,22 @@
 					<td><input id="id_frame" name="frame" type="text" /></td>
 				</tr>
 				<tr>
-					<th><label for="id_imageSize">Size:</label></th>
-					<td><input id="id_imageSize" name="imageSize" type="text" /></td>
+					<td><ul id="id_imageSize">
+							<label for="id_imageSize_0"><input
+									id="id_imageSize_0" name="imageSize" type="radio" value="small" />
+									Small</label>
+							<label for="id_imageSize_1"><input
+									id="id_imageSize_1" name="imageSize" type="radio" value="large" checked/>
+									Large</label>
+						</ul></td>
 				</tr>
 				<tr>
-					<td><label for="id_autoregister">Autoregister:</label> <input
-						id="id_autoregister" name="autoregister" type="checkbox" /></td>
+					<td> <input id="id_autoregister" name="autoregister" type="checkbox" /> Autoregister</td>
 				</tr>
 				<tr>
-					<td><input type="submit" value="Submit" /> {{{ token }}}</td>
+					<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
 				</tr>
+				</table>
 			</form>
 		</div>
 		<div class="tab-pane" id="fileUpload">
@@ -49,7 +56,7 @@
 						<td><input id="id_image" name="image" type="file" /></td>
 					</tr>
 					<tr>
-						<td><input type="submit" value="Submit" /> {{{ token }}}</td>
+						<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
 					</tr>
 				</div>
 			</form>
@@ -63,7 +70,7 @@
 						<td><input id="id_imageUrl" name="imageUrl" type="url" /></td>
 					</tr>
 					<tr>
-						<td><input type="submit" value="Submit" /> {{{ token }}}</td>
+						<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
 					</tr>
 				</div>
 			</form>

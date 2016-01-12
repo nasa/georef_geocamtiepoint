@@ -7,13 +7,20 @@
 from django import forms
 from django.forms import ValidationError
 
+
+from django import forms
+
+IMAGE_SIZE_CHOICES = (('small', 'Small'), ('large', 'Large'))
+
+
 class NewImageDataForm(forms.Form):
     image = forms.FileField(required=False)
     imageUrl = forms.URLField(required=False)
     mission = forms.CharField(required=False)
     roll = forms.CharField(required=False)
     frame = forms.CharField(required=False)
-    imageSize = forms.CharField(required=False)
+#     imageSize = forms.CharField(required=False)
+    imageSize = forms.ChoiceField(widget=forms.RadioSelect, choices=IMAGE_SIZE_CHOICES)
     autoregister = forms.BooleanField(required=False)
 
     def clean(self):
