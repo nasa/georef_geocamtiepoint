@@ -117,7 +117,7 @@ def backbone(request):
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
                 'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
                 'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
-                'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles'),
+                'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles')
             },
             context_instance=RequestContext(request))
     else:
@@ -558,13 +558,17 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
 
-@transaction.commit_on_success
 def overlayNewJSON(request):
+    """
+    This gets called when user submits a create new overlay form. 
+    """
+    # if this is a POST request we need to process the form data
     if request.method == 'POST':
+        # create a form instance and populate it with data from the request:
         form = forms.NewImageDataForm(request.POST, request.FILES)
-        if not form.is_valid():
-            return ErrorJSONResponse(form.errors)
-        else:
+        # check whether it's valid:
+        if form.is_valid():
+            # process the data in form.cleaned_data as required
             image = None
             imageRef = form.cleaned_data['image']
             imageFB = None
@@ -592,9 +596,8 @@ def overlayNewJSON(request):
                     roll = form.cleaned_data['roll']
                     frame = form.cleaned_data['frame']
                     sizeType = form.cleaned_data['imageSize']  # small or large
-                    # if user didn't input anything, error.
+                    autoregister = form.cleaned_data['autoregister']
                     if not (mission and roll and frame): 
-                        # what did the user even do
                         return ErrorJSONResponse("No image url or mission id in returned form data")
                     # get image url from mission roll frame input
                     issImage = ISSimage(mission, roll, frame, sizeType)
@@ -604,21 +607,13 @@ def overlayNewJSON(request):
                     return retval
                 else:
                     imageName, imageFB, imageType, imageId = retval
-#                 # if mission wasn't set by the user, get it from imageId in url.
-#                 if not issImage.mission:  
-#                     if imageId: 
-#                         mission, roll, frame = imageId.split('-')
-#                         frame = frame.split('.')[0]
             overlay = createOverlay(request.user, imageName, imageFB, imageType, issImage)
-            # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
             if checkIfErrorJSONResponse(overlay):
                 return retval
-            # respond with json
-            data = {'status': 'success', 'id': overlay.key}
-            return HttpResponse(json.dumps(data))
+            redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
+            return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
     else:
         return HttpResponseNotAllowed(('POST'))
-
 
 
 @csrf_exempt

@@ -961,10 +961,11 @@ $(function($) {
 
         initialize: function() {
             app.views.View.prototype.initialize.apply(this, arguments);
+            // data to pass to handlebars template
             this.context = { overlays: app.overlays.toJSON(),
             		importRequirementsText: importRequirementsText,
-            		token: window.csrf_token
-            		};
+            		token: window.csrf_token,
+            };
         },
 
         afterRender: function() {
@@ -996,107 +997,6 @@ $(function($) {
         csrfSafeMethod: function(method) {
             return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
         },
-
-        submitForm: function() {
-            var button = $(this);
-            var form = button.parents('form');
-            button.data('value', button[0].value);
-            button[0].value = 'Working...';
-            button[0].disabled = true;
-            setTimeout(function() {
-                if (button[0].value == 'Working...') {
-                    button[0].disabled = false;
-                }
-            }, 10000);
-            var data = new FormData();
-            form.find('input#newOverlayFile').each(function(i, el) {
-                $.each(el.files, function(i, file) {
-                    data.append('image', file);
-                });
-            });
-            if (form.find('input#imageUrl').val()) {
-                data.append('imageUrl', form.find('input#imageUrl')[0].value);
-            }
-            if (form.find('input#mission').val()) {
-                data.append('mission', form.find('input#mission')[0].value);
-            }
-            if (form.find('input#roll').val()) {
-                data.append('roll', form.find('input#roll')[0].value);
-            }
-            if (form.find('input#frame').val()) {
-                data.append('frame', form.find('input#frame')[0].value);
-            }
-            if (form.find('input[name="imageSize"]:checked').val()) {
-                data.append('imageSize', form.find('input[name="imageSize"]:checked')[0].value);
-            }
-            var csrftoken = (app.views.NewOverlayView.prototype.getCookie
-                             ('csrftoken'));
-            $.ajax({
-                url: '/overlays/new.json',
-                crossDomain: false,
-                beforeSend: function(xhr, settings) {
-                    if (!app.views.NewOverlayView.prototype.csrfSafeMethod
-                        (settings.type)) {
-                        xhr.setRequestHeader('X-CSRFToken', csrftoken);
-                    }
-                },
-                data: data,
-                cache: false,
-                contentType: false,
-                processData: false,
-                type: 'POST',
-                success: (_.bind
-                          (app.views.NewOverlayView.prototype.submitSuccess,
-                           this)),
-                error: (_.bind
-                        (app.views.NewOverlayView.prototype.submitError,
-                         this))
-            });
-        },
-
-        submitError: function(xhr, status, errorThrown) {
-            console.log('Error occured when trying to submit new overlay');
-            var button = $(this);
-            var errors;
-            if (xhr.status == 400) {
-                errors = JSON.parse(xhr.responseText);
-            } else {
-                // similar to the Django Forms ErrorDict
-                errors = {'__all__': xhr.errorThrown};
-            }
-            var errorDiv = $('#formErrorContainer').html('');
-            // for now, just flatten all the global and field specific
-            // error messages into a list
-            var messages = _.flatten(_.values(errors));
-            _.each(messages, function(message) {
-                var errorElem = $('<div/>').addClass('error').text(message);
-                errorDiv.append(errorElem);
-            });
-            button[0].value = button.data('value');
-            button[0].disabled = false;
-        },
-
-        submitSuccess: function(data) {
-            console.log('got data back');
-            var button = $(this);
-            button[0].disabled = false;
-            button[0].value = button.data('value');
-            try {
-                var json = JSON.parse(data);
-            } catch (error) {
-                console.log('Failed to parse response as JSON: ' +
-                            error.message);
-                return;
-            }
-            if (json['status'] == 'success') {
-                var overlay = new app.models.Overlay({key: json.id});
-                app.overlays.add(overlay);
-                overlay.fetch({ 'success': function() {
-                    app.router.navigate('overlay/' + json['id'] + '/edit',
-                                        {trigger: true});
-                } });
-            }
-        }
     }); // end NewOverlayView
 
     app.views.DeleteOverlayView = app.views.View.extend({

@@ -14,17 +14,15 @@ class NewImageDataForm(forms.Form):
     roll = forms.CharField(required=False)
     frame = forms.CharField(required=False)
     imageSize = forms.CharField(required=False)
+    autoregister = forms.BooleanField(required=False)
 
     def clean(self):
         cleaned_data = super(NewImageDataForm, self).clean()
         image_file = cleaned_data.get("image")
         image_url = cleaned_data.get("imageUrl")
         mission = cleaned_data.get("mission")
-        roll = cleaned_data.get("roll")
-        frame = cleaned_data.get("frame")
-        imageSize = cleaned_data.get("imageSize")
 
         if not ((bool(image_file) ^ bool(image_url)) ^ bool(mission)):
             raise ValidationError("Requires only one of URL or uploaded image or mission id")
-
+ 
         return cleaned_data
