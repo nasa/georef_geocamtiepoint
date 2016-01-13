@@ -19,7 +19,6 @@ class NewImageDataForm(forms.Form):
     mission = forms.CharField(required=False)
     roll = forms.CharField(required=False)
     frame = forms.CharField(required=False)
-#     imageSize = forms.CharField(required=False)
     imageSize = forms.ChoiceField(widget=forms.RadioSelect, choices=IMAGE_SIZE_CHOICES)
     autoregister = forms.BooleanField(required=False)
 

@@ -6,42 +6,37 @@
 		<li class="active" data-target="#fileUpload"><a
 			href="#fileUpload">Upload</a></li>
 		<li data-target="#urlSubmit"><a href="#urlSubmit"> From a URL</a></li>
-		<li data-target="#urlSubmit"><a href="#urlSubmit"> Upload
-				batch</a></li>
 	</ul>
 	<div class="tab-content">
 		<div class="tab-pane active" id="imageIdSubmit">
 			<form encytype="multipart/form-data" action="/overlays/new.json"
 				method="post">
 				<table>
-				<tr>
-					<th><label for="id_mission">Mission:</label></th>
-					<td><input id="id_mission" name="mission" type="text" /></td>
-				</tr>
-				<tr>
-					<th><label for="id_roll">Roll:</label></th>
-					<td><input id="id_roll" name="roll" type="text" /></td>
-				</tr>
-				<tr>
-					<th><label for="id_frame">Frame:</label></th>
-					<td><input id="id_frame" name="frame" type="text" /></td>
-				</tr>
-				<tr>
-					<td><ul id="id_imageSize">
-							<label for="id_imageSize_0"><input
-									id="id_imageSize_0" name="imageSize" type="radio" value="small" />
-									Small</label>
-							<label for="id_imageSize_1"><input
-									id="id_imageSize_1" name="imageSize" type="radio" value="large" checked/>
-									Large</label>
-						</ul></td>
-				</tr>
-				<tr>
-					<td> <input id="id_autoregister" name="autoregister" type="checkbox" /> Autoregister</td>
-				</tr>
-				<tr>
-					<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
-				</tr>
+					<tr>
+						<th><label for="id_mission">Mission:</label></th>
+						<td><input id="id_mission" name="mission" type="text" /></td>
+					</tr>
+					<tr>
+						<th><label for="id_roll">Roll:</label></th>
+						<td><input id="id_roll" name="roll" type="text" /></td>
+					</tr>
+					<tr>
+						<th><label for="id_frame">Frame:</label></th>
+						<td><input id="id_frame" name="frame" type="text" /></td>
+					</tr>
+					<tr>
+						<td><ul id="id_imageSize">
+								<label for="id_imageSize_0"><input id="id_imageSize_0"
+									name="imageSize" type="radio" value="small" /> Small</label>
+								<label for="id_imageSize_1"><input id="id_imageSize_1"
+									name="imageSize" type="radio" value="large" checked /> Large</label>
+							</ul></td>
+					</tr>
+					<tr><td> <input id="id_autoregister" name="autoregister" type="checkbox" /> Autoregister</td></tr>
+					<tr>
+						<td><input class="submitButton" type="submit" value="Submit" />
+							{{{ token }}}</td>
+					</tr>
 				</table>
 			</form>
 		</div>
@@ -49,15 +44,20 @@
 			<form encytype="multipart/form-data" action="/overlays/new.json"
 				method="post">
 				<div id="uploadControlGroup" class="control-group">
-					<tr>
-						<th><label>Choose an image to upload' <span
-								class="import-requirements"> {{ importRequirementsText }}
-							</span></label></th>
-						<td><input id="id_image" name="image" type="file" /></td>
-					</tr>
-					<tr>
-						<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
-					</tr>
+					<table>
+						<tr>
+							<th><label>Choose an image to upload <span
+									class="import-requirements"> {{ importRequirementsText
+										}} </span></label></th>
+						</tr>
+						<tr>
+							<td><input id="id_image" name="image" type="file" /></td>
+						</tr>
+						<tr>
+							<td><input class="submitButton" type="submit" value="Submit" />
+								{{{ token }}}</td>
+						</tr>
+					</table>
 				</div>
 			</form>
 		</div>
@@ -65,13 +65,16 @@
 			<form encytype="multipart/form-data" action="/overlays/new.json"
 				method="post">
 				<div id="uploadControlGroup" class="control-group">
-					<tr>
-						<th><label for="id_imageUrl">Image URL:</label></th>
-						<td><input id="id_imageUrl" name="imageUrl" type="url" /></td>
-					</tr>
-					<tr>
-						<td><input class="submitButton" type="submit" value="Submit" /> {{{ token }}}</td>
-					</tr>
+					<table>
+						<tr>
+							<th><label for="id_imageUrl">Image URL:</label></th>
+							<td><input id="id_imageUrl" name="imageUrl" type="url" /></td>
+						</tr>
+						<tr>
+							<td><input class="submitButton" type="submit" value="Submit" />
+								{{{ token }}}</td>
+						</tr>
+					</table>
 				</div>
 			</form>
 		</div>

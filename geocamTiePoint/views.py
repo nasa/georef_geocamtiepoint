@@ -45,10 +45,14 @@ from geocamTiePoint.models import Overlay, QuadTree, ImageData, ISSimage
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
 from geocamUtil import registration as register
-from geocamUtil import imageInfo as imageInfo
+from geocamUtil import imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
+
+from georef_imageregistration import ImageFetcher
+from georef_imageregistration import register_image
+from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -451,84 +455,6 @@ def cameraModelTransformForward(request):
         return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
 
 
-@transaction.commit_on_success
-def createOverlay(author, imageName, imageFB, imageType, issImage): #mission, roll, frame, sizeType):
-    """
-    Creates a imageData object and an overlay object from the information 
-    gathered from an uploaded image.
-    """    
-    #if the overlay with the image name already exists, return it.
-    imageOverlays = Overlay.objects.filter(name=imageName)
-    if len(imageOverlays) > 0:
-        return imageOverlays[0]
-    
-    imageData = ImageData(contentType=imageType)
-    bits = imageFB.read()
-    imageContent = None
-    image = None
-    if imageType in PDF_MIME_TYPES:
-        if not settings.PDF_IMPORT_ENABLED:
-            return ErrorJSONResponse("PDF images are no longer supported.")
-
-        # convert PDF to raster image
-        pngData = pdf.convertPdf(bits)
-        imageContent = pngData
-        imageData.contentType = 'image/png'
-    else:
-        try:
-            image = PIL.Image.open(StringIO(bits))
-        except Exception as e:  # pylint: disable=W0703
-            logging.error("PIL failed to open image: " + str(e))
-            return ErrorJSONResponse("There was a problem reading the image.")
-        if image.mode != 'RGBA':
-            # add alpha channel to image for better
-            # transparency handling later
-            image = image.convert('RGBA')
-            out = StringIO()
-            image.save(out, format='png')
-            convertedBits = out.getvalue()
-            logging.info('converted image to RGBA')
-            imageContent = convertedBits
-            imageData.contentType = 'image/png'
-        else:
-            imageData.contentType = imageType
-    imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
-
-#     imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
-
-    # create and save new empty overlay so we can refer to it
-    # this causes a ValueError if the user isn't logged in
-    overlay = Overlay(author=author,
-                             isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
-    overlay.save()
-    imageData.overlay = overlay
-    
-    # set this image data as the raw image.
-    imageData.raw = True
-    imageData.save()
-
-    if image is None:
-        image = PIL.Image.open(imageData.image.file)
-
-    # fill in overlay info
-    overlay.name = imageName
-    overlay.imageData = imageData
-    overlay.extras.points = []
-    overlay.extras.imageSize = image.size    
-    overlay.extras.totalRotation = 0 # set initial rotation value to 0
-    width, height = image.size
-    # set center point
-    if issImage:
-        centerPtDict = register.getCenterPoint(width, height, issImage)
-        overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
-        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
-    overlay.save()
-    
-    # generate initial quad tree
-    overlay.generateUnalignedQuadTree()
-    return overlay
-
-
 def createOverlayFromUrl(request, mission, roll, frame, size):
     """
     HttpRequest sent, which then constructs a url to pull the image
@@ -557,6 +483,88 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
+
+@transaction.commit_on_success
+def createOverlay(author, imageName, issImage, imageSize):
+    """
+    Creates a imageData object and an overlay object from the information 
+    gathered from an uploaded image.
+    """    
+    #if the overlay with the image name already exists, return it.
+    imageOverlays = Overlay.objects.filter(name=imageName)
+    if len(imageOverlays) > 0:
+        return imageOverlays[0]
+    # create and save new empty overlay so we can refer to it
+    # this causes a ValueError if the user isn't logged in
+    overlay = Overlay(author=author,
+                             isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
+    overlay.save()
+    # fill in overlay info
+    overlay.name = imageName
+    overlay.extras.points = []
+    overlay.extras.imageSize = imageSize    
+    overlay.extras.totalRotation = 0 # set initial rotation value to 0
+    width, height = imageSize
+    # set center point
+    if issImage:
+        centerPtDict = register.getCenterPoint(width, height, issImage)
+        overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
+        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
+    overlay.save()
+    return overlay
+
+
+def createImageData(imageFB, imageType):
+    # create new image data object to save the data to.
+    imageData = ImageData(contentType=imageType)
+    bits = imageFB.read()
+    imageContent = None
+    image = None
+    # handle PDFs (convert pdf to png)
+    if imageType in PDF_MIME_TYPES:
+        if not settings.PDF_IMPORT_ENABLED:
+            return ErrorJSONResponse("PDF images are no longer supported.")
+        # convert PDF to raster image
+        pngData = pdf.convertPdf(bits)
+        imageContent = pngData
+        imageData.contentType = 'image/png'
+    else:
+        try:
+            image = PIL.Image.open(StringIO(bits))
+        except Exception as e:  # pylint: disable=W0703
+            logging.error("PIL failed to open image: " + str(e))
+            return ErrorJSONResponse("There was a problem reading the image.")
+        if image.mode != 'RGBA':
+            # add alpha channel to image for better
+            # transparency handling later
+            image = image.convert('RGBA')
+            out = StringIO()
+            image.save(out, format='png')
+            convertedBits = out.getvalue()
+            logging.info('converted image to RGBA')
+            imageContent = convertedBits
+            imageData.contentType = 'image/png'
+        else:
+            imageData.contentType = imageType
+    imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
+    # set this image data as the raw image.
+    imageData.raw = True
+    imageData.save()
+    return [imageData, image.size]
+
+
+def registerImage(overlay, issImage):
+    imagePath = None
+    imageCenterLoc = None 
+    focalLength = None
+    date = None
+    imageData = overlay.imageData
+    if imageData:
+        imagePath = imageData.image
+    imageInfo = imageInfo.getIssImageInfo(issImage.mission, issImage.roll, issImage.frame)
+    centerLat, centerLon = overlay.extras.centerPointLatLon()
+    focalLength = imageInfo['focalLength']    
+    
 
 def overlayNewJSON(request):
     """
@@ -607,7 +615,22 @@ def overlayNewJSON(request):
                     return retval
                 else:
                     imageName, imageFB, imageType, imageId = retval
-            overlay = createOverlay(request.user, imageName, imageFB, imageType, issImage)
+                    
+            # create the imageData object.
+            imageData, imageWH = createImageData(imageFB, imageType)    
+            overlay = createOverlay(request.user, imageName, issImage, imageWH)
+            # cross reference both
+            imageData.overlay = overlay
+            imageData.save()
+            overlay.imageData = imageData
+            imageData.save()
+            # register the overlay using feature detection if the flag is on.
+            if autoregister:
+                registerImage(overlay, issImage)
+                redirectUrl = "b/#overlays/"
+                HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
+            # generate initial quad tree
+            overlay.generateUnalignedQuadTree()
             if checkIfErrorJSONResponse(overlay):
                 return retval
             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
