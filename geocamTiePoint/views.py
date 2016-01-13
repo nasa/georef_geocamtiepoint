@@ -560,10 +560,26 @@ def registerImage(overlay, issImage):
     date = None
     imageData = overlay.imageData
     if imageData:
-        imagePath = imageData.image
-    imageInfo = imageInfo.getIssImageInfo(issImage.mission, issImage.roll, issImage.frame)
-    centerLat, centerLon = overlay.extras.centerPointLatLon()
-    focalLength = imageInfo['focalLength']    
+        imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
+    else: 
+        print "Error: Cannot get image path!"
+        return None
+    imageMetaData = imageInfo.getIssImageInfo(issImage)
+    centerLat, centerLon = overlay.extras.centerPointLatLon
+    focalLength = imageMetaData['focalLength'] # return fx and fy. We need just one focal length
+    if isinstance(focalLength, list):
+        if len(focalLength) > 1:
+            focalLength = (focalLength[0] + focalLength[1]) / 2.0 # just take the average?
+        elif len(focalLength) == 1:
+            focalLength = focalLength[0]
+            
+    #convert focalLenght from pixels per meters to meters per pixel.
+    focalLength = 1.0/focalLength #TODO: DOUBLE CHECK THIS!
+    date = imageMetaData['date'] 
+    date = date[:4] + '.' + date[4:6] + '.' + date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
+    (tform, confidence) = register_image.register_image(imagePath, centerLon, centerLat, focalLength, date)
+    print 'Got confidence: ' + str(confidence)
+    return (tform, confidence)
     
 
 def overlayNewJSON(request):
