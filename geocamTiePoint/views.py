@@ -15,6 +15,7 @@ import numpy
 import csv
 
 from fileinput import filename
+from __builtin__ import True
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -49,6 +50,7 @@ from geocamUtil import imageInfo
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from geocamUtil.icons import rotate
 import re
+import threading
 
 from georef_imageregistration import ImageFetcher
 from georef_imageregistration import register_image
@@ -57,7 +59,7 @@ from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
-
+    
 TRANSPARENT_PNG_BINARY = '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\rIDAT\x08\xd7c````\x00\x00\x00\x05\x00\x01^\xf3*:\x00\x00\x00\x00IEND\xaeB`\x82'
 
 PDF_MIME_TYPES = ('application/pdf',
@@ -566,21 +568,24 @@ def registerImage(overlay, issImage):
         return None
     imageMetaData = imageInfo.getIssImageInfo(issImage)
     centerLat, centerLon = overlay.extras.centerPointLatLon
-    focalLength = imageMetaData['focalLength'] # return fx and fy. We need just one focal length
-    if isinstance(focalLength, list):
-        if len(focalLength) > 1:
-            focalLength = (focalLength[0] + focalLength[1]) / 2.0 # just take the average?
-        elif len(focalLength) == 1:
-            focalLength = focalLength[0]
-            
-    #convert focalLenght from pixels per meters to meters per pixel.
-    focalLength = 1.0/focalLength #TODO: DOUBLE CHECK THIS!
+    focalLength = imageMetaData['focalLength_unitless']
     date = imageMetaData['date'] 
     date = date[:4] + '.' + date[4:6] + '.' + date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
-    (tform, confidence) = register_image.register_image(imagePath, centerLon, centerLat, focalLength, date)
-    print 'Got confidence: ' + str(confidence)
-    return (tform, confidence)
-    
+    try: 
+        refImagePath = None
+        referenceGeoTransform = None
+        debug = True
+        force = False
+        slowMethod = True
+        (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
+                                                                                                          focalLength, date, refImagePath, 
+                                                                                                          referenceGeoTransform, debug, force, slowMethod)
+    except:
+        return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
+    overlay.extras.transform = imageToProjectedTransform.getJsonDict()
+    overlay.generateAlignedQuadTree()
+    overlay.save()
+
 
 def overlayNewJSON(request):
     """
@@ -640,13 +645,22 @@ def overlayNewJSON(request):
             imageData.save()
             overlay.imageData = imageData
             imageData.save()
-            # register the overlay using feature detection if the flag is on.
-            if autoregister:
-                registerImage(overlay, issImage)
-                redirectUrl = "b/#overlays/"
-                HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
             # generate initial quad tree
             overlay.generateUnalignedQuadTree()
+            # register the overlay using feature detection if the flag is on.
+            if autoregister:
+#                 # run register image in the background
+#                 registerImageThread = threading.Thread(target=registerImage, args=(overlay,issImage))
+#                 registerImageThread.start()
+#                 # redirect to list overlays page.
+#                 redirectUrl = "b/#overlays/"
+#                 HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
+#                 #TODO: I need a way to send a message to the client side saying that
+#                 #this overlay is being registered.
+                errorResponse = registerImage(overlay, issImage)
+                if errorResponse:
+                    return errorResponse
+                
             if checkIfErrorJSONResponse(overlay):
                 return retval
             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
@@ -657,6 +671,10 @@ def overlayNewJSON(request):
 
 @csrf_exempt
 def overlayIdJson(request, key):
+    """ 
+    performs the image registration on server side, 
+    triggered once there are enough tie points to calculate a transform.
+    """
     if request.method == 'GET':
         overlay = get_object_or_404(Overlay, key=key)
         return HttpResponse(dumps(overlay.jsonDict), content_type='application/json')

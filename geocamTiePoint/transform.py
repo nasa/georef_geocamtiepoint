@@ -212,8 +212,8 @@ class CameraModelTransform(Transform):
         mission, roll, frame = imageId.split('-')
         imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
         try:
-            issLat = imageMetaData['latitude']
-            issLon = imageMetaData['longitude']
+            issLat = imageMetaData['nadirLat']
+            issLon = imageMetaData['nadirLon']
             issAlt = imageMetaData['altitude']
             foLenX = imageMetaData['focalLength'][0]
             foLenY = imageMetaData['focalLength'][1]
