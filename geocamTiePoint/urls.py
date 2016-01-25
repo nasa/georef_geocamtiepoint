@@ -53,8 +53,8 @@ urlpatterns = patterns(
         {}, 'geocamTiePoint_overlayGenerateExport'),
                        
     ## for integrating with Catalog ## 
-    url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', 'createOverlayFromUrl', 
-        {}, 'geocamTiePoint_createOverlayFromUrl'),
+    url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', 'createOverlayAPI', 
+        {}, 'geocamTiePoint_createOverlayAPI'),
     
     # duplicate url that starts with 'backend' so we can set 'login: admin'
     # on the backend version of the view.

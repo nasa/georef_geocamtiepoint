@@ -6,7 +6,6 @@
 
 import os
 import json
-import logging
 import time
 import glob
 import rfc822
@@ -16,13 +15,7 @@ import csv
 
 from fileinput import filename
 from __builtin__ import True
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
 
-import PIL.Image
-import PIL.ImageEnhance
 
 from django.shortcuts import render_to_response
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
@@ -31,45 +24,25 @@ from django.template import RequestContext
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.core.urlresolvers import reverse
-from django.core.files.base import ContentFile
 from django.core.files import File
-from django.db import transaction
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 
 from django.dispatch import receiver
 from django.db.models.signals import pre_save, post_save, post_delete
+from django.db import transaction
 
-from geocamTiePoint import forms, settings
-from geocamTiePoint.models import Overlay, QuadTree, ImageData, ISSimage
-from geocamTiePoint import quadTree, transform, garbage
-from geocamTiePoint import anypdf as pdf
-from geocamUtil import registration as register
-from geocamUtil import imageInfo
-from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
+from geocamTiePoint.viewHelpers import *
+
 from geocamUtil.icons import rotate
 import re
-import threading
-
-from georef_imageregistration import ImageFetcher
-from georef_imageregistration import register_image
-from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
     
 TRANSPARENT_PNG_BINARY = '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\rIDAT\x08\xd7c````\x00\x00\x00\x05\x00\x01^\xf3*:\x00\x00\x00\x00IEND\xaeB`\x82'
-
-PDF_MIME_TYPES = ('application/pdf',
-                  'application/acrobat',
-                  'application/nappdf',
-                  'application/x-pdf',
-                  'application/vnd.pdf',
-                  'text/pdf',
-                  'text/x-pdf',
-                  )
 
 DISPLAY = 2
 ENHANCED = 1 
@@ -457,27 +430,20 @@ def cameraModelTransformForward(request):
         return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
 
 
-def createOverlayFromUrl(request, mission, roll, frame, size):
+@transaction.commit_on_success
+def createOverlayAPI(request, mission, roll, frame, sizeType):
     """
-    HttpRequest sent, which then constructs a url to pull the image
-    from. It converts the image into an overlay and saves it to the database.
-    At the end, it renders the overlay edit page. 
+    API for creating an overlay via hitting a URL. For integration with Catalog.
     """
     imageUrl = None
-    imageName = None
-    imageFB = None
-    imageType = None
     overlay = None
       
-    issImage = ISSimage(mission, roll, frame, size)
+    issImage = ISSimage(mission, roll, frame, sizeType)
     imageUrl = issImage.imageUrl
-    retval = imageInfo.getImageDataFromImageUrl(imageUrl)
-    if checkIfErrorJSONResponse(retval):
-        return retval
-    else:
-        imageName, imageFB, imageType, imageId = retval
-     
-    overlay = createOverlay(request.user, imageName, imageFB, imageType, issImage)
+    imageFile = imageInfo.getImageFile(imageUrl)
+    if checkIfErrorJSONResponse(imageFile):
+        return imageFile
+    overlay = createOverlay(request.user, imageFile, issImage)
     # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
     if checkIfErrorJSONResponse(overlay):
         return retval
@@ -487,106 +453,6 @@ def createOverlayFromUrl(request, mission, roll, frame, size):
 
 
 @transaction.commit_on_success
-def createOverlay(author, imageName, issImage, imageSize):
-    """
-    Creates a imageData object and an overlay object from the information 
-    gathered from an uploaded image.
-    """    
-    #if the overlay with the image name already exists, return it.
-    imageOverlays = Overlay.objects.filter(name=imageName)
-    if len(imageOverlays) > 0:
-        return imageOverlays[0]
-    # create and save new empty overlay so we can refer to it
-    # this causes a ValueError if the user isn't logged in
-    overlay = Overlay(author=author,
-                             isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
-    overlay.save()
-    # fill in overlay info
-    overlay.name = imageName
-    overlay.extras.points = []
-    overlay.extras.imageSize = imageSize    
-    overlay.extras.totalRotation = 0 # set initial rotation value to 0
-    width, height = imageSize
-    # set center point
-    if issImage:
-        centerPtDict = register.getCenterPoint(width, height, issImage)
-        overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
-        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
-    overlay.save()
-    return overlay
-
-
-def createImageData(imageFB, imageType):
-    # create new image data object to save the data to.
-    imageData = ImageData(contentType=imageType)
-    bits = imageFB.read()
-    imageContent = None
-    image = None
-    # handle PDFs (convert pdf to png)
-    if imageType in PDF_MIME_TYPES:
-        if not settings.PDF_IMPORT_ENABLED:
-            return ErrorJSONResponse("PDF images are no longer supported.")
-        # convert PDF to raster image
-        pngData = pdf.convertPdf(bits)
-        imageContent = pngData
-        imageData.contentType = 'image/png'
-    else:
-        try:
-            image = PIL.Image.open(StringIO(bits))
-        except Exception as e:  # pylint: disable=W0703
-            logging.error("PIL failed to open image: " + str(e))
-            return ErrorJSONResponse("There was a problem reading the image.")
-        if image.mode != 'RGBA':
-            # add alpha channel to image for better
-            # transparency handling later
-            image = image.convert('RGBA')
-            out = StringIO()
-            image.save(out, format='png')
-            convertedBits = out.getvalue()
-            logging.info('converted image to RGBA')
-            imageContent = convertedBits
-            imageData.contentType = 'image/png'
-        else:
-            imageData.contentType = imageType
-    imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
-    # set this image data as the raw image.
-    imageData.raw = True
-    imageData.save()
-    return [imageData, image.size]
-
-
-def registerImage(overlay, issImage):
-    imagePath = None
-    imageCenterLoc = None 
-    focalLength = None
-    date = None
-    imageData = overlay.imageData
-    if imageData:
-        imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
-    else: 
-        print "Error: Cannot get image path!"
-        return None
-    imageMetaData = imageInfo.getIssImageInfo(issImage)
-    centerLat, centerLon = overlay.extras.centerPointLatLon
-    focalLength = imageMetaData['focalLength_unitless']
-    date = imageMetaData['date'] 
-    date = date[:4] + '.' + date[4:6] + '.' + date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
-    try: 
-        refImagePath = None
-        referenceGeoTransform = None
-        debug = True
-        force = False
-        slowMethod = True
-        (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
-                                                                                                          focalLength, date, refImagePath, 
-                                                                                                          referenceGeoTransform, debug, force, slowMethod)
-    except:
-        return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
-    overlay.extras.transform = imageToProjectedTransform.getJsonDict()
-    overlay.generateAlignedQuadTree()
-    overlay.save()
-
-
 def overlayNewJSON(request):
     """
     This gets called when user submits a create new overlay form. 
@@ -595,74 +461,31 @@ def overlayNewJSON(request):
     if request.method == 'POST':
         # create a form instance and populate it with data from the request:
         form = forms.NewImageDataForm(request.POST, request.FILES)
-        # check whether it's valid:
+        author = request.user
+        issImage = None
         if form.is_valid():
-            # process the data in form.cleaned_data as required
-            image = None
-            imageRef = form.cleaned_data['image']
-            imageFB = None
-            imageType = None
-            imageName = None
-            issImage = None
-            # test to see if there is an image file
-            if imageRef:
-                # file takes precedence over image url
-                imageFB = imageRef.file
-                imageType = imageRef.content_type
-                imageName = imageRef.name
-                imageSize = imageRef.size
-                # 10% "grace period" on max import file size
-                if imageSize > settings.MAX_IMPORT_FILE_SIZE * 1.1:
-                    return ErrorJSONResponse("Your overlay image is %s MB, larger than the maximum allowed size of %s MB."
-                                             % (toMegaBytes(imageSize),
-                                                toMegaBytes(settings.MAX_IMPORT_FILE_SIZE)))
-            else:
-                # no image, proceed to check for url
-                imageUrl = form.cleaned_data['imageUrl']
-                if not imageUrl:
-                    # no image url, proceed to check for mission, roll, and frame
-                    mission = form.cleaned_data['mission']
-                    roll = form.cleaned_data['roll']
-                    frame = form.cleaned_data['frame']
-                    sizeType = form.cleaned_data['imageSize']  # small or large
-                    autoregister = form.cleaned_data['autoregister']
-                    if not (mission and roll and frame): 
-                        return ErrorJSONResponse("No image url or mission id in returned form data")
-                    # get image url from mission roll frame input
-                    issImage = ISSimage(mission, roll, frame, sizeType)
-                # get image data from url
-                retval = imageInfo.getImageDataFromImageUrl(issImage.imageUrl)
-                if checkIfErrorJSONResponse(retval):
-                    return retval
-                else:
-                    imageName, imageFB, imageType, imageId = retval
-                    
-            # create the imageData object.
-            imageData, imageWH = createImageData(imageFB, imageType)    
-            overlay = createOverlay(request.user, imageName, issImage, imageWH)
-            # cross reference both
-            imageData.overlay = overlay
-            imageData.save()
-            overlay.imageData = imageData
-            imageData.save()
+            overlay = None
+            if form.cleaned_data['image']: # if user uplaoded a file
+                overlay = createOverlayFromFileUpload(form, author)
+            elif form.cleaned_data['imageUrl']:
+                overlay = createOverlayFromURL(form, author)
+            elif (form.cleaned_data['mission'] and form.cleaned_data['mission'] and form.cleaned_data['mission']):
+                overlay, issImage = createOverlayFromID(form, author)
+            else: 
+                return ErrorJSONResponse("User submitted an invalid form")
+            # check for error.
+            if checkIfErrorJSONResponse(overlay):
+                return overlay
             # generate initial quad tree
             overlay.generateUnalignedQuadTree()
+            
+            #TODO: fix this.
             # register the overlay using feature detection if the flag is on.
-            if autoregister:
-#                 # run register image in the background
-#                 registerImageThread = threading.Thread(target=registerImage, args=(overlay,issImage))
-#                 registerImageThread.start()
-#                 # redirect to list overlays page.
-#                 redirectUrl = "b/#overlays/"
-#                 HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
-#                 #TODO: I need a way to send a message to the client side saying that
-#                 #this overlay is being registered.
+            if form.cleaned_data['autoregister']:
                 errorResponse = registerImage(overlay, issImage)
                 if errorResponse:
                     return errorResponse
                 
-            if checkIfErrorJSONResponse(overlay):
-                return retval
             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
             return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
     else:

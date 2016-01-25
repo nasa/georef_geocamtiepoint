@@ -9,6 +9,14 @@ MAX_IMPORT_FILE_SIZE = 4000000  # bytes
 
 # This feature is rigged to be disabled due to the planned removal of the Appengine PDF service
 PDF_IMPORT_ENABLED = True
+PDF_MIME_TYPES = ('application/pdf',
+                  'application/acrobat',
+                  'application/nappdf',
+                  'application/x-pdf',
+                  'application/vnd.pdf',
+                  'text/pdf',
+                  'text/x-pdf',
+                  )
 
 # default initial viewport for alignment interface. if we can detect the
 # user's position we'll use that instead. these bounds cover the
@@ -19,6 +27,7 @@ GEOCAM_TIE_POINT_DEFAULT_MAP_VIEWPORT = {
     "east": -59,
     "north": 52,
 }
+
 
 # set to 'INFO' or 'DEBUG' to get more debug information from L-M optimizer
 GEOCAM_TIE_POINT_OPTIMIZE_LOG_LEVEL = 'WARNING'

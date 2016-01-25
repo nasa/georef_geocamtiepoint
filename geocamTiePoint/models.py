@@ -76,6 +76,11 @@ class ISSimage:
         self.sizeType = sizeType
         self.infoUrl = "http://eol.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
         self.imageUrl = self.__getImageUrl()
+        
+        assert self.mission != ""
+        assert self.roll != ""
+        assert self.frame != ""
+        assert self.sizeType != ""
     
     def __getImageUrl(self):
         if self.sizeType == 'small':

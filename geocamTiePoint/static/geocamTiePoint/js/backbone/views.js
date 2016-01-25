@@ -969,13 +969,17 @@ $(function($) {
         },
 
         afterRender: function() {
-            this.$('input.newOverlayFormSubmitButton').click(this.submitForm);
+        	this.$('input.newOverlayFormSubmitButton').click(this.submitForm);
             that = this;
             $('#formTabs a:first').tab('show');
             this.$('ul#formTabs a').click(function(e) {
                 e.preventDefault();
                 $(this).tab('show');
             });
+            $('#id_sequence').click(function() {
+            	$('#id_endFrame').toggle();
+            	$("#toText").toggle();
+        	});
         },
 
         getCookie: function(name) {
