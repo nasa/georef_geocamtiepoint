@@ -28,11 +28,12 @@ from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
+from django.conf import settings
 
 from geocamUtil import anyjson as json
 from geocamUtil import gdal2tiles
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
-from geocamTiePoint import quadTree, transform, settings, rpcModel, gdalUtil
+from geocamTiePoint import quadTree, transform, rpcModel, gdalUtil
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
@@ -76,7 +77,6 @@ class ISSimage:
         self.sizeType = sizeType
         self.infoUrl = "http://eol.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
         self.imageUrl = self.__getImageUrl()
-        
         assert self.mission != ""
         assert self.roll != ""
         assert self.frame != ""
@@ -94,7 +94,7 @@ class ISSimage:
             else: 
                 rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ISD/highres"
         return  rootUrl + "/" + self.mission + "/" + self.mission + "-" + self.roll + "-" + self.frame + ".jpg"
-    
+
 
 class ImageData(models.Model):
     lastModifiedTime = models.DateTimeField()
@@ -353,14 +353,17 @@ class QuadTree(models.Model):
         self.kmlExportName = '%s.tar.gz' % kmlExportName
         self.kmlExport.save(self.kmlExportName, 
                             ContentFile(kml_writer.getData()))      
-        
+    
         
 class Overlay(models.Model):
+    # required fields 
     key = models.AutoField(primary_key=True, unique=True)
-    # author: user who owns this overlay in the MapFasten system
-    author = models.ForeignKey(User, null=True, blank=True)
     lastModifiedTime = models.DateTimeField()
     name = models.CharField(max_length=50)
+    
+    # optional fields
+    # author: user who owns this overlay in the system
+    author = models.ForeignKey(User, null=True, blank=True)
     description = models.TextField(blank=True)
     imageSourceUrl = models.URLField(blank=True) #, verify_exists=False)
     imageData = models.ForeignKey(ImageData, null=True, blank=True,
@@ -375,7 +378,6 @@ class Overlay(models.Model):
     isPublic = models.BooleanField(default=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     coverage = models.CharField(max_length=255, blank=True,
                                 verbose_name='Name of region covered by the overlay')
-
     # creator: name of person or organization who should get the credit
     # for producing the overlay
     creator = models.CharField(max_length=255, blank=True)
@@ -413,12 +415,7 @@ class Overlay(models.Model):
         else:
             urlName = 'geocamTiePoint_tile'
         return reverse(urlName,
-                       args=[str(self.alignedQuadTree.id)])            
-#         return reverse(urlName,
-#                        args=[str(self.alignedQuadTree.id),
-#                              '[ZOOM]',
-#                              '[X]',
-#                              '[Y].png'])
+                       args=[str(self.alignedQuadTree.id)])
 
     def getJsonDict(self):
         # export all schema-free subfields of extras
@@ -441,11 +438,6 @@ class Overlay(models.Model):
         if self.unalignedQuadTree is not None:
             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
                                                   args=[str(self.unalignedQuadTree.id)])
-#             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
-#                                                   args=[str(self.unalignedQuadTree.id),
-#                                                         '[ZOOM]',
-#                                                         '[X]',
-#                                                         '[Y].jpg'])
             result['unalignedTilesZoomOffset'] = quadTree.ZOOM_OFFSET
         if self.alignedQuadTree is not None:
             result['alignedTilesUrl'] = self.getAlignedTilesUrl()
@@ -454,9 +446,9 @@ class Overlay(models.Model):
             # None but <FieldFile: None>, which is False in bool() context
             if self.alignedQuadTree.htmlExport: 
                 result['htmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
-                                              args=[self.key, 
-                                                    'html',
-                                                    str(self.alignedQuadTree.htmlExportName)])
+                                                  args=[self.key, 
+                                                        'html',
+                                                        str(self.alignedQuadTree.htmlExportName)])
             if self.alignedQuadTree.kmlExport: 
                 result['kmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
                                               args=[self.key,
@@ -467,7 +459,6 @@ class Overlay(models.Model):
                                               args=[self.key,
                                                     'geotiff',
                                                     str(self.alignedQuadTree.geotiffExportName)])
-
         return result
 
     def setJsonDict(self, jsonDict):
@@ -504,10 +495,7 @@ class Overlay(models.Model):
 
     def getExportName(self):
         now = datetime.datetime.utcnow()
-        return 'mapfasten-%s' % self.getSlug() 
-#         return ('mapfasten-%s-%s'
-#                 % (self.getSlug(),
-#                    now.strftime('%Y-%m-%d-%H%M%S-UTC')))
+        return 'mapfasten-%s' % self.getSlug()
 
     def generateUnalignedQuadTree(self):
         qt = QuadTree(imageData=self.imageData)

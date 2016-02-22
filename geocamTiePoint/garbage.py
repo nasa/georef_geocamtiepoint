@@ -11,7 +11,7 @@ import logging
 import datetime
 
 from geocamTiePoint.models import Overlay, QuadTree, ImageData
-from geocamTiePoint import settings
+from django.conf import settings
 
 RETAIN_TIME = datetime.timedelta(seconds=settings.GEOCAM_TIE_POINT_RETAIN_SECONDS)
 

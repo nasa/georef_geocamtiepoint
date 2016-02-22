@@ -34,6 +34,7 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.db import transaction
 
 from geocamTiePoint.viewHelpers import *
+from geocamTiePoint import forms
 
 from geocamUtil.icons import rotate
 import re
@@ -430,7 +431,6 @@ def cameraModelTransformForward(request):
         return HttpResponse(json.dumps({'Status': "error"}), content_type="application/json")
 
 
-@transaction.commit_on_success
 def createOverlayAPI(request, mission, roll, frame, sizeType):
     """
     API for creating an overlay via hitting a URL. For integration with Catalog.
@@ -451,8 +451,7 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
-
-@transaction.commit_on_success
+@csrf_exempt
 def overlayNewJSON(request):
     """
     This gets called when user submits a create new overlay form. 

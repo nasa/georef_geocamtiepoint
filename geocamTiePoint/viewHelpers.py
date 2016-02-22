@@ -15,7 +15,7 @@ from geocamUtil import registration as register
 from geocamUtil import imageInfo
 
 from geocamTiePoint.models import Overlay, QuadTree, ImageData, ISSimage
-from geocamTiePoint import forms, settings
+from django.conf import settings
 from geocamTiePoint import quadTree, transform, garbage
 from geocamTiePoint import anypdf as pdf
 
@@ -100,17 +100,15 @@ def createOverlay(author, imageFile, issImage=None):
     """
     Creates a imageData object and an overlay object from the information 
     gathered from an uploaded image.
-    """    
+    """
     imageData, widthHeight = createImageData(imageFile)
     #if the overlay with the image name already exists, return it.
     imageOverlays = Overlay.objects.filter(name=imageFile.name)
     if len(imageOverlays) > 0:
         return imageOverlays[0]
     # create and save new empty overlay so we can refer to it
-    #TODO: this causes a ValueError if the user isn't logged in
-    overlay = Overlay(author=author,
-                             isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
-#     overlay.save()
+    overlay = Overlay(author=author, isPublic=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
+    overlay.save()
     # fill in overlay info
     overlay.name = imageFile.name
     overlay.extras.points = []
@@ -123,7 +121,6 @@ def createOverlay(author, imageFile, issImage=None):
         overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
         overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
     overlay.save()
-    
     # save overlay to imageData
     imageData.overlay = overlay
     imageData.save()

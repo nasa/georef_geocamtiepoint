@@ -12,5 +12,5 @@
 # apps.
 
 Django
-PIL
+Pillow
 numpy

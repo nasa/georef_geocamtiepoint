@@ -535,7 +535,6 @@ $(function($) {
     }); // end MapView
 
     app.views.SplitOverlayView = app.views.OverlayView.extend({
-
         helpSteps: [
             {
                 promptText: 'Click matching landmarks on both sides' +

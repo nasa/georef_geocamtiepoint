@@ -6,7 +6,7 @@
 
 import logging
 
-from geocamTiePoint import settings
+from django.conf import settings
 
 import numpy
 from numpy.linalg import norm
