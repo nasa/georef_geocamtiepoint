@@ -23,7 +23,6 @@ from georef_imageregistration import ImageFetcher
 from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 from georef_imageregistration import register_image
 
-
 def registerImage(overlay, issImage):
     imagePath = None
     imageCenterLoc = None 
@@ -35,10 +34,10 @@ def registerImage(overlay, issImage):
     else: 
         print "Error: Cannot get image path!"
         return None
-    imageMetaData = imageInfo.getIssImageInfo(issImage)
-    centerLat, centerLon = overlay.extras.centerPointLatLon
-    focalLength = imageMetaData['focalLength_unitless']
-    date = imageMetaData['date'] 
+    centerLat = overlay.extras.centerLat
+    centerLon = overlay.extras.centerLon
+    focalLength = issImage.extras.focalLength_unitless
+    date = issImage.extras.acquisitionDate
     date = date[:4] + '.' + date[4:6] + '.' + date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
     try: 
         refImagePath = None
@@ -98,7 +97,7 @@ def createImageData(imageFile):
 
 def createOverlay(author, imageFile, issImage=None):
     """
-    Creates a imageData object and an overlay object from the information 
+    Creates an imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
     imageData, widthHeight = createImageData(imageFile)
@@ -112,14 +111,23 @@ def createOverlay(author, imageFile, issImage=None):
     # fill in overlay info
     overlay.name = imageFile.name
     overlay.extras.points = []
-    overlay.extras.imageSize = widthHeight    
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
+    overlay.extras.imageSize = widthHeight
     overlay.imageData = imageData
+    overlay.creator = author.first_name + ' ' + author.last_name
     # set center point
     if issImage:
-        centerPtDict = register.getCenterPoint(widthHeight[0], widthHeight[1], issImage)
-        overlay.extras.centerPointLatLon = [round(centerPtDict["lat"],2), round(centerPtDict["lon"],2)]
+        centerPtDict = register.getCenterPoint(issImage)
+        overlay.extras.centerLat = round(centerPtDict["lat"],2)
+        overlay.extras.centerLon = round(centerPtDict["lon"],2)
         overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
+        # set overlay's extras fields - need this info to display in the overlays list.
+        overlay.extras.nadirLat = issImage.extras.nadirLat
+        overlay.extras.nadirLon = issImage.extras.nadirLon
+        ad = issImage.extras.acquisitionDate
+        overlay.extras.acquisitionDate = ad[:4] + ':' + ad[4:6] + ':' + ad[6:] # convert YYYYMMDD to YYYY:MM:DD 
+        at = issImage.extras.acquisitionTime
+        overlay.extras.acquisitionTime = at[:2] + ':' + ad[2:4] + ':' + ad[4:6] # convert HHMMSS to HH:MM:SS
     overlay.save()
     # save overlay to imageData
     imageData.overlay = overlay

@@ -2,15 +2,33 @@
 <h1>Choose an overlay:</h1>
 {{debug}}
 
+<!--  
+NLAT – Nadir Latitude
+NLON – Nadir Longitude
+LENS – Camera lens setting
+CLAT – Center Latitude
+CLON – Center Longitude
+TPTS – Number of tie-points selected
+LAST – Date and time of last modification
+EDIT – Edit the tie-point selection
+DELT – Delete the entire record
+-->
 <table cellpadding="0" cellspacing="0" border="0"  id="overlays_table">
 <thead class="table_header">
 	<tr>
-		<th>Name</th>
-	    <th>Edit</th>
-	    <th>Delete</th>
-	    <th>Center lat/lon</th>
-	    <th>Last modified</th>
-	    <th># of tie points</th>
+		<th>FRAME</th>
+		<th>BY</th>
+		<th>DATE</th>
+		<th>TIME</th>
+		<th>NLAT</th>
+	    <th>NLON</th>
+	    <th>LENS</th>
+	    <th>CLAT</th>
+	    <th>CLON</th>
+	    <th>TPTS</th>
+	    <th>LAST</th>
+	    <th>EDIT</th>
+	    <th>DELT</th>
     </tr>
 </thead>
 
@@ -20,20 +38,27 @@
 			{{#if attributes.alignedTilesUrl}}
 				<a href="#overlay/{{id}}">
 			{{/if}}
-			{{get "name"}}
+			{{get "issMRF"}}
 			{{#if attributes.alignedTilesUrl}}
 				</a> 
 			{{/if}}
 		</td>
+		<td> {{ attributes.creator }}</td>
+		<td> {{ attributes.acquisitionDate }}</td>
+    	<td> {{ attributes.acquisitionTime }} </td>
+    	<td> {{ attributes.nadirLat }}</td>
+		<td> {{ attributes.nadirLon }}</td>
+		<td> {{ LENS }} </td>
+		<td> {{attributes.centerLat}}</td>
+    	<td> {{attributes.centerLon}} </td> 
+	    <td> {{attributes.numTiePts}} </td>
+	    <td> {{attributes.lmt_datetime}}</td>
     	<td>
 			<a id="edit_{{id}}" class="edit" href="#overlay/{{id}}/edit">[edit]</a>
 		</td>
     	<td>
 			<a id="delete_{{id}}" class="delete" href="#overlays/" onClick="app.currentView.deleteOverlay({{id}})"> [delete]</a>
 		</td>
-    	<td> {{attributes.centerPointLatLon}} </td> 
-    	<td> {{attributes.lastModifiedTimeHumanReadable}} </td>
-    	<td> {{attributes.numTiePts}} </td>
 	</tr> 
 {{/each}}
 

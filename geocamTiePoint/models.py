@@ -31,9 +31,10 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 from geocamUtil import anyjson as json
-from geocamUtil import gdal2tiles
+from geocamUtil import gdal2tiles, imageInfo
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
 from geocamTiePoint import quadTree, transform, rpcModel, gdalUtil
+from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
@@ -67,7 +68,7 @@ def dosys(cmd):
     if ret != 0:
         logging.warn('command exited with non-zero return value %s', ret)
     return ret
-
+        
 
 class ISSimage:
     def __init__(self, mission, roll, frame, sizeType):
@@ -77,11 +78,29 @@ class ISSimage:
         self.sizeType = sizeType
         self.infoUrl = "http://eol.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
         self.imageUrl = self.__getImageUrl()
+        self.width = None
+        self.height = None
+        # check for must have info.
         assert self.mission != ""
         assert self.roll != ""
         assert self.frame != ""
         assert self.sizeType != ""
-    
+        # set image file
+        self.imageFile = imageInfo.getImageFile(self.imageUrl)
+        # set extras
+        self.extras = imageInfo.constructExtrasDict(self.infoUrl) 
+        try:  # open it as a PIL image
+            bits = self.imageFile.file.read()
+            image = PIL.Image.open(StringIO(bits))
+            if image.size: 
+                self.width, self.height = image.size
+            # set focal length
+            sensorSize = (.036,.0239) #TODO: calculate this
+            focalLength = imageInfo.getAccurateFocalLengths(image.size, self.extras.focalLength_unitless, sensorSize)
+            self.extras['focalLength'] = [round(focalLength[0],2), round(focalLength[1],2)]        
+        except Exception as e:  # pylint: disable=W0703
+            logging.error("PIL failed to open image: " + str(e))
+        
     def __getImageUrl(self):
         if self.sizeType == 'small':
             if (self.roll == "E") or (self.roll == "ESC"):
@@ -394,13 +413,13 @@ class Overlay(models.Model):
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
-    # include: imageSize, points, transform, bounds, centerPointLatLon, rotatedImageSize
+    # include: imageSize, points, transform, bounds, centerLat, centerLon, rotatedImageSize
     extras = ExtrasDotField()
     # import/export configuration
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-                    'issMRF', 'centerPointLatLon')
+                    'issMRF', 'centerLat', 'centerLon', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
-    importExtrasFields = ('points', 'transform', 'centerPointLatLon')
+    importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
 
     def getRawImageData(self):
         """
@@ -420,19 +439,17 @@ class Overlay(models.Model):
     def getJsonDict(self):
         # export all schema-free subfields of extras
         result = self.extras.copy()
-
         # export other schema-controlled fields of self (listed in exportFields)
         for key in self.exportFields:
             val = getattr(self, key, None)
             if val not in ('', None):
                 result[key] = val
-
         # conversions
+        result['lmt_datetime'] = result['lastModifiedTime'].strftime('%F %k:%M')
         result['lastModifiedTime'] = (result['lastModifiedTime']
                                       .replace(microsecond=0)
                                       .isoformat()
                                       + 'Z')
-
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
         if self.unalignedQuadTree is not None:

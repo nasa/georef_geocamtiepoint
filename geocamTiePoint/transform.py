@@ -210,20 +210,20 @@ class CameraModelTransform(Transform):
     @classmethod
     def getInitParams(cls, toPts, fromPts, imageId):
         mission, roll, frame = imageId.split('-')
-        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        issImage = ISSimage(mission, roll, frame, '')
         try:
-            issLat = imageMetaData['nadirLat']
-            issLon = imageMetaData['nadirLon']
-            issAlt = imageMetaData['altitude']
-            foLenX = imageMetaData['focalLength'][0]
-            foLenY = imageMetaData['focalLength'][1]
+            issLat = issImage.extras.nadirLat
+            issLon = issImage.extras.nadirLon
+            issAlt = issImage.extras.altitude
+            foLenX = issImage.extras.focalLength[0]
+            foLenY = issImage.extras.focalLength[1]
             camLonLatAlt = (issLon,issLat,issAlt)
             rotMatrix = rotMatrixOfCameraInEcef(issLon, transformLonLatAltToEcef(camLonLatAlt))  # initially nadir pointing
             roll, pitch, yaw = eulFromRot(rotMatrix)  # initially set to nadir rotation
             # these values are not going to be optimized. But needs to be passed to fromParams 
             # to set it as member vars.
-            width = imageMetaData['width']
-            height = imageMetaData['height']
+            width = issImage.extras.width
+            height = issImage.extras.height
         except Exception as e:
             logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
             print e 
@@ -491,8 +491,8 @@ def makeTransform(transformDict):
         params = transformDict['params']
         imageId = transformDict['imageId']
         mission, roll, frame = imageId.split('-')
-        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
-        return CameraModelTransform(params, imageMetaData['width'], imageMetaData['height'], imageMetaData['focalLength'][0], imageMetaData['focalLength'][1])
+        issImage = ISSimage(mission, roll, frame, '')
+        return CameraModelTransform(params, issImage.extras.width, issImage.extras.height, issImage.extras.focalLength[0], issImage.extras.focalLength[1])
     else: 
         transformMatrix = numpy.array(transformDict['matrix'])
         if transformType == 'projective':

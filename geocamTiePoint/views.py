@@ -414,12 +414,12 @@ def cameraModelTransformForward(request):
         params = data.getlist('params[]', None)
         issMRF = data.get('imageId', None)
         mission, roll, frame = issMRF.split('-')
-        imageMetaData = imageInfo.getIssImageInfo(mission, roll, frame)
+        issImage = ISSimage(mission, roll, frame, '')
         # get the width and height from imageId
-        width = imageMetaData['width']
-        height = imageMetaData['height']
-        Fx = imageMetaData['focalLength'][0]
-        Fy = imageMetaData['focalLength'][1]
+        width = issImage.extras.width
+        height = issImage.extras.height
+        Fx = issImage.extras.focalLength[0]
+        Fy = issImage.extras.focalLength[1]
         # create a new transform and set its params, width, and height
         params = [float(param) for param in params]  # convert params from unicode to float.
         pt = [float(c) for c in pt]  # convert pt from unicode to float.
@@ -451,6 +451,7 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
+
 @csrf_exempt
 def overlayNewJSON(request):
     """
@@ -464,7 +465,7 @@ def overlayNewJSON(request):
         issImage = None
         if form.is_valid():
             overlay = None
-            if form.cleaned_data['image']: # if user uplaoded a file
+            if form.cleaned_data['image']: # if user uploaded a file
                 overlay = createOverlayFromFileUpload(form, author)
             elif form.cleaned_data['imageUrl']:
                 overlay = createOverlayFromURL(form, author)
@@ -478,9 +479,9 @@ def overlayNewJSON(request):
             # generate initial quad tree
             overlay.generateUnalignedQuadTree()
             
-            #TODO: fix this.
             # register the overlay using feature detection if the flag is on.
             if form.cleaned_data['autoregister']:
+                # Only run registerImage if the center point is available.
                 errorResponse = registerImage(overlay, issImage)
                 if errorResponse:
                     return errorResponse

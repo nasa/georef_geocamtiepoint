@@ -66,11 +66,9 @@ $(function($) {
 		}
 	}
 	
-	maputils.createCenterPointMarker = function(imageViewLatLon, centerMapViewLatLon, map, options) {
+	maputils.createCenterPointMarker = function(imageViewLatLon, centerLat, centerLon, map, options) {
 		var image = '/static/geocamTiePoint/images/crosshairs.png';
-		var lat = centerMapViewLatLon[0];
-		var lon = centerMapViewLatLon[1];
-		var label = maputils.createCenterPointLabelText(lat, lon);
+		var label = maputils.createCenterPointLabelText(centerLat, centerLon);
 		var markerOpts = {
 			title : label,
 			draggable : false,
