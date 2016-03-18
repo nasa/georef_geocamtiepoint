@@ -478,14 +478,12 @@ def overlayNewJSON(request):
                 return overlay
             # generate initial quad tree
             overlay.generateUnalignedQuadTree()
-            
             # register the overlay using feature detection if the flag is on.
             if form.cleaned_data['autoregister']:
                 # Only run registerImage if the center point is available.
-                errorResponse = registerImage(overlay, issImage)
+                errorResponse = registerImage(overlay)
                 if errorResponse:
                     return errorResponse
-                
             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
             return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
     else:

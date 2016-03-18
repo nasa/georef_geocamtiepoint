@@ -23,11 +23,13 @@ from georef_imageregistration import ImageFetcher
 from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 from georef_imageregistration import register_image
 
-def registerImage(overlay, issImage):
+
+def registerImage(overlay):
+    """
+    Runs automatic registration (c++ function) on the given ISS image.
+    """
     imagePath = None
-    imageCenterLoc = None 
     focalLength = None
-    date = None
     imageData = overlay.imageData
     if imageData:
         imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
@@ -36,9 +38,9 @@ def registerImage(overlay, issImage):
         return None
     centerLat = overlay.extras.centerLat
     centerLon = overlay.extras.centerLon
-    focalLength = issImage.extras.focalLength_unitless
-    date = issImage.extras.acquisitionDate
-    date = date[:4] + '.' + date[4:6] + '.' + date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
+    focalLength = overlay.extras.focalLength_unitless
+    acq_date = overlay.extras.acquisitionDate
+    acq_date = acq_date[:4] + '.' + acq_date[4:6] + '.' + acq_date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
     try: 
         refImagePath = None
         referenceGeoTransform = None
@@ -46,7 +48,7 @@ def registerImage(overlay, issImage):
         force = False
         slowMethod = True
         (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
-                                                                                                          focalLength, date, refImagePath, 
+                                                                                                          focalLength, acq_date, refImagePath, 
                                                                                                           referenceGeoTransform, debug, force, slowMethod)
     except:
         return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
@@ -110,26 +112,27 @@ def createOverlay(author, imageFile, issImage=None):
     overlay.save()
     # fill in overlay info
     overlay.name = imageFile.name
+    overlay.imageData = imageData
+    overlay.creator = author.first_name + ' ' + author.last_name
+    # set overlay extras fields
     overlay.extras.points = []
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
     overlay.extras.imageSize = widthHeight
-    overlay.imageData = imageData
-    overlay.creator = author.first_name + ' ' + author.last_name
-    # set center point
     if issImage:
+        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
         centerPtDict = register.getCenterPoint(issImage)
         overlay.extras.centerLat = round(centerPtDict["lat"],2)
         overlay.extras.centerLon = round(centerPtDict["lon"],2)
-        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
-        # set overlay's extras fields - need this info to display in the overlays list.
         overlay.extras.nadirLat = issImage.extras.nadirLat
         overlay.extras.nadirLon = issImage.extras.nadirLon
         ad = issImage.extras.acquisitionDate
         overlay.extras.acquisitionDate = ad[:4] + ':' + ad[4:6] + ':' + ad[6:] # convert YYYYMMDD to YYYY:MM:DD 
         at = issImage.extras.acquisitionTime
         overlay.extras.acquisitionTime = at[:2] + ':' + ad[2:4] + ':' + ad[4:6] # convert HHMMSS to HH:MM:SS
+        overlay.extras.focalLength_unitless = issImage.extras.focalLength_unitless
+    # save overlay to database.
     overlay.save()
-    # save overlay to imageData
+    # link overlay to imagedata
     imageData.overlay = overlay
     imageData.save()
     return overlay
