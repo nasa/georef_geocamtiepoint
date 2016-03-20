@@ -7,8 +7,8 @@ from geocamUtil import registration as register
 
 def updateOverlayExtras():
     """
-    This class method is needed to update the contents of overlay extras, which was changed to reflect 
-    the UI change of list overlays page.
+    This is a standalone method used to update the contents of overlay extras, 
+    which has changed to reflect the new UI for list overlays page.
     """
     overlays = Overlay.objects.all()
     for overlay in overlays:
