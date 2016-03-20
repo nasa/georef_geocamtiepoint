@@ -36,6 +36,7 @@ from geocamUtil.models.ExtrasDotField import ExtrasDotField
 from geocamTiePoint import quadTree, transform, rpcModel, gdalUtil
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 
+
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
 # multiple tile requests on the same quadtree. optimize for that case by
@@ -420,7 +421,8 @@ class Overlay(models.Model):
                     'issMRF', 'centerLat', 'centerLon', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
-
+    
+        
     def getRawImageData(self):
         """
         Returns the original image data created upon image upload (not rotated, not enhanced)
