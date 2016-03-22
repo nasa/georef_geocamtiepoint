@@ -1,5 +1,6 @@
 import django
 from django.conf import settings
+from __builtin__ import None
 django.setup()
 
 from geocamTiePoint.models import Overlay, ISSimage
@@ -24,8 +25,12 @@ def updateOverlayExtras():
             frame = issMRF[2]   
             issImage = ISSimage(mission, roll, frame, imageSize)
             centerPtDict = register.getCenterPoint(issImage)
-            overlay.extras.centerLat = round(centerPtDict["lat"],2)
-            overlay.extras.centerLon = round(centerPtDict["lon"],2)
+            try:
+                overlay.extras.centerLat = round(centerPtDict["lat"],2)
+                overlay.extras.centerLon = round(centerPtDict["lon"],2)
+            except:
+                overlay.extras.centerLat = None
+                overlay.extras.centerLon = None
             overlay.extras.nadirLat = issImage.extras.nadirLat
             overlay.extras.nadirLon = issImage.extras.nadirLon
             ad = issImage.extras.acquisitionDate
