@@ -1,6 +1,5 @@
 import django
 from django.conf import settings
-from __builtin__ import None
 django.setup()
 
 from geocamTiePoint.models import Overlay, ISSimage
