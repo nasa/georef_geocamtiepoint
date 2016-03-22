@@ -22,8 +22,6 @@ def updateOverlayExtras():
             mission = issMRF[0]
             roll = issMRF[1]
             frame = issMRF[2]   
-            print "overlay extras before adding info"
-            print overlay.extras
             issImage = ISSimage(mission, roll, frame, imageSize)
             centerPtDict = register.getCenterPoint(issImage)
             overlay.extras.centerLat = round(centerPtDict["lat"],2)
@@ -35,8 +33,5 @@ def updateOverlayExtras():
             at = issImage.extras.acquisitionTime
             overlay.extras.acquisitionTime = at[:2] + ':' + ad[2:4] + ':' + ad[4:6] # convert HHMMSS to HH:MM:SS
             overlay.extras.focalLength_unitless = issImage.extras.focalLength_unitless
-            print "overlay extras after adding more info"
-            print overlay.issMRF
-            print overlay.extras
             overlay.save()
 updateOverlayExtras()
