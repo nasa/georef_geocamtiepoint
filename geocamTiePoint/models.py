@@ -117,9 +117,6 @@ class ISSimage:
 
 
 class ImageData(models.Model):
-    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
-    issMRF = models.CharField(max_length=255, null=True, blank=True,
-                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key
     image = models.ImageField(upload_to=getNewImageFileName,
@@ -411,13 +408,17 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
+    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
+    issMRF = models.CharField(max_length=255, null=True, blank=True,
+                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
     # include: imageSize, points, transform, bounds, centerLat, centerLon, rotatedImageSize
     extras = ExtrasDotField()
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerLat', 'centerLon', 'creator')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
+                    'issMRF', 'centerLat', 'centerLon', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
     
@@ -451,8 +452,6 @@ class Overlay(models.Model):
                                       .replace(microsecond=0)
                                       .isoformat()
                                       + 'Z')
-        # add issMRF to the extras
-        result['issMRF'] = self.imageData.issMRF
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
         if self.unalignedQuadTree is not None:

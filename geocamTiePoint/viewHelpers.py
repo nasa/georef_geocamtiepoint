@@ -128,8 +128,7 @@ def createOverlay(author, imageFile, issImage=None):
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
     overlay.extras.imageSize = widthHeight
     if issImage:
-        overlay.imageData.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
-        overlay.imageData.save()
+        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
         centerPtDict = register.getCenterPoint(issImage)
         overlay.extras.centerLat = round(centerPtDict["lat"],2)
         overlay.extras.centerLon = round(centerPtDict["lon"],2)
