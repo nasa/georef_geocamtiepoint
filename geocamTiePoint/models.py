@@ -417,8 +417,7 @@ class Overlay(models.Model):
     # include: imageSize, points, transform, bounds, centerLat, centerLon, rotatedImageSize
     extras = ExtrasDotField()
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-                    'issMRF', 'centerLat', 'centerLon', 'creator')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'centerLat', 'centerLon', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
     
@@ -452,6 +451,8 @@ class Overlay(models.Model):
                                       .replace(microsecond=0)
                                       .isoformat()
                                       + 'Z')
+        # add issMRF to the extras
+        result['issMRF'] = self.imageData.issMRF
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
         if self.unalignedQuadTree is not None:
