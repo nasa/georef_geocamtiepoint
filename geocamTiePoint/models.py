@@ -117,6 +117,9 @@ class ISSimage:
 
 
 class ImageData(models.Model):
+    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
+    issMRF = models.CharField(max_length=255, null=True, blank=True,
+                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key
     image = models.ImageField(upload_to=getNewImageFileName,
@@ -408,9 +411,6 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
-    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
-    issMRF = models.CharField(max_length=255, null=True, blank=True,
-                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
@@ -573,10 +573,30 @@ class Overlay(models.Model):
 #########################################
 # models for autoregistration pipeline  #
 #########################################
-
 class IssTelemetry(models.Model):
-    issId = models.CharField(max_length=255, null=True, blank=True, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    issMRF = models.CharField(max_length=255, null=True, blank=True, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
     x = models.FloatField(null=True, blank=True, default=0)
     y = models.FloatField(null=True, blank=True, default=0)
     z = models.FloatField(null=True, blank=True, default=0)
+    r = models.FloatField(null=True, blank=True, default=0)
+    p = models.FloatField(null=True, blank=True, default=0)
+    y = models.FloatField(null=True, blank=True, default=0)
+
+
+class AutomatchResults(models.Model):
+    issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    lon = models.FloatField(null=True, blank=True, default=0, help_text="longitude (world coordinates)")
+    lat = models.FloatField(null=True, blank=True, default=0, help_text="latitude (world coordinates)")
+    px = models.IntegerField(null=True, blank=True, default=0, help_text="pixel coordinates")
+    py = models.IntegerField(null=True, blank=True, default=0, help_text="pixel coordinates")
+    matchedImageId = models.CharField(max_length=255, blank=True)
+    matchConfidence = models.CharField(max_length=255, blank=True)
+    matchDate = models.DateTimeField(null=True, blank=True)
+    centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
     
+
+class GeoSens(models.Model):
+    issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    r = models.FloatField(null=True, blank=True, default=0)
+    p = models.FloatField(null=True, blank=True, default=0)
+    y = models.FloatField(null=True, blank=True, default=0)

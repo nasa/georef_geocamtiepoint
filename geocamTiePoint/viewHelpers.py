@@ -23,6 +23,18 @@ from georef_imageregistration import ImageFetcher
 from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 from georef_imageregistration import register_image
 
+# for profiling    
+from geocamUtil.timer import *
+from geocamUtil import stopwatch
+
+def getPILimage(imageData):
+    try: 
+        image = PIL.Image.open(imageData.image.file) 
+    except: 
+        logging.error("image cannot be read from the image data")
+        return None
+    return image
+
 
 def registerImage(overlay):
     """
@@ -119,7 +131,8 @@ def createOverlay(author, imageFile, issImage=None):
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
     overlay.extras.imageSize = widthHeight
     if issImage:
-        overlay.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
+        overlay.imageData.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
+        overlay.imageData.save()
         centerPtDict = register.getCenterPoint(issImage)
         overlay.extras.centerLat = round(centerPtDict["lat"],2)
         overlay.extras.centerLon = round(centerPtDict["lon"],2)
