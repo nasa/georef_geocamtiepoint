@@ -206,7 +206,7 @@ class QuadTree(models.Model):
             self.imageData.image.save('dummy.png', ContentFile(out.getvalue()), save=False)
             self.imageData.contentType = 'image/png'
             self.imageData.save()
-
+    
     def getImage(self):
         # apparently image.file is not a very good file work-alike,
         # so let's delegate to StringIO(), which PIL is tested against
@@ -422,7 +422,7 @@ class Overlay(models.Model):
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
     
-        
+
     def getRawImageData(self):
         """
         Returns the original image data created upon image upload (not rotated, not enhanced)
@@ -569,3 +569,11 @@ class Overlay(models.Model):
                 .getSimpleViewHtml(alignedTilesRootUrl,
                                    self.getJsonDict(),
                                    self.getSlug()))
+        
+#########################################
+# models for autoregistration pipeline  #
+#########################################
+
+class IssTelemetry(models.Model):
+    issId = models.CharField(max_length=255, null=True, blank=True,
+                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
