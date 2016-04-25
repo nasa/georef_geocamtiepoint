@@ -16,7 +16,7 @@ def updateOverlayExtras():
             imageSize = 'large'
         else: 
             imageSize = 'small'
-        issMRF = overlay.issMRF
+        issMRF = overlay.imageData.issMRF
         if issMRF: 
             issMRF = issMRF.split('-')
             mission = issMRF[0]
