@@ -23,9 +23,6 @@ from georef_imageregistration import ImageFetcher
 from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 from georef_imageregistration import register_image
 
-# for profiling    
-from geocamUtil.timer import *
-from geocamUtil import stopwatch
 
 def getPILimage(imageData):
     try: 
