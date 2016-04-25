@@ -575,5 +575,8 @@ class Overlay(models.Model):
 #########################################
 
 class IssTelemetry(models.Model):
-    issId = models.CharField(max_length=255, null=True, blank=True,
-                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    issId = models.CharField(max_length=255, null=True, blank=True, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    x = models.FloatField(null=True, blank=True, default=0)
+    y = models.FloatField(null=True, blank=True, default=0)
+    z = models.FloatField(null=True, blank=True, default=0)
+    
