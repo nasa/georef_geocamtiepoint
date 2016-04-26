@@ -133,6 +133,9 @@ class ImageData(models.Model):
     contrast = models.FloatField(null=True, blank=True, default=0)
     brightness = models.FloatField(null=True, blank=True, default=0)
     raw = models.BooleanField(default=False)
+    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
+    issMRF = models.CharField(max_length=255, null=True, blank=True,
+                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
 
     def __unicode__(self):
         if self.overlay:
@@ -380,7 +383,6 @@ class Overlay(models.Model):
     key = models.AutoField(primary_key=True, unique=True)
     lastModifiedTime = models.DateTimeField()
     name = models.CharField(max_length=50)
-    
     # optional fields
     # author: user who owns this overlay in the system
     author = models.ForeignKey(User, null=True, blank=True)
@@ -408,9 +410,6 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
-    # stores mission roll frame of the image. i.e. "ISS039-E-12345"
-    issMRF = models.CharField(max_length=255, null=True, blank=True,
-                              help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
@@ -418,7 +417,7 @@ class Overlay(models.Model):
     extras = ExtrasDotField()
     # import/export configuration
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-                    'issMRF', 'centerLat', 'centerLon', 'creator')
+                    'centerLat', 'centerLon', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
     importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
     
@@ -454,6 +453,12 @@ class Overlay(models.Model):
                                       + 'Z')
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
+        try: 
+            issID = result['issMRF']
+        except: 
+            issID = None
+        if not issID:
+            result['issMRF'] = self.imageData.issMRF
         if self.unalignedQuadTree is not None:
             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
                                                   args=[str(self.unalignedQuadTree.id)])
