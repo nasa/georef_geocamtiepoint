@@ -14,8 +14,6 @@ import numpy
 import csv
 
 from fileinput import filename
-from __builtin__ import True
-
 
 from django.shortcuts import render_to_response
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
@@ -42,7 +40,8 @@ import re
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
-    
+   
+
 TRANSPARENT_PNG_BINARY = '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\rIDAT\x08\xd7c````\x00\x00\x00\x05\x00\x01^\xf3*:\x00\x00\x00\x00IEND\xaeB`\x82'
 
 DISPLAY = 2
@@ -87,7 +86,6 @@ def export_settings(export_vars=None):
 def backbone(request):
     initial_overlays = Overlay.objects.order_by('pk')
     templates = get_handlebars_templates(settings.GEOCAM_TIE_POINT_HANDLEBARS_DIR)
-    
     if request.method == 'GET':
         return render_to_response('geocamTiePoint/backbone.html',
             {
@@ -171,14 +169,6 @@ def ndarrayToList(ndarray):
 #         logging.error("image cannot be read from the image data")
 #         return None
 #     return image
-
-def getPILimage(imageData):
-    try: 
-        image = PIL.Image.open(imageData.image.file) 
-    except: 
-        logging.error("image cannot be read from the image data")
-        return None
-    return image
 
 
 # def getRotatedImageData(overlayId, totalRotation):
@@ -352,6 +342,7 @@ def rotateOverlay(request):
         out = StringIO()
         rotatedImage.save(out, format='png')
         convertedBits = out.getvalue()
+        out.close()
         newImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
         newImageData.contentType = 'image/png'
         newImageData.rotationAngle = overlay.extras.totalRotation
@@ -493,7 +484,6 @@ def overlayNewJSON(request):
 @csrf_exempt
 def overlayIdJson(request, key):
     """ 
-    performs the image registration on server side, 
     triggered once there are enough tie points to calculate a transform.
     """
     if request.method == 'GET':
