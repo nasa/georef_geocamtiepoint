@@ -590,15 +590,12 @@ class IssTelemetry(models.Model):
 
 class AutomatchResults(models.Model):
     issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
-    lon = models.FloatField(null=True, blank=True, default=0, help_text="longitude (world coordinates)")
-    lat = models.FloatField(null=True, blank=True, default=0, help_text="latitude (world coordinates)")
-    px = models.IntegerField(null=True, blank=True, default=0, help_text="pixel coordinates")
-    py = models.IntegerField(null=True, blank=True, default=0, help_text="pixel coordinates")
     matchedImageId = models.CharField(max_length=255, blank=True)
     matchConfidence = models.CharField(max_length=255, blank=True)
     matchDate = models.DateTimeField(null=True, blank=True)
     centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
-    
+    extras = ExtrasDotField()
+
 
 class GeoSens(models.Model):
     issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 

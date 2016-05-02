@@ -56,7 +56,7 @@ urlpatterns = [ ## New Workflow ##
                     {}, 'geocamTiePoint_overlayGenerateExport'),
                                    
                 ## for integrating with Catalog ## 
-                url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<size>\w+)/$', views.createOverlayAPI, 
+                url(r'^catalog/(?P<mission>\w+)/(?P<roll>\w+)/(?P<frame>\d+)/(?P<sizeType>\w+)/$', views.createOverlayAPI, 
                     {}, 'geocamTiePoint_createOverlayAPI'),
                 
                 # duplicate url that starts with 'backend' so we can set 'login: admin'

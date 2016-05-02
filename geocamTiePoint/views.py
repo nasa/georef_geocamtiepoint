@@ -428,7 +428,6 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     """
     imageUrl = None
     overlay = None
-      
     issImage = ISSimage(mission, roll, frame, sizeType)
     imageUrl = issImage.imageUrl
     imageFile = imageInfo.getImageFile(imageUrl)
@@ -438,7 +437,7 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
     if checkIfErrorJSONResponse(overlay):
         return retval
-             
+    overlay.generateUnalignedQuadTree()
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
