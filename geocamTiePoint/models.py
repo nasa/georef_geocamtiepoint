@@ -594,8 +594,10 @@ class AutomatchResults(models.Model):
     matchConfidence = models.CharField(max_length=255, blank=True)
     matchDate = models.DateTimeField(null=True, blank=True)
     centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
+    writtenToFile = models.BooleanField(default=False)
+    capturedTime = models.DateTimeField(null=True, blank=True)
     extras = ExtrasDotField()
-
+    
 
 class GeoSens(models.Model):
     issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
