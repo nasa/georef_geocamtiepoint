@@ -1,3 +1,14 @@
+import os
+import json
+import time
+import glob
+import rfc822
+import urllib2
+import numpy
+import csv
+import re
+import operator
+
 import logging
 from django.core.files.base import ContentFile
 
@@ -24,6 +35,45 @@ from georef_imageregistration import IrgStringFunctions, IrgGeoFunctions
 from georef_imageregistration import register_image
 
 
+"""
+Globals
+"""
+TRANSPARENT_PNG_BINARY = '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\rIDAT\x08\xd7c````\x00\x00\x00\x05\x00\x01^\xf3*:\x00\x00\x00\x00IEND\xaeB`\x82'
+DISPLAY = 2
+ENHANCED = 1 
+UNENHANCED = 0
+_template_cache = None
+
+
+"""
+Misc Helpers
+"""
+
+def arraysToNdArray(xPts, yPts):
+    """
+    given arrays of x pts and y pts, it neatly organizes it
+    into numpy ndarray of size (n,2) where each row (or is it column?)
+    is a point (x,y) . 
+    
+    this format is what is required for to and from pts
+    by the fit function in Transforms.
+    """
+    n = len(xPts)
+    ndarray = numpy.ndarray(shape=(n,2), dtype=float)   
+    for i in range(n):
+        ndarray[i][0] = xPts[i]
+        ndarray[i][1] = yPts[i]
+    return ndarray
+
+
+def ndarrayToList(ndarray):
+    """
+    takes an ndarray, flattens it and converts it to 
+    a list object so that it is json-izable.
+    """
+    return list(ndarray.flatten())
+
+
 def getPILimage(imageData):
     try: 
         image = PIL.Image.open(imageData.image.file) 
@@ -32,6 +82,63 @@ def getPILimage(imageData):
         return None
     return image
 
+
+def toMegaBytes(numBytes):
+    return '%.1d' % (numBytes / (1024 * 1024))
+
+
+def get_handlebars_templates(source):
+    global _template_cache
+    if settings.GEOCAM_TIE_POINT_TEMPLATE_DEBUG or not _template_cache:
+        templates = {}
+        for thePath in source:
+            inp = os.path.join(settings.PROJ_ROOT, 'apps', thePath)
+            for template_file in glob.glob(os.path.join(inp, '*.handlebars')):
+                with open(template_file, 'r') as infile:
+                    template_name = os.path.splitext(os.path.basename(template_file))[0]
+                    templates[template_name] = infile.read()
+        _template_cache = templates
+    return _template_cache
+
+
+def transparentPngData():
+    return (TRANSPARENT_PNG_BINARY, 'image/png')
+
+
+def dumps(obj):
+    return json.dumps(obj, sort_keys=True, indent=4)
+
+
+def export_settings(export_vars=None):
+    if export_vars == None:
+        export_vars = ('GEOCAM_TIE_POINT_DEFAULT_MAP_VIEWPORT',
+                       'GEOCAM_TIE_POINT_ZOOM_LEVELS_PAST_OVERLAY_RESOLUTION',
+                       'STATIC_URL',
+                       )
+    return dumps(dict([(k, getattr(settings, k)) for k in export_vars]))
+
+"""
+Rotation
+"""
+def getRotatedImageData(overlayId, totalRotation):
+    """
+    For Re-using image data that already exists in the db. 
+     
+    Searches thru image data objects to find the one
+    that has the given rotation value. If that doesn't exist, 
+    returns None
+    """
+    imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = totalRotation)
+    if imagedata:
+        imagedata = imagedata[0]
+        return imagedata
+    else:
+        return None
+
+
+"""
+Autoregistration
+"""
 
 def registerImage(overlay):
     """
@@ -66,6 +173,9 @@ def registerImage(overlay):
     overlay.save()
 
 
+"""
+Creators
+"""
 def createImageData(imageFile):
     # create new image data object to save the data to.
     contentType = imageFile.content_type
@@ -100,8 +210,10 @@ def createImageData(imageFile):
         else:
             imageData.contentType = contentType
     imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
+    imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
     # set this image data as the raw image.
     imageData.raw = True
+    
     imageData.save()
     return [imageData, image.size]
 
@@ -184,3 +296,129 @@ def createOverlayFromURL(form, author):
     imageFile = imageInfo.getImageFile(imageUrl)
     overlay = createOverlay(author, imageFile, issImage)
     return overlay
+
+
+"""
+Image enhancement 
+"""
+def getEnhancer(type):
+    """
+    Given image enhancement type, returns the PIL's enhancer.
+    """
+    if type == u'contrast':
+        return PIL.ImageEnhance.Contrast
+    elif type == u'brightness':
+        return PIL.ImageEnhance.Brightness
+    else: 
+        logging.error("invalid type provided for image enhancer")
+        return None
+    
+
+def enhanceImage(enhanceType, value, im):
+    """
+    Processes image thru an enhancer and returns an enhanced image.
+    enhanceType specifies whether it's 'contrast' or 'brightness' 
+    operation. value is input to the enhancer. im is the input image.
+    """
+    # enhance the image
+    enhancer = getEnhancer(enhanceType)
+    enhancer = enhancer(im)
+    enhancedIm = enhancer.enhance(value) 
+    return enhancedIm
+
+
+def autoenhance(im): 
+    """
+    Takes in PIL image and does histogram matching.
+    """
+    h = im.convert("L").histogram()
+    lut = []
+    for b in range(0, len(h), 256):
+        # step size
+        step = reduce(operator.add, h[b:b+256]) / 255
+        # create equalization lookup table
+        n = 0
+        for i in range(256):
+            lut.append(n / step)
+            n = n + h[i+b]
+    # map image through lookup table
+    layers = 4 # RGBA
+    return im.point(lut*layers)
+
+
+def getImage(imageData, flag):
+    """
+    Returns the PIL image object from imageData based on the flag.
+    """
+    image = None
+    try: 
+        if flag == ENHANCED:
+            image = PIL.Image.open(imageData.enhancedImage.file)
+        elif flag == UNENHANCED:
+            image = PIL.Image.open(imageData.unenhancedImage.file)
+        elif flag == DISPLAY:
+            image = PIL.Image.open(imageData.image.file)
+    except: 
+        logging.error("image cannot be read from the image data")
+        return None
+    return image
+
+
+def checkAndApplyEnhancement(imageData, enhanceType):
+    """
+    Apply the image enhancement, save image, and set this new image as a display image
+    """
+    originalImage = getImage(imageData, UNENHANCED)
+    if enhanceType == 'autoenhance':
+        enhancedIm = autoenhance(originalImage)
+    elif enhanceType == 'undo':
+        enhancedIm = originalImage
+    else:
+        enhancedIm = originalImage
+        if imageData.contrast != 0:
+            enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
+        if imageData.brightness != 0:
+            enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)
+    saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
+    
+    
+def saveImageToDatabase(PILimage, imageData, flags):
+    """
+    Given PIL image object, saves the image bits to the imageData object.
+    flags is a list that determines whether image should be saved as 
+    enhancedImage, unenhancedImage, or image in the imageData object in db. 
+    """
+    out = StringIO()
+    PILimage.save(out, format='png')
+    convertedBits = out.getvalue()
+    # the file name is dummy because it gets set to a new file name on save
+    if ENHANCED in flags: 
+        imageData.enhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    if UNENHANCED in flags: 
+        imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    if DISPLAY in flags:
+        imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
+    imageData.contentType = 'image/png'
+    imageData.save()
+
+
+def saveEnhancementValToDB(imageData, enhanceType, value):
+    """
+    Given type of the enhancement, stores the value in appropriate 
+    enhancement parameter inside image data.
+    """
+    if enhanceType == 'autoenhance':
+        imageData.autoenhance = True
+        imageData.contrast = 0
+        imageData.brightness = 0
+    elif enhanceType == 'undo':
+        imageData.autoenhance = False
+        imageData.contrast = 0
+        imageData.brightness = 0
+    elif enhanceType == 'contrast':
+        imageData.contrast = value
+        imageData.autoenhance = False
+    elif enhanceType == 'brightness':
+        imageData.brightness = value
+        imageData.autoenhance = False
+    imageData.save()

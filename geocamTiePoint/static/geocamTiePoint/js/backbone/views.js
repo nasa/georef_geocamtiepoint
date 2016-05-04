@@ -276,7 +276,7 @@ $(function($) {
                  if (imageQtreeView.options.debug) imageQtreeView.debugInstrumentation.apply(imageQtreeView);
                  //add rotation control slider
                  var mapType = new maputils.ImageMapType(imageQtreeView.model);
-                 maputils.createRotationControl(imageQtreeView, mapType);
+                 maputils.createRotationControl(imageQtreeView);
                  // submit rotation on enter 
                  $("form#rotationInputForm").submit(function() {
                 	 event.preventDefault();
@@ -293,7 +293,7 @@ $(function($) {
 					 maputils.submitRequestToServer(rotateOverlayUrl, data, imageQtreeView);
              	}, event, imageQtreeView);
                  //add image enhancement control sliders
-//                 maputils.createImageEnhacementControls(imageQtreeView, mapType);
+                 maputils.createImageEnhacementControls(imageQtreeView);
     		}, this)));
         },
         

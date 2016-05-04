@@ -38,7 +38,7 @@ urlpatterns = [ ## New Workflow ##
                     {}, 'geocamTiePoint_rotateOverlay'), 
                 
                 ## image enhancement requests from the client handled here
-                url(r'^enhanceContrast/$', views.createEnhancedImageTiles, 
+                url(r'^enhanceImage/$', views.createEnhancedImageTiles, 
                     {}, 'geocamTiePoint_createEnhancedImageTiles'),    
                 
                 ## overlays ##
