@@ -18,7 +18,6 @@ except ImportError:
     from StringIO import StringIO
 
 import PIL.Image
-import pyproj
 import numpy as np
 from osgeo import gdal
 
@@ -120,7 +119,11 @@ class ImageData(models.Model):
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key
     image = models.ImageField(upload_to=getNewImageFileName,
-                              max_length=255)
+                              max_length=255, help_text="displayed image")
+    unenhancedImage = models.ImageField(upload_to=getNewImageFileName,
+                                        max_length=255, help_text="raw image")
+    enhancedImage = models.ImageField(upload_to=getNewImageFileName,
+                              max_length=255, help_text="altered image")
     contentType = models.CharField(max_length=50)
     overlay = models.ForeignKey('Overlay', null=True, blank=True)
     checksum = models.CharField(max_length=128, blank=True)
@@ -132,6 +135,7 @@ class ImageData(models.Model):
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
     contrast = models.FloatField(null=True, blank=True, default=0)
     brightness = models.FloatField(null=True, blank=True, default=0)
+    autoenhance = models.BooleanField(default=False, blank=True)
     raw = models.BooleanField(default=False)
     # stores mission roll frame of the image. i.e. "ISS039-E-12345"
     issMRF = models.CharField(max_length=255, null=True, blank=True,
@@ -596,7 +600,9 @@ class AutomatchResults(models.Model):
     centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
     writtenToFile = models.BooleanField(default=False)
     capturedTime = models.DateTimeField(null=True, blank=True)
-    extras = ExtrasDotField()
+    centerLat = models.FloatField(null=True, blank=True, default=0)
+    centerLon = models.FloatField(null=True, blank=True, default=0) 
+    extras = ExtrasDotField() # stores tie point pairs
     
 
 class GeoSens(models.Model):
@@ -604,3 +610,5 @@ class GeoSens(models.Model):
     r = models.FloatField(null=True, blank=True, default=0)
     p = models.FloatField(null=True, blank=True, default=0)
     y = models.FloatField(null=True, blank=True, default=0)
+    centerLat = models.FloatField(null=True, blank=True, default=0)
+    centerLon = models.FloatField(null=True, blank=True, default=0) 
