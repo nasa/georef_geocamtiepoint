@@ -567,6 +567,9 @@ $(function($) {
                     this.helpIndex = 0;
                 }
             }
+            this.context = { issMRF: this.model.toJSON()['issMRF'], 
+            				 width: this.model.toJSON()['imageSize'][0],
+            				 height: this.model.toJSON()['imageSize'][1]}
         },
 
         afterRender: function() {

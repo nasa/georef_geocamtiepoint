@@ -74,15 +74,6 @@ def ndarrayToList(ndarray):
     return list(ndarray.flatten())
 
 
-def getPILimage(imageData):
-    try: 
-        image = PIL.Image.open(imageData.image.file) 
-    except: 
-        logging.error("image cannot be read from the image data")
-        return None
-    return image
-
-
 def toMegaBytes(numBytes):
     return '%.1d' % (numBytes / (1024 * 1024))
 
@@ -116,6 +107,52 @@ def export_settings(export_vars=None):
                        'STATIC_URL',
                        )
     return dumps(dict([(k, getattr(settings, k)) for k in export_vars]))
+
+"""
+Image related stuff
+"""
+
+def getImage(imageData, flag):
+    """
+    Returns the PIL image object from imageData based on the flag.
+    """
+    image = None
+    try: 
+        if flag == ENHANCED:
+            image = PIL.Image.open(imageData.enhancedImage.file)
+        elif flag == UNENHANCED:
+            image = PIL.Image.open(imageData.unenhancedImage.file)
+        elif flag == DISPLAY:
+            image = PIL.Image.open(imageData.image.file)
+    except: 
+        logging.error("image cannot be read from the image data")
+        return None
+    return image
+
+
+def saveImageToDatabase(PILimage, imageData, flags):
+    """
+    Given PIL image object, saves the image bits to the imageData object.
+    flags is a list that determines whether image should be saved as 
+    enhancedImage, unenhancedImage, or image in the imageData object in db. 
+    """
+    out = StringIO()
+    PILimage.save(out, format='png')
+    convertedBits = out.getvalue()
+    out.close()
+    # the file name is dummy because it gets set to a new file name on save
+    if ENHANCED in flags: 
+        imageData.enhancedImage.delete()  # delete the old image
+        imageData.enhancedImage.save("dummy.png", ContentFile(convertedBits), save=False)
+    if UNENHANCED in flags: 
+        imageData.unenhancedImage.delete()
+        imageData.unenhancedImage.save("dummy.png", ContentFile(convertedBits), save=False)
+    if DISPLAY in flags:
+        imageData.image.delete()
+        imageData.image.save("dummy.png", ContentFile(convertedBits), save=False)
+    imageData.contentType = 'image/png'
+    imageData.save()
+
 
 """
 Rotation
@@ -210,10 +247,8 @@ def createImageData(imageFile):
         else:
             imageData.contentType = contentType
     imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
-    imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
     # set this image data as the raw image.
     imageData.raw = True
-    
     imageData.save()
     return [imageData, image.size]
 
@@ -346,60 +381,22 @@ def autoenhance(im):
     return im.point(lut*layers)
 
 
-def getImage(imageData, flag):
+def applyEnhancement(imageData):
     """
-    Returns the PIL image object from imageData based on the flag.
-    """
-    image = None
-    try: 
-        if flag == ENHANCED:
-            image = PIL.Image.open(imageData.enhancedImage.file)
-        elif flag == UNENHANCED:
-            image = PIL.Image.open(imageData.unenhancedImage.file)
-        elif flag == DISPLAY:
-            image = PIL.Image.open(imageData.image.file)
-    except: 
-        logging.error("image cannot be read from the image data")
-        return None
-    return image
-
-
-def checkAndApplyEnhancement(imageData, enhanceType):
-    """
-    Apply the image enhancement, save image, and set this new image as a display image
+    Apply enhancements based on enhancement values in the imageData object.
     """
     originalImage = getImage(imageData, UNENHANCED)
-    if enhanceType == 'autoenhance':
+    if imageData.autoenhance == True:
         enhancedIm = autoenhance(originalImage)
-    elif enhanceType == 'undo':
-        enhancedIm = originalImage
-    else:
+    elif imageData.contrast or imageData.brightness:
         enhancedIm = originalImage
         if imageData.contrast != 0:
             enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
         if imageData.brightness != 0:
-            enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)
+            enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)   
+    else:  # no enhancements 
+        enhancedIm = originalImage
     saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
-    
-    
-def saveImageToDatabase(PILimage, imageData, flags):
-    """
-    Given PIL image object, saves the image bits to the imageData object.
-    flags is a list that determines whether image should be saved as 
-    enhancedImage, unenhancedImage, or image in the imageData object in db. 
-    """
-    out = StringIO()
-    PILimage.save(out, format='png')
-    convertedBits = out.getvalue()
-    # the file name is dummy because it gets set to a new file name on save
-    if ENHANCED in flags: 
-        imageData.enhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    if UNENHANCED in flags: 
-        imageData.unenhancedImage.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    if DISPLAY in flags:
-        imageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
-    imageData.contentType = 'image/png'
-    imageData.save()
 
 
 def saveEnhancementValToDB(imageData, enhanceType, value):

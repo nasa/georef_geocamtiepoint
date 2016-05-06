@@ -89,7 +89,7 @@ def createEnhancedImageTiles(request):
         # save the new enhancement value in database
         saveEnhancementValToDB(imageData, enhanceType, value)   
         # enhance the image
-        checkAndApplyEnhancement(imageData, enhanceType)     
+        applyEnhancement(imageData)     
         overlay.imageData.save()
         overlay.save()
         # generate a new quadtree for display
@@ -121,33 +121,39 @@ def rotateOverlay(request):
         overlay.extras.totalRotation = rotationAngle
         # original image uploaded by the user
         rawImageData = overlay.getRawImageData()
-        rawPILimage = getPILimage(rawImageData)
+        rawImage = getImage(rawImageData, DISPLAY)
+        
         # save out the original image size
-        overlay.extras.orgImageSize = rawPILimage.size
+        overlay.extras.orgImageSize = rawImage.size
         #rotate the image (minus sign since PIL rotates counter clockwise)
-        rotatedImage = rawPILimage.rotate(-1*overlay.extras.totalRotation, 
+        rotatedImage = rawImage.rotate(-1*overlay.extras.totalRotation, 
                                             PIL.Image.BICUBIC, expand=1)
         # data that needs to be deleted after overlay save
         isRaw = overlay.imageData.raw
         previousImageDataId = overlay.imageData.id
         previousQuadTreeId = overlay.unalignedQuadTree.id
+        
         # create a new image data object with new image
         newImageData = overlay.imageData
         newImageData.pk = None
         newImageData.raw = False
-        # save the rotated image to the new ImageData object
-        out = StringIO()
-        rotatedImage.save(out, format='png')
-        convertedBits = out.getvalue()
-        out.close()
-        newImageData.image.save("dummy.jpg", ContentFile(convertedBits), save=False)
         newImageData.contentType = 'image/png'
         newImageData.rotationAngle = overlay.extras.totalRotation
+        if isRaw: # if previous image was a raw image
+            newImageData.image = None 
         newImageData.save()
+        
+        # save the rotated image to the new ImageData object
+        saveImageToDatabase(rotatedImage, newImageData, [DISPLAY, UNENHANCED])
+
+        # apply any existing enhancements
+        applyEnhancement(newImageData) 
+        
         # replace the imageData of overlay
         overlay.imageData = newImageData
         overlay.extras.rotatedImageSize = rotatedImage.size
         overlay.save()
+
         # generate new set of tiles
         overlay.generateUnalignedQuadTree()
         
