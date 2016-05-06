@@ -12,6 +12,7 @@ import datetime
 import re
 import logging
 import threading
+
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -430,8 +431,13 @@ class Overlay(models.Model):
         """
         Returns the original image data created upon image upload (not rotated, not enhanced)
         """
-        imageData = ImageData.objects.filter(overlay__key = self.key).filter(raw = True)
-        return imageData[0]
+        try:
+            imageData = ImageData.objects.filter(overlay__key = self.key).filter(raw = True)
+            return imageData[0]
+        except:
+            # print "Error: no raw image data available"
+            return None
+        
 
     def getAlignedTilesUrl(self):
         if self.isPublic:
