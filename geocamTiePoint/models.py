@@ -627,6 +627,7 @@ class AutomatchResults(models.Model):
     capturedTime = models.DateTimeField(null=True, blank=True)
     centerLat = models.FloatField(null=True, blank=True, default=0)
     centerLon = models.FloatField(null=True, blank=True, default=0) 
+    registrationMpp = models.FloatField(null=True, blank=True, default=0)
     extras = ExtrasDotField() # stores tie point pairs
     
 
