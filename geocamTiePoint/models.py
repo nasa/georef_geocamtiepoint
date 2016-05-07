@@ -150,12 +150,31 @@ class ImageData(models.Model):
         return ('ImageData overlay_id=%s checksum=%s %s'
                 % (overlay_id, self.checksum, self.lastModifiedTime))
 
+    def duplicate(self):
+        """
+        Duplicate this imagedata including copying the image files
+        """
+        # duplicate the image data object
+        newImageData = self
+        newImageData.pk=None
+        # save the image bits into a new file object
+        newFile = ContentFile(self.image.read())
+        # this assigns it a new name automatically (attaches _1)
+        newFile.name = self.image.name.split('/')[-1]
+        newImageData.image = newFile
+        newImageData.unenhancedImage = newFile
+        newImageData.enhancedImage = None
+        newImageData.save()
+        return newImageData
+        
     def save(self, *args, **kwargs):
         self.lastModifiedTime = datetime.datetime.utcnow()
         super(ImageData, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         self.image.delete()
+        self.unenhancedImage.delete()
+        self.enhancedImage.delete()
         super(ImageData, self).delete(*args, **kwargs)
 
 

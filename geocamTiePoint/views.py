@@ -26,6 +26,7 @@ from geocamTiePoint.viewHelpers import *
 from geocamTiePoint import forms
 from geocamUtil.icons import rotate
 
+
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
@@ -61,6 +62,10 @@ def overlayDelete(request, key):
                                   context_instance=RequestContext(request))
     elif request.method == 'POST':
         overlay = get_object_or_404(Overlay, key=key)
+        try:
+            overlay.imageData.delete()
+        except:
+            pass
         overlay.delete()
         return HttpResponseRedirect(reverse('geocamTiePoint_overlayIndex'))
 
@@ -81,10 +86,19 @@ def createEnhancedImageTiles(request):
         overlayId = data["overlayId"]
         # get the overlay
         overlay = Overlay.objects.get(key=overlayId)
+
         # save the previous unaligned quadtree
         previousQuadTree = None
+        
         if overlay.imageData.raw != True: 
             previousQuadTree = overlay.unalignedQuadTree
+        else:  
+            # make a copy of the raw image data
+            rawImageData = overlay.imageData
+            newImageData = rawImageData.duplicate()
+            overlay.imageData = newImageData
+            overlay.save()
+            
         imageData = overlay.imageData
         # save the new enhancement value in database
         saveEnhancementValToDB(imageData, enhanceType, value)   

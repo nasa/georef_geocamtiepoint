@@ -213,7 +213,7 @@ def registerImage(overlay):
 """
 Creators
 """
-def createImageData(imageFile):
+def createImageData(imageFile, rawFlag):
     # create new image data object to save the data to.
     contentType = imageFile.content_type
     imageData = ImageData(contentType=contentType)
@@ -247,8 +247,9 @@ def createImageData(imageFile):
         else:
             imageData.contentType = contentType
     imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
+    imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
     # set this image data as the raw image.
-    imageData.raw = True
+    imageData.raw = rawFlag
     imageData.save()
     return [imageData, image.size]
 
@@ -258,7 +259,7 @@ def createOverlay(author, imageFile, issImage=None):
     Creates an imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
-    imageData, widthHeight = createImageData(imageFile)
+    imageData, widthHeight = createImageData(imageFile, True)
     #if the overlay with the image name already exists, return it.
     imageOverlays = Overlay.objects.filter(name=imageFile.name)
     if len(imageOverlays) > 0:
