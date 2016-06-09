@@ -424,6 +424,8 @@ class Overlay(models.Model):
     isPublic = models.BooleanField(default=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     coverage = models.CharField(max_length=255, blank=True,
                                 verbose_name='Name of region covered by the overlay')
+    # true if output product (geotiff, RMS error, etc) has been written to file. 
+    writtenToFile = models.BooleanField(default=False)
     # creator: name of person or organization who should get the credit
     # for producing the overlay
     creator = models.CharField(max_length=255, blank=True)
