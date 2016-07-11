@@ -3,11 +3,6 @@
 # the Administrator of the National Aeronautics and Space Administration.
 # All Rights Reserved.
 # __END_LICENSE__
-
-import logging
-
-from django.conf import settings
-
 import numpy
 from numpy.linalg import norm
 
@@ -74,10 +69,6 @@ def lm(y, f, x0,
     This is a Python adaptation of the C++ L-M implementation from the
     NASA Vision Workbench.
     """
-    logger = logging.getLogger('LM')
-    #logger.setLevel(getattr(logging, settings.GEOCAM_TIE_POINT_OPTIMIZE_LOG_LEVEL))
-    logger.setLevel('WARNING')
-
     Rinv = 10
     lamb = 0.1
     if jacobian is None:
@@ -98,8 +89,7 @@ def lm(y, f, x0,
     outerIterations = 0
     while not done:
         shortCircuit = False
-
-        logger.debug('outerIterations=%s x=%s', outerIterations, x)
+        print 'lm DEBUG: outerIterations=%s x=%s' % (outerIterations, x)
         outerIterations += 1
 
         # Compute the value, derivative, and hessian of the cost function
@@ -112,7 +102,7 @@ def lm(y, f, x0,
         # Difference between observed and predicted and error (2-norm of difference)
         error = diff(y, yhat)
         normStart = norm(error)
-        logger.debug("outer iteration starting robust norm=%s", normStart)
+        print "lm DEBUG: outer iteration starting robust norm=%s" % normStart
 
         J = jacobian(x)
 
@@ -139,7 +129,7 @@ def lm(y, f, x0,
             errorTry = diff(y, yTry)
             normTry = norm(errorTry)
 
-            logger.debug('iteration %s error %s norm %s', iterations, errorTry, normTry)
+            print 'lm DEBUG: iteration %s error %s norm %s' % (iterations, errorTry, normTry)
 
             if normTry > normStart:
                 # Increase lambda and try again
@@ -147,27 +137,27 @@ def lm(y, f, x0,
 
             iterations += 1  # Sanity check on iterations in this loop
             if iterations > 5:
-                logger.debug('too many iterations - short circuiting')
+                print 'lm DEBUG: too many iterations - short circuiting'
                 shortCircuit = True
                 normTry = normStart
-            logger.debug('lambda=%s', lamb)
+            print 'lm DEBUG: lambda=%s' % lamb
 
         # Percentage change convergence criterion
         if ((normStart - normTry) / normStart) < relTolerance:
             status = LM_CONVERGED_REL_TOLERANCE
-            logger.info('converged to relative tolerance')
+            print 'lm INFO: converged to relative tolerance'
             done = True
 
         # Absolute error convergence criterion
         if normTry < absTolerance:
             status = LM_CONVERGED_ABS_TOLERANCE
-            logger.info('converged to absolute tolerance')
+            print 'lm INFO: converged to absolute tolerance'
             done = True
 
         # Max iterations convergence criterion
         if outerIterations >= maxIterations:
             status = LM_DID_NOT_CONVERGE
-            logger.info('reached max iterations!')
+            print 'lm INFO: reached max iterations!'
             done = True
 
         # Take trial parameters as new parameters
@@ -181,10 +171,10 @@ def lm(y, f, x0,
 
         # Decrease lambda
         lamb /= 10
-        logger.debug('lambda = %s', lamb)
-        logger.debug('end of outer iteration %s with error %s', outerIterations, normTry)
+        print 'lm DEBUG: lambda = %s' % lamb
+        print 'lm DEBUG: end of outer iteration %s with error %s' % (outerIterations, normTry)
 
-    logger.info('finished after iteration %s error=%s', outerIterations, normTry)
+    print 'lm INFO: finished after iteration %s error=%s' % (outerIterations, normTry)
     return x, status
 
 
@@ -201,8 +191,6 @@ def optimize(y, f, x0):
 
 
 def test():
-    logging.basicConfig(level=logging.DEBUG)
-
     f = lambda x: 2 * x
     jacobian = numericalJacobian(f)
     print jacobian(numpy.array([1, 2, 3], dtype='float64'))

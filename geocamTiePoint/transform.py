@@ -15,9 +15,7 @@
 
 import math
 import numpy
-import logging
 from geocamTiePoint.optimize import optimize
-from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera, eulFromRot, rotFromEul
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
 
@@ -236,8 +234,7 @@ class CameraModelTransform(Transform):
             width = issImage.extras.width
             height = issImage.extras.height
         except Exception as e:
-            logging.error("Could not retrieve image metadata from the ISS MRF: " + str(e))
-            print e 
+            print "Could not retrieve image metadata from the ISS MRF: " + str(e)
         return [issLat, issLon, issAlt, roll, pitch, yaw, foLenX, foLenY, width, height]
 
 
