@@ -55,7 +55,7 @@ $(function($) {
             '<div class="navbar-inner">' +
             '<ul id="navlist" class="nav">' +
             '<li><a href="/">' +
-            '<img src="/static/mapFasten/icons/GeoRefNoBox.png"/>' +
+            '<img src="/static/georef/icons/GeoRefNoBox.png"/>' +
             '</a></li>' +
             '<li class="nav_pad_vertical navbar-text">' +
             '<a href="#overlays/">List Overlays</a></li>' +
