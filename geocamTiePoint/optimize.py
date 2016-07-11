@@ -75,7 +75,8 @@ def lm(y, f, x0,
     NASA Vision Workbench.
     """
     logger = logging.getLogger('LM')
-    logger.setLevel(getattr(logging, settings.GEOCAM_TIE_POINT_OPTIMIZE_LOG_LEVEL))
+    #logger.setLevel(getattr(logging, settings.GEOCAM_TIE_POINT_OPTIMIZE_LOG_LEVEL))
+    logger.setLevel('WARNING')
 
     Rinv = 10
     lamb = 0.1

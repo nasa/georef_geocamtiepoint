@@ -21,24 +21,30 @@ from geocamUtil import imageInfo
 from geocamUtil.registration import imageCoordToEcef, rotMatrixOfCameraInEcef, rotMatrixFromEcefToCamera, eulFromRot, rotFromEul
 from geocamUtil.geomath import transformEcefToLonLatAlt, transformLonLatAltToEcef
 
+# TODO: Clean up these constants!
+# ORIGN_SHIFT = meters per 180 degrees!
 ORIGIN_SHIFT = 2 * math.pi * (6378137 / 2.)
+METERS_PER_DEGREE_LON = ORIGIN_SHIFT / 180
+DEGREES_LON_PER_METER = 180 / ORIGIN_SHIFT
 TILE_SIZE = 256.
 INITIAL_RESOLUTION = 2 * math.pi * 6378137 / TILE_SIZE
 
 
 def lonLatToMeters(lonLat):
+    '''Lonlat coordinate to projected coordinate in meters'''
     lon, lat = lonLat
-    mx = lon * ORIGIN_SHIFT / 180
-    my = math.log(math.tan((90 + lat) * math.pi / 360)) / (math.pi / 180)
-    my = my * ORIGIN_SHIFT / 180
+    mx = lon * METERS_PER_DEGREE_LON
+    my = math.log(math.tan((90 + lat) * math.pi / 360)) / (math.pi / 180) # Lat correction
+    my = my * METERS_PER_DEGREE_LON
     return mx, my
 
 
 def metersToLatLon(mercatorPt):
+    '''Projected coordinate in meters to lonlat coordinate'''
     x, y = mercatorPt
-    lon = x * 180 / ORIGIN_SHIFT
-    lat = y * 180 / ORIGIN_SHIFT
-    lat = ((math.atan(math.exp((lat * (math.pi / 180)))) * 360) / math.pi) - 90
+    lon = x * DEGREES_LON_PER_METER
+    lat = y * DEGREES_LON_PER_METER
+    lat = ((math.atan(math.exp((lat * (math.pi / 180)))) * 360) / math.pi) - 90 # Lat correction
     return lon, lat
 
 
@@ -47,21 +53,25 @@ def resolution(zoom):
 
 
 def pixelsToMeters(x, y, zoom):
+    '''Pixel coordinate to projected coordinate in meters'''
     res = resolution(zoom)
-    mx = (x * res) - ORIGIN_SHIFT
+    mx =  (x * res) - ORIGIN_SHIFT
     my = -(y * res) + ORIGIN_SHIFT
     return [mx, my]
 
 
 def metersToPixels(x, y, zoom):
+    '''Projected coordinate in meters to pixel coordinate'''
     res = resolution(zoom)
-    px = (x + ORIGIN_SHIFT) / res
+    px = ( x + ORIGIN_SHIFT) / res
     py = (-y + ORIGIN_SHIFT) / res
     return [px, py]
 
 
 def getProjectiveInverse(matrix):
-    # http://www.cis.rit.edu/class/simg782/lectures/lecture_02/lec782_05_02.pdf (p. 33)
+    '''Compute the inverse of a projective transform matrix,
+       returning the new projective transform matrix.
+    http://www.cis.rit.edu/class/simg782/lectures/lecture_02/lec782_05_02.pdf (p. 33)'''
     c0 = matrix[0, 0]
     c1 = matrix[0, 1]
     c2 = matrix[0, 2]
@@ -85,6 +95,7 @@ def getProjectiveInverse(matrix):
 
 
 def closest(tgt, vals):
+    '''Return the element in vals which is closest to tgt'''
     return min(vals, key=lambda v: abs(tgt - v))
 
 
@@ -109,8 +120,11 @@ def solveQuad(a, p):
     
 
 class Transform(object):
+    '''Transform base class with fit function'''
+    
     @classmethod
     def fit(cls, toPts, fromPts):
+        '''Solve for the best transform parameters given input/output point pairs.'''
         params0 = cls.getInitParams(toPts, fromPts)
         # lambda is a function that takes "params" as argument
         # and returns the toPts calculated from fromPts and params.
@@ -125,29 +139,29 @@ class Transform(object):
 
     @classmethod
     def fromParams(cls, params):
-        """
-        Given a vector of parameters, it initializes the transform
-        """ 
+        '''Given a vector of parameters, it initializes the transform'''
         raise NotImplementedError('implement in derived class')
 
 
 class CameraModelTransform(Transform):
+    '''Simple pinhole camera camera model.
+        The tranform functions convert between pixel coords and projected coordinates in meters'''
     def __init__(self, params, width, height, Fx, Fy):
         self.params = params
-        self.width = width
+        self.width  = width
         self.height = height
-        self.Fx = Fx
-        self.Fy = Fy
+        self.Fx     = Fx
+        self.Fy     = Fy
         
     @classmethod
     def fit(cls, toPts, fromPts, imageId):
         # extract width and height of image.
         params0 = cls.getInitParams(toPts, fromPts, imageId)        
-        height = params0[len(params0)-1]
-        width = params0[len(params0) -2]
-        Fy = params0[len(params0) -3]
-        Fx = params0[len(params0) -4]
-        numPts = len(toPts.flatten())
+        height  = params0[len(params0) -1]
+        width   = params0[len(params0) -2]
+        Fy      = params0[len(params0) -3]
+        Fx      = params0[len(params0) -4]
+        numPts  = len(toPts.flatten())
         params0 = params0[:len(params0)-4]
         # optimize params
         params = optimize(toPts.flatten(),
@@ -156,19 +170,18 @@ class CameraModelTransform(Transform):
         return cls.fromParams(params, width, height, Fx, Fy)
 
     def forward(self, pt):
-        """
-        Takes in a point in pixel coordinate and returns point in gmap units (meters)
-        """
+        '''Takes in a point in pixel coordinate and returns point in gmap units (meters)'''
         lat, lon, alt, roll, pitch, yaw = self.params
-        width = self.width
+        width  = self.width
         height = self.height
-        Fx = self.Fx
-        Fy = self.Fy
-        camLonLatAlt = (lon, lat, alt)  # camera position in lon,lat,alt
+        Fx     = self.Fx
+        Fy     = self.Fy
+        camLonLatAlt  = (lon, lat, alt)  # camera position in lon,lat,alt
         opticalCenter = (int(width / 2.0), int(height / 2.0))
-        focalLength = (Fx, Fy)
-        rotMatrix = rotFromEul(roll, pitch, yaw)
-        ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix)  # convert image pixel coordinates to ecef
+        focalLength   = (Fx, Fy)
+        rotMatrix     = rotFromEul(roll, pitch, yaw)
+        # Convert image pixel coordinates to ecef
+        ecef = imageCoordToEcef(camLonLatAlt, pt, opticalCenter, focalLength, rotMatrix) 
         try: 
             ptLonLatAlt = transformEcefToLonLatAlt(ecef)  # convert image pixel coordinates to ecef
         except:
@@ -178,22 +191,20 @@ class CameraModelTransform(Transform):
         return xy_meters
 
     def reverse(self, pt):
-        """
-        Takes a point in gmap meters and converts it to image coordinates
-        """
+        '''Takes a point in gmap meters and converts it to image coordinates'''
         lat, lon, alt, roll, pitch, yaw = self.params  # camera parameters (location, orientation, focal length)
-        width = self.width  # image width
+        width  = self.width  # image width
         height = self.height  # image height
-        Fx = self.Fx
-        Fy = self.Fy
+        Fx     = self.Fx
+        Fy     = self.Fy
         # convert input pt from meters to lat lon
         ptlon, ptlat = metersToLatLon([pt[0], pt[1]])
         ptalt = 0
         px, py, pz = transformLonLatAltToEcef([ptlon, ptlat, ptalt])
         pt = numpy.array([[px, py, pz, 1]]).transpose()  # convert to column vector
-        cameraMatrix = numpy.matrix([[Fx, 0, width / 2.0],  # matrix of intrinsic camera parameters
-                                    [0, Fy, height / 2.0],
-                                    [0, 0, 1]],
+        cameraMatrix = numpy.matrix([[Fx,  0,  width /2.0],  # matrix of intrinsic camera parameters
+                                     [0,   Fy, height/2.0],
+                                     [0,   0,  1]],
                                    dtype='float64')  
         x,y,z = transformLonLatAltToEcef((lon,lat,alt))  # camera pose in ecef
         rotation = rotFromEul(roll, pitch, yaw)  # euler to matrix
@@ -201,7 +212,7 @@ class CameraModelTransform(Transform):
         cameraPoseColVector = numpy.array([[x, y, z]]).transpose()
         translation = -1* rotation * cameraPoseColVector
         rotTransMat = numpy.c_[rotation, translation]  # append the translation matrix (3x1) to rotation matrix (3x3) -> becomes 3x4
-        ptInImage = cameraMatrix * rotTransMat * pt
+        ptInImage   = cameraMatrix * rotTransMat * pt
         u = ptInImage.item(0) / ptInImage.item(2)
         v = ptInImage.item(1) / ptInImage.item(2)
         ptInImage =  [u, v]
@@ -237,21 +248,24 @@ class CameraModelTransform(Transform):
     
 
 class LinearTransform(Transform):
+    '''Just implements a basic matrix transform.
+       The input matrix must be an Nx3 numpy matrix.
+       Input vectors must be 2x1 vectors.'''
     def __init__(self, matrix):
-        self.matrix = matrix
-        self.inverse = None
+        self.matrix  = matrix
+        self.inverse = None # Inverse is computed the first time in is used
 
     def forward(self, pt):
-        u = numpy.array(list(pt) + [1], dtype='float64')
-        v = self.matrix.dot(u)
-        return v[:2].tolist()
+        u = numpy.array(list(pt) + [1], dtype='float64') # Homogenize the input point
+        v = self.matrix.dot(u) # Multiply the matrix by the vector
+        return v[:2].tolist()  # Return first two elements
 
     def reverse(self, pt):
         if self.inverse is None:
             self.inverse = numpy.linalg.inv(self.matrix)
-        v = numpy.array(list(pt) + [1], dtype='float64')
-        u = self.inverse.dot(v)
-        return u[:2].tolist()
+        v = numpy.array(list(pt) + [1], dtype='float64') # Homogenize the input point
+        u = self.inverse.dot(v) # Multiply the matrix by the vector
+        return u[:2].tolist()   # Return first two elements
 
     def getJsonDict(self):
         return {'type': 'projective',
@@ -259,6 +273,8 @@ class LinearTransform(Transform):
 
 
 class TranslateTransform(LinearTransform):
+    '''Implementation of transform class for translation-only.
+       Input/output coordinates must by 2x1.'''
     @classmethod
     def fit(cls, toPts, fromPts):
         meanDiff = (numpy.mean(toPts, axis=0) -
@@ -270,9 +286,15 @@ class TranslateTransform(LinearTransform):
                               [0, 0, 1]],
                              dtype='float64')
         return cls(matrix)
+    
+    def getJsonDict(self):
+        return {'type': 'translate',
+                'matrix': self.matrix.tolist()}
 
 
 class RotateScaleTranslateTransform(LinearTransform):
+    '''Implementation of transform class for translation/rotation/scale.
+       Input/output coordinates must by 2x1.'''
     @classmethod
     def fromParams(cls, params):
         tx, ty, scale, theta = params
@@ -300,17 +322,22 @@ class RotateScaleTranslateTransform(LinearTransform):
         theta = math.atan2(-tmat[0, 1], tmat[0, 0])
         return [tx, ty, scale, theta]
 
+    def getJsonDict(self):
+        return {'type': 'rotate_scale',
+                'matrix': self.matrix.tolist()}
 
 class AffineTransform(LinearTransform):
+    '''Implementation of transform class for affine transform.
+       Input/output coordinates must by 2x1.'''
     @classmethod
     def fit(cls, toPts, fromPts):
         n = toPts.shape[0]
         V = numpy.zeros((2 * n, 1))
         U = numpy.zeros((2 * n, 6))
         for i in xrange(0, n):
-            V[2 * i, 0] = toPts[i, 0]
-            V[2 * i + 1, 0] = toPts[i, 1]
-            U[2 * i, 0:3] = fromPts[i, 0], fromPts[i, 1], 1
+            V[2 * i,     0  ] = toPts[i, 0]
+            V[2 * i + 1, 0  ] = toPts[i, 1]
+            U[2 * i,     0:3] = fromPts[i, 0], fromPts[i, 1], 1
             U[2 * i + 1, 3:6] = fromPts[i, 0], fromPts[i, 1], 1
         soln, _residues, _rank, _sngVals = numpy.linalg.lstsq(U, V)
         params = soln[:, 0]
@@ -322,12 +349,14 @@ class AffineTransform(LinearTransform):
 
 
 class ProjectiveTransform(Transform):
+    '''Implementation of Transform class for projective transforms.
+       See http://www.corrmap.com/features/homography_transformation.php'''
     def __init__(self, matrix):
-        self.matrix = matrix
-        self.inverse = None
+        self.matrix  = matrix
+        self.inverse = None # Inverse matrix is computed when first used.
 
     def _apply(self, matrix, pt):
-        u = numpy.array(list(pt) + [1], 'd')
+        u  = numpy.array(list(pt) + [1], 'd')
         v0 = matrix.dot(u)
         # projective rescaling: divide by z and truncate
         v = (v0 / v0[2])[:2]
@@ -351,8 +380,12 @@ class ProjectiveTransform(Transform):
         tmat = AffineTransform.fit(toPts, fromPts).matrix
         return tmat.flatten()[:8]
  
+    def getJsonDict(self):
+        return {'type': 'projective',
+                'matrix': self.matrix.tolist()}
  
 class QuadraticTransform(Transform):
+    '''TODO'''
     def __init__(self, matrix):
         self.matrix = matrix
  
@@ -366,9 +399,9 @@ class QuadraticTransform(Transform):
         return (vapprox - v)
  
     def forward(self, ulist):
-        u = numpy.array([ulist[0] ** 2, ulist[1] ** 2, ulist[0], ulist[1], 1])
+        u  = numpy.array([ulist[0] ** 2, ulist[1] ** 2, ulist[0], ulist[1], 1])
         v0 = self.matrix.dot(u)
-        v = (v0 / v0[2])[:2]
+        v  = (v0 / v0[2])[:2]
         return v.tolist()
  
     def reverse(self, vlist):
@@ -393,23 +426,24 @@ class QuadraticTransform(Transform):
     @classmethod
     def fromParams(cls, params):
         matrix = numpy.zeros((3, 5))
-        matrix[0, :] = params[0:5]
-        matrix[1, :] = params[5:10]
+        matrix[0, :  ] = params[0:5]
+        matrix[1, :  ] = params[5:10]
         matrix[2, 2:4] = params[10:12]
-        matrix[2, 4] = 1
+        matrix[2, 4  ] = 1
         return cls(matrix)
  
     @classmethod
     def getInitParams(cls, toPts, fromPts):
-        tmat = AffineTransform.fit(toPts, fromPts).matrix
+        tmat   = AffineTransform.fit(toPts, fromPts).matrix
         params = numpy.zeros(12)
-        params[2:5] = tmat[0, :]
-        params[7:10] = tmat[1, :]
+        params[ 2: 5] = tmat[0, :]
+        params[ 7:10] = tmat[1, :]
         params[10:12] = tmat[2, 0:2]
         return params
 
 
 class QuadraticTransform2(Transform):
+    '''TODO'''
     SCALE = 1e+7
 
     def __init__(self, matrix, quadraticTerms):
@@ -466,7 +500,7 @@ class QuadraticTransform2(Transform):
         return [x, y]
 
     def getJsonDict(self):
-        return {'type': 'quadratic2',
+        return {'type': 'quadratic',
                 'matrix': self.matrix.tolist(),
                 'quadraticTerms': list(self.quadraticTerms)}
 
@@ -486,14 +520,16 @@ class QuadraticTransform2(Transform):
 
 
 def makeTransform(transformDict):
+    '''Make a transform from a specialized dictionary object'''
     transformType = transformDict['type']
-    if transformType == 'CameraModelTransform':
-        params = transformDict['params']
+    if transformType == 'CameraModelTransform': # Handle pinhole camera model case
+        params  = transformDict['params' ]
         imageId = transformDict['imageId']
         mission, roll, frame = imageId.split('-')
         issImage = ISSimage(mission, roll, frame, '')
-        return CameraModelTransform(params, issImage.extras.width, issImage.extras.height, issImage.extras.focalLength[0], issImage.extras.focalLength[1])
-    else: 
+        return CameraModelTransform(params, issImage.extras.width, issImage.extras.height,
+                                    issImage.extras.focalLength[0], issImage.extras.focalLength[1])
+    else: # Handle all the matrix transform cases
         transformMatrix = numpy.array(transformDict['matrix'])
         if transformType == 'projective':
             return ProjectiveTransform(transformMatrix)
@@ -508,6 +544,7 @@ def makeTransform(transformDict):
 
 
 def forwardPts(tform, fromPts):
+    '''Applies the provided forward transform to each of the input points.'''
     toPts = numpy.zeros(fromPts.shape)
     for i, pt in enumerate(fromPts):
         toPts[i, :] = tform.forward(pt)
@@ -515,6 +552,7 @@ def forwardPts(tform, fromPts):
 
 
 def getTransformClass(n):
+    '''Given the number of available tie points, decide which transform type to use.'''
     if n < 2:
         raise ValueError('not enough tie points')
     elif n == 2:
@@ -528,12 +566,16 @@ def getTransformClass(n):
 
 
 def getTransform(toPts, fromPts):
-    n = toPts.shape[0]
+    '''Find the best transform to describe to input/output point pairs.
+       Inputs must be packed into numpy array objects.'''
+    n   = toPts.shape[0]
     cls = getTransformClass(n)
     return cls.fit(toPts, fromPts)
 
 
 def splitPoints(points):
-    toPts = numpy.array([v[0:2] for v in points])
+    '''Seperate a merged input/output point list into two lists.'''
+    toPts   = numpy.array([v[0:2] for v in points])
     fromPts = numpy.array([v[2:4] for v in points])
     return toPts, fromPts
+
