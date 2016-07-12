@@ -123,6 +123,9 @@ class ImageData(models.Model):
                               max_length=255, help_text="displayed image")
     unenhancedImage = models.ImageField(upload_to=getNewImageFileName,
                                         max_length=255, help_text="raw image")
+    width = models.IntegerField(null=True, blank=True, default=0, help_text="raw image width in pixels")
+    height = models.IntegerField(null=True, blank=True, default=0, help_text="raw image height in pixels")
+    sizeType = models.CharField(null=True, blank=True, max_length=50, help_text="either small (default) or large")
     enhancedImage = models.ImageField(upload_to=getNewImageFileName,
                               max_length=255, help_text="altered image")
     contentType = models.CharField(max_length=50)
@@ -306,21 +309,15 @@ class QuadTree(models.Model):
             else:
                 pixels = np.column_stack((pixels, newCol))
         return pixels        
-    
-    def getImageSizeType(self):
-        imgWidth = self.imageData.overlay.extras.imageSize[0]
-        imgSize = "large"
-        if imgWidth < 1200:
-            imgSize = "small"   
-        return imgSize
 
     def generateHtmlExport(self, exportName, metaJson, slug):
-        imgSize = self.getImageSizeType()
+        overlay = Overlay.objects.get(quadTree = self)
+        imageSizeType = overlay.imageData.sizeType
         gen = self.getGeneratorWithCache(self.id)
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         # generate html export
-        htmlExportName = exportName + ('-%s-html_%s' % (imgSize, timestamp))
+        htmlExportName = exportName + ('-%s-html_%s' % (imageSizeType, timestamp))
         viewHtmlPath = 'view.html'
         tileRootUrl = './%s' % slug
         html = self.getSimpleViewHtml(tileRootUrl, metaJson, slug)
@@ -339,13 +336,14 @@ class QuadTree(models.Model):
         """
         This generates a geotiff from RPC.
         """
-        imgSize = self.getImageSizeType()
+        imageSizeType = overlay.imageData.sizeType
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
         # get image width and height
         overlay = Overlay.objects.get(alignedQuadTree = self) 
-        imageWidth, imageHeight = overlay.extras.imageSize
+        imageWidth = overlay.imageData.width
+        imageHeight = overlay.imageData.height
         
         # update the center point with current transform and use those values
         transformDict  = overlay.extras.transform
@@ -360,7 +358,7 @@ class QuadTree(models.Model):
         # get original image
         imgPath = overlay.getRawImageData().image.url.replace('/data/', settings.DATA_ROOT)
         # reproject and tar the output tiff
-        geotiffExportName = exportName + ('-%s-geotiff_%s' % (imgSize, timestamp))
+        geotiffExportName = exportName + ('-%s-geotiff_%s' % (imageSizeType, timestamp))
         geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
         dosys('mkdir %s' % geotiffFolderPath)
 
@@ -379,11 +377,11 @@ class QuadTree(models.Model):
         """
         this generates the kml and the tiles.
         """
-        imgSize = self.getImageSizeType()
+        imageSizeType = overlay.imageData.sizeType
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
-        kmlExportName = exportName + ('-%s-kml_%s' % (imgSize, timestamp))
+        kmlExportName = exportName + ('-%s-kml_%s' % (imageSizeType, timestamp))
         kmlFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + kmlExportName
         
         # get the path to latest geotiff file
@@ -442,10 +440,9 @@ class Overlay(models.Model):
     # include: imageSize, points, transform, bounds, centerLat, centerLon, rotatedImageSize
     extras = ExtrasDotField()
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 
-                    'centerLat', 'centerLon', 'creator')
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'creator')
     importFields = ('name', 'description', 'imageSourceUrl')
-    importExtrasFields = ('points', 'transform', 'centerLat', 'centerLon')
+    importExtrasFields = ('points', 'transform')
     
 
     def getRawImageData(self):
@@ -494,6 +491,8 @@ class Overlay(models.Model):
             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
                                                   args=[str(self.unalignedQuadTree.id)])
             result['unalignedTilesZoomOffset'] = quadTree.ZOOM_OFFSET
+        if self.imageData:
+            result['imageSize'] = [self.imageData.width, self.imageData.height]
         if self.alignedQuadTree is not None:
             result['alignedTilesUrl'] = self.getAlignedTilesUrl()
 
@@ -605,6 +604,7 @@ class Overlay(models.Model):
                 .getSimpleViewHtml(alignedTilesRootUrl,
                                    self.getJsonDict(),
                                    self.getSlug()))
+        
         
 #########################################
 # models for autoregistration pipeline  #

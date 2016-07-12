@@ -274,7 +274,6 @@ def createOverlay(author, imageFile, issImage=None):
     # set overlay extras fields
     overlay.extras.points = []
     overlay.extras.totalRotation = 0 # set initial rotation value to 0
-    overlay.extras.imageSize = widthHeight
     if issImage:
         try: 
             overlay.imageData.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)

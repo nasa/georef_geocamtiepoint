@@ -312,7 +312,7 @@ def overlayIdJson(request, key):
         if transformDict:
             try: 
                 overlay.extras.bounds = (quadTree.imageMapBounds
-                                         (overlay.extras.imageSize,
+                                         (overlay.imageData.imageSize,
                                           transform.makeTransform(transformDict)))
                 overlay.generateAlignedQuadTree()
             except:
