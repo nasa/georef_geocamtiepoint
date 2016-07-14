@@ -213,10 +213,10 @@ def registerImage(overlay):
 """
 Creators
 """
-def createImageData(imageFile, rawFlag):
+def createImageData(imageFile, sizeType):
     # create new image data object to save the data to.
     contentType = imageFile.content_type
-    imageData = ImageData(contentType=contentType)
+    imageData = ImageData(contentType=contentType, sizeType=sizeType, raw=True)
     bits = imageFile.file.read()
     imageContent = None
     image = None
@@ -246,20 +246,24 @@ def createImageData(imageFile, rawFlag):
             imageData.contentType = 'image/png'
         else:
             imageData.contentType = contentType
+        if image:
+            # save image width, height and sizeType
+            imageSize = image.size
+            imageData.width = imageSize[0]
+            imageData.height = imageSize[1]
+    
     imageData.image.save('dummy.png', ContentFile(imageContent), save=False)
     imageData.unenhancedImage.save('dummy.png', ContentFile(imageContent), save=False)
-    # set this image data as the raw image.
-    imageData.raw = rawFlag
     imageData.save()
-    return [imageData, image.size]
+    return imageData
 
 
-def createOverlay(author, imageFile, issImage=None):
+def createOverlay(author, imageFile, issImage=None, sizeType=None):
     """
     Creates an imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
-    imageData, widthHeight = createImageData(imageFile, True)
+    imageData = createImageData(imageFile, sizeType)
     #if the overlay with the image name already exists, return it.
     imageOverlays = Overlay.objects.filter(name=imageFile.name)
     if len(imageOverlays) > 0:
@@ -322,7 +326,7 @@ def createOverlayFromID(form, author):
     imageUrl = issImage.imageUrl
     # get image data from url
     imageFile = imageInfo.getImageFile(imageUrl)
-    overlay = createOverlay(author, imageFile, issImage)
+    overlay = createOverlay(author, imageFile, issImage, sizeType)
     return overlay, issImage
     
 

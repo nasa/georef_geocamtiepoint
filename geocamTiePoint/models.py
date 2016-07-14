@@ -481,14 +481,14 @@ class Overlay(models.Model):
                                       + 'Z')
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
+        # set image size
+        result['imageSize'] = [self.imageData.width, self.imageData.height]
         if 'issMRF' not in result:
             result['issMRF'] = self.imageData.issMRF
         if self.unalignedQuadTree is not None:
             result['unalignedTilesUrl'] = reverse('geocamTiePoint_tile',
                                                   args=[str(self.unalignedQuadTree.id)])
             result['unalignedTilesZoomOffset'] = quadTree.ZOOM_OFFSET
-        if self.imageData:
-            result['imageSize'] = [self.imageData.width, self.imageData.height]
         if self.alignedQuadTree is not None:
             result['alignedTilesUrl'] = self.getAlignedTilesUrl()
             # note: when exportZip has not been set, its value is not

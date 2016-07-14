@@ -26,7 +26,6 @@ from geocamTiePoint.viewHelpers import *
 from geocamTiePoint import forms
 from geocamUtil.icons import rotate
 
-
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
@@ -311,8 +310,9 @@ def overlayIdJson(request, key):
         transformDict = overlay.extras.get('transform')
         if transformDict:
             try: 
+                imageSize = [overlay.imageData.width, overlay.imageData.height]
                 overlay.extras.bounds = (quadTree.imageMapBounds
-                                         (overlay.imageData.imageSize,
+                                         (imageSize,
                                           transform.makeTransform(transformDict)))
                 overlay.generateAlignedQuadTree()
             except:
