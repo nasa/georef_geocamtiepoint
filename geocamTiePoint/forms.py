@@ -7,9 +7,6 @@
 from django import forms
 from django.forms import ValidationError
 
-
-from django import forms
-
 IMAGE_SIZE_CHOICES = (('small', 'Small'), ('large', 'Large'))
 
 

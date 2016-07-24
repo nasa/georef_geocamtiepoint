@@ -776,6 +776,10 @@ $(function($) {
             if (! overlay.get('points') || overlay.get('points').length < 2) {
                 var save_button = $('button#save');
                 save_button.attr('disabled', true);
+                
+                var done_button = $('button#done');
+                done_button.attr('disabled', true);
+                
                 function observePoints() {
                     if (this.get('points').length >= 2) {
                         if (_.filter(this.get('points'),
@@ -783,6 +787,7 @@ $(function($) {
                                          return _.all(p, _.identity);
                                      }).length >= 2) {
                             save_button.attr('disabled', false);
+                            done_button.attr('disabled', false);
                             this.off('change:points', observePoints);
                         }
                     }
@@ -817,10 +822,10 @@ $(function($) {
                   (saveStatus.data('server-unreachable'))));
             });
 
-            $('button#export').click(function() {
-                app.router.navigate('overlay/' + overlay.id + '/export',
-                                    {trigger: true});
-            });
+//            $('button#export').click(function() {
+//                app.router.navigate('overlay/' + overlay.id + '/export',
+//                                    {trigger: true});
+//            });
 
             $('input#show_preview').change(function(evt) {
                 if (this.checked) {
@@ -831,7 +836,19 @@ $(function($) {
                     splitView.mapView.destroyAlignedImageQtree();
                 }
             });
-
+            
+            if (overlay.attributes.readyToExport) {
+            	$('input#done').prop('checked', true);
+            } 
+            
+            $('input#done').change(function(evt) {
+                if (this.checked) {
+                	overlay.save({'readyToExport': 1});
+                } else {
+                	overlay.save({'readyToExport': 0});
+                }
+            });
+            
             this.on('change_selection', function() {
                 var selectedMarkers = this.selectedMarkers();
                 var markerSelected = _.any(selectedMarkers, function(i) {
@@ -1054,58 +1071,57 @@ $(function($) {
     }); // end DeleteOverlayView
 
 
-    app.views.ExportOverlayView = app.views.OverlayView.extend({
-
-        initialize: function() {
-            app.views.OverlayView.prototype.initialize.apply(this, arguments);
-            _.bindAll(this);
-        },
-
-        template: $('#template-share-overlays').html(), 
-            
-        afterRender: function() {
-            this.$('#create_html_archive').click(_.bind(this.requestExport, this, 'html'));
-            if (this.model.htmlExportPending) {
-                this.startSpinner('html');
-            }
-            this.$('#create_kml_archive').click(_.bind(this.requestExport, this, 'kml'));
-            if (this.model.kmlExportPending) {
-                this.startSpinner('kml');
-            }
-            this.$('#create_geotiff_archive').click(_.bind(this.requestExport, this, 'geotiff'));
-            if (this.model.geotiffExportPending) {
-                this.startSpinner('geotiff');
-            }
-        },
-
-        requestExport: function(type) {
-        	var createArchiveElem = '#create_' + type + '_archive'; 
-            this.$(createArchiveElem).attr('disabled', true);
-            this.model.startExport({
-                error: function() {
-                    $('#exportError').html('Error during export: ' + error);
-                }, 
-                exportType: type
-            });
-            this.startSpinner(type);
-        },
-
-        startSpinner: function(type) {
-            thisView = this;
-            var event = type + '_export_ready';
-            var createArchiveElem = '#create_' + type + '_archive';
-            var exportBtn = '#' + type + '_export_button';
-            
-            this.model.on(event , function onExportReady() {
-                this.model.off(null, onExportReady, null);
-                if (app.currentView === thisView) this.render();
-            }, this);
-            this.$(createArchiveElem).attr('disabled', true);
-            (this.$(exportBtn).html
-             ('<img src="/static/geocamTiePoint/images/loading.gif">' +
-              '&nbsp;' +
-              'Creating ' + type + ' export archive (this could take a few minutes)...'));
-        }
-
-    }); //end ExportOverlayView
+//    app.views.ExportOverlayView = app.views.OverlayView.extend({
+//
+//        initialize: function() {
+//            app.views.OverlayView.prototype.initialize.apply(this, arguments);
+//            _.bindAll(this);
+//        },
+//
+//        template: $('#template-share-overlays').html(), 
+//            
+//        afterRender: function() {
+//            this.$('#create_html_archive').click(_.bind(this.requestExport, this, 'html'));
+//            if (this.model.htmlExportPending) {
+//                this.startSpinner('html');
+//            }
+//            this.$('#create_kml_archive').click(_.bind(this.requestExport, this, 'kml'));
+//            if (this.model.kmlExportPending) {
+//                this.startSpinner('kml');
+//            }
+//            this.$('#create_geotiff_archive').click(_.bind(this.requestExport, this, 'geotiff'));
+//            if (this.model.geotiffExportPending) {
+//                this.startSpinner('geotiff');
+//            }
+//        },
+//
+//        requestExport: function(type) {
+//        	var createArchiveElem = '#create_' + type + '_archive'; 
+//            this.$(createArchiveElem).attr('disabled', true);
+//            this.model.startExport({
+//                error: function() {
+//                    $('#exportError').html('Error during export: ' + error);
+//                }, 
+//                exportType: type
+//            });
+//            this.startSpinner(type);
+//        },
+//
+//        startSpinner: function(type) {
+//            thisView = this;
+//            var event = type + '_export_ready';
+//            var createArchiveElem = '#create_' + type + '_archive';
+//            var exportBtn = '#' + type + '_export_button';
+//            
+//            this.model.on(event , function onExportReady() {
+//                this.model.off(null, onExportReady, null);
+//                if (app.currentView === thisView) this.render();
+//            }, this);
+//            this.$(createArchiveElem).attr('disabled', true);
+//            (this.$(exportBtn).html
+//             ('<img src="/static/geocamTiePoint/images/loading.gif">' +
+//              '&nbsp;' +
+//              'Creating ' + type + ' export archive (this could take a few minutes)...'));
+//        }
+//    }); //end ExportOverlayView
 }); // end jQuery ready handler

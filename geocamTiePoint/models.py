@@ -206,6 +206,11 @@ class QuadTree(models.Model):
     geotiffExport = models.FileField(upload_to=getNewExportFileName,
                                      max_length=255,
                                      null=True, blank=True)
+    metadataExportName = models.CharField(max_length=255,
+                                          null=True, blank=True)
+    metadataExport = models.FileField(upload_to=getNewExportFileName,
+                                      max_length=255,
+                                      null=True, blank=True)
 
     # we set unusedTime when a QuadTree is no longer referenced by an Overlay.
     # it will eventually be deleted.
@@ -311,7 +316,7 @@ class QuadTree(models.Model):
         return pixels        
 
     def generateHtmlExport(self, exportName, metaJson, slug):
-        overlay = Overlay.objects.get(quadTree = self)
+        overlay = Overlay.objects.get(alignedQuadTree = self)
         imageSizeType = overlay.imageData.sizeType
         gen = self.getGeneratorWithCache(self.id)
         now = datetime.datetime.utcnow()
@@ -336,12 +341,12 @@ class QuadTree(models.Model):
         """
         This generates a geotiff from RPC.
         """
+        overlay = Overlay.objects.get(alignedQuadTree = self)
         imageSizeType = overlay.imageData.sizeType
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
         
         # get image width and height
-        overlay = Overlay.objects.get(alignedQuadTree = self) 
         imageWidth = overlay.imageData.width
         imageHeight = overlay.imageData.height
         
@@ -356,7 +361,8 @@ class QuadTree(models.Model):
                                      clon, clat)
         srs = gdalUtil.EPSG_4326
         # get original image
-        imgPath = overlay.getRawImageData().image.url.replace('/data/', settings.DATA_ROOT)
+        rawImageUrl = overlay.getRawImageData().image.url
+        imgPath = re.sub(r'.*/data/', settings.DATA_ROOT, rawImageUrl)
         # reproject and tar the output tiff
         geotiffExportName = exportName + ('-%s-geotiff_%s' % (imageSizeType, timestamp))
         geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
@@ -367,6 +373,7 @@ class QuadTree(models.Model):
 
         geotiff_writer = quadTree.TarWriter(geotiffExportName)
         arcName = geotiffExportName + '.tif'
+        geotiff_writer.writeData('meta.json', dumps(metaJson))
         geotiff_writer.addFile(fullFilePath, geotiffExportName + '/' + arcName)  # double check this line (second arg may not be necessary)
         self.geotiffExportName = '%s.tar.gz' % geotiffExportName
         self.geotiffExport.save(self.geotiffExportName,
@@ -377,6 +384,7 @@ class QuadTree(models.Model):
         """
         this generates the kml and the tiles.
         """
+        overlay = Overlay.objects.get(alignedQuadTree = self)
         imageSizeType = overlay.imageData.sizeType
         now = datetime.datetime.utcnow()
         timestamp = now.strftime('%Y-%m-%d-%H%M%S-UTC')
@@ -385,8 +393,9 @@ class QuadTree(models.Model):
         kmlFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + kmlExportName
         
         # get the path to latest geotiff file
-        inputFile = self.geotiffExportName.replace('.tar.gz', '')
-        inputFile = settings.DATA_ROOT + 'geocamTiePoint/export/' + inputFile + '/' + inputFile + ".tif"
+        if '.tar.gz' in self.geotiffExportName:
+            filename = self.geotiffExportName.replace('.tar.gz', '')
+        inputFile = settings.DATA_ROOT + 'geocamTiePoint/export/' + filename + '/' + filename + ".tif"
         #TODO: make this call the gdal2tiles
         
         g2t = gdal2tiles.GDAL2Tiles(["--force-kml", str(inputFile), str(kmlFolderPath)])
@@ -394,11 +403,12 @@ class QuadTree(models.Model):
         
         # tar the kml
         kml_writer = quadTree.TarWriter(kmlExportName)
+        kml_writer.writeData('meta.json', dumps(metaJson))
         kml_writer.addFile(kmlFolderPath, kmlExportName)  # double check. second arg may not be necessary
         self.kmlExportName = '%s.tar.gz' % kmlExportName
         self.kmlExport.save(self.kmlExportName, 
                             ContentFile(kml_writer.getData()))      
-    
+        
         
 class Overlay(models.Model):
     # required fields 
@@ -422,8 +432,6 @@ class Overlay(models.Model):
     isPublic = models.BooleanField(default=settings.GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT)
     coverage = models.CharField(max_length=255, blank=True,
                                 verbose_name='Name of region covered by the overlay')
-    # true if output product (geotiff, RMS error, etc) has been written to file. 
-    writtenToFile = models.BooleanField(default=False)
     # creator: name of person or organization who should get the credit
     # for producing the overlay
     creator = models.CharField(max_length=255, blank=True)
@@ -440,10 +448,14 @@ class Overlay(models.Model):
     # include: imageSize, points, transform, bounds, centerLat, centerLon, rotatedImageSize
     extras = ExtrasDotField()
     # import/export configuration
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'creator')
-    importFields = ('name', 'description', 'imageSourceUrl')
+    readyToExport = models.BooleanField(default=False)
+    # true if output product (geotiff, RMS error, etc) has been written to file. 
+    writtenToFile = models.DateTimeField(null=True, blank=True)
+    # exportFields: fields to export to the user as a metadata text file.
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'creator', 'readyToExport')
+    # importFields: fields to have around in the json dictionary in javascript.
+    importFields = ('name', 'description', 'imageSourceUrl', 'readyToExport')
     importExtrasFields = ('points', 'transform')
-    
 
     def getRawImageData(self):
         """
@@ -544,7 +556,7 @@ class Overlay(models.Model):
 
     def getExportName(self):
         now = datetime.datetime.utcnow()
-        return 'mapfasten-%s' % self.getSlug()
+        return 'georef-%s' % self.getSlug()
 
     def generateUnalignedQuadTree(self):
         qt = QuadTree(imageData=self.imageData)
@@ -586,7 +598,7 @@ class Overlay(models.Model):
           self.getJsonDict(),
           self.getSlug()))
         return self.alignedQuadTree.geotiffExport 
-
+    
     def updateAlignment(self):
         toPts, fromPts = transform.splitPoints(self.extras.points)
         tform = transform.getTransform(toPts, fromPts)
@@ -620,12 +632,18 @@ class AutomatchResults(models.Model):
     matchConfidence = models.CharField(max_length=255, blank=True)
     matchDate = models.DateTimeField(null=True, blank=True)
     centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
-    writtenToFile = models.BooleanField(default=False)
     capturedTime = models.DateTimeField(null=True, blank=True)
     centerLat = models.FloatField(null=True, blank=True, default=0)
     centerLon = models.FloatField(null=True, blank=True, default=0) 
     registrationMpp = models.FloatField(null=True, blank=True, default=0)
     extras = ExtrasDotField() # stores tie point pairs
+    metadataExportName = models.CharField(max_length=255,
+                                          null=True, blank=True)
+    metadataExport = models.FileField(upload_to=getNewExportFileName,
+                                      max_length=255,
+                                      null=True, blank=True)
+    writtenToFile = models.DateTimeField(null=True, blank=True)
+    
     
 
 class GeoSens(models.Model):

@@ -89,7 +89,6 @@ def lm(y, f, x0,
     outerIterations = 0
     while not done:
         shortCircuit = False
-        print 'lm DEBUG: outerIterations=%s x=%s' % (outerIterations, x)
         outerIterations += 1
 
         # Compute the value, derivative, and hessian of the cost function
@@ -102,7 +101,6 @@ def lm(y, f, x0,
         # Difference between observed and predicted and error (2-norm of difference)
         error = diff(y, yhat)
         normStart = norm(error)
-        print "lm DEBUG: outer iteration starting robust norm=%s" % normStart
 
         J = jacobian(x)
 
@@ -129,18 +127,15 @@ def lm(y, f, x0,
             errorTry = diff(y, yTry)
             normTry = norm(errorTry)
 
-            print 'lm DEBUG: iteration %s error %s norm %s' % (iterations, errorTry, normTry)
-
             if normTry > normStart:
                 # Increase lambda and try again
                 lamb *= 10
 
             iterations += 1  # Sanity check on iterations in this loop
             if iterations > 5:
-                print 'lm DEBUG: too many iterations - short circuiting'
+                # too many iterations - short circuiting
                 shortCircuit = True
                 normTry = normStart
-            print 'lm DEBUG: lambda=%s' % lamb
 
         # Percentage change convergence criterion
         if ((normStart - normTry) / normStart) < relTolerance:
@@ -171,10 +166,7 @@ def lm(y, f, x0,
 
         # Decrease lambda
         lamb /= 10
-        print 'lm DEBUG: lambda = %s' % lamb
-        print 'lm DEBUG: end of outer iteration %s with error %s' % (outerIterations, normTry)
 
-    print 'lm INFO: finished after iteration %s error=%s' % (outerIterations, normTry)
     return x, status
 
 

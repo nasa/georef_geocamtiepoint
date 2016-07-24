@@ -193,7 +193,7 @@ $(function($) {
             };
             this.save({}, saveOptions);  // hits overlayIdJson on serverside
         },
-
+        
         getExportPendingObj: function(type) {
             switch(type) {
             case 'html':
