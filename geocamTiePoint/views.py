@@ -485,13 +485,13 @@ def getExportFilesList(request):
     """
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = 'attachment; filename="GeoRefExportProductsList.txt"'
-    exports = QuadTree.objects.values_list('htmlExportName', 'geotiffExportName', 'kmlExportName')
+    exports = QuadTree.objects.values_list('htmlExportName', 'geotiffExportName', 'kmlExportName', 'metadataExportName')
     writer = csv.writer(response)
     for set in exports:
         if set is not (None, None, None):
-	    for data in set:
-	    	if (data != None) and (data != ''):
-                    writer.writerow([data])
+    	    for data in set:
+    	    	if (data != None) and (data != ''):
+                        writer.writerow([data])
     return response
 
 
