@@ -631,8 +631,8 @@ class AutomatchResults(models.Model):
     matchedImageId = models.CharField(max_length=255, blank=True)
     matchConfidence = models.CharField(max_length=255, blank=True)
     matchDate = models.DateTimeField(null=True, blank=True)
-    centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
     capturedTime = models.DateTimeField(null=True, blank=True)
+    centerPointSource = models.CharField(max_length=255, blank=True, help_text="source of center point. Either curated, CEO, GeoSens, or Nadir")
     centerLat = models.FloatField(null=True, blank=True, default=0)
     centerLon = models.FloatField(null=True, blank=True, default=0) 
     registrationMpp = models.FloatField(null=True, blank=True, default=0)
@@ -643,7 +643,6 @@ class AutomatchResults(models.Model):
                                       max_length=255,
                                       null=True, blank=True)
     writtenToFile = models.DateTimeField(null=True, blank=True)
-    
     
 
 class GeoSens(models.Model):
