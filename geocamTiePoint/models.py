@@ -35,7 +35,7 @@ from geocamUtil import gdal2tiles, imageInfo
 from geocamUtil.models.ExtrasDotField import ExtrasDotField
 from geocamTiePoint import quadTree, transform, rpcModel, gdalUtil
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
-
+from georef_imageregistration import offline_config, registration_common
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
@@ -51,7 +51,15 @@ def getNewImageFileName(instance, filename):
 
 
 def getNewExportFileName(instance, filename):
-    return 'geocamTiePoint/export/' + filename
+    exportFileName = filename
+    if filename:
+        try: 
+            mission, roll, frame = filename.split("_")[0].split("-")
+            dirName = os.path.dirname(registration_common.getWorkingDir(mission, roll, frame))
+        except:
+            return exportFileName
+        exportFileName = dirName + '/' + filename
+    return exportFileName
 
 
 def dumps(obj):

@@ -27,7 +27,6 @@ from django.core.cache import cache
 
 from geocamTiePoint import transform
 
-
 PATCH_SIZE = 32
 TILE_SIZE = transform.TILE_SIZE
 PATCHES_PER_TILE = int(TILE_SIZE / PATCH_SIZE)
@@ -300,11 +299,36 @@ class ZipWriter(object):
     a file or blob storage.
     """
 
-    def __init__(self, dirName):
-        self.dirName = dirName
-        self.out = StringIO()
-        self.zip = zipfile.ZipFile(self.out, 'w')
+    def __init__(self, inputDirName, fullOutputPath = None):
+        self.dirName = inputDirName  # input directory name
+        if not fullOutputPath: # put it in memory.
+            self.out = StringIO()
+            self.zip = zipfile.ZipFile(self.out, 'w')
+        else:  # write the zipfile to fullOutputPath 
+            self.out = fullOutputPath
+            self.zip =  zipfile.ZipFile(self.out, 'w', zipfile.ZIP_DEFLATED)
         self.closed = False
+
+    def addDir(self, frame=None, centerPointSource=None):
+        for root, dirs, files in os.walk(self.dirName):
+            #filter the list so that only the  files with matching frame number gets zipped.
+            if frame:
+                toBeZipped = [f for f in files if (frame in f) and ('.zip' not in f)]
+            else:
+                toBeZipped = files
+                
+            if centerPointSource:
+                files = toBeZipped
+                toBeZipped = [f for f in files if (centerPointSource in f)]
+            
+            for file in toBeZipped:
+                fullFilePath = os.path.join(root,file)
+                fileBaseName = os.path.basename(fullFilePath)
+                try:
+                    self.zip.write(fullFilePath, fileBaseName)
+                except:
+                    print "COULD NOT WRITE FILE %S to ZIP" % fileBaseName
+        self.zip.close()
 
     def writeData(self, path, data):
         assert not self.closed
