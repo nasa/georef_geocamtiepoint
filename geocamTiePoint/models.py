@@ -458,7 +458,7 @@ class Overlay(models.Model):
     # import/export configuration
     readyToExport = models.BooleanField(default=False)
     # true if output product (geotiff, RMS error, etc) has been written to file. 
-    writtenToFile = models.DateTimeField(null=True, blank=True)
+    writtenToFile = models.BooleanField(default=False)
     # exportFields: fields to export to the user as a metadata text file.
     exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'creator', 'readyToExport')
     # importFields: fields to have around in the json dictionary in javascript.
@@ -650,7 +650,7 @@ class AutomatchResults(models.Model):
     metadataExport = models.FileField(upload_to=getNewExportFileName,
                                       max_length=255,
                                       null=True, blank=True)
-    writtenToFile = models.DateTimeField(null=True, blank=True)
+    writtenToFile = models.BooleanField(default=False)
     
 
 class GeoSens(models.Model):
