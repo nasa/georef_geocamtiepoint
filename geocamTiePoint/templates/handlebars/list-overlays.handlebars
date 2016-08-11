@@ -76,6 +76,31 @@ DELT – Delete the entire record
 
 <!-- Initialize the list overlay table as jquery data table --> 
 <script type="text/javascript">
+heightPercentage = 60;
+/*
+ * Change height percentage if you need a different size table
+ */
+calcDataTableHeight = function() {
+    var h =  Math.floor($(window).height()*heightPercentage/100);
+    return h + 'px';
+};
+defaultOptions = {
+        bAutoWidth: true,
+        stateSave: true,
+        bPaginate: true,
+        iDisplayLength: -1, 
+        bLengthChange: true,
+        bSort: true,
+        bJQueryUI: false,
+        sScrollY:  calcDataTableHeight(),
+        "columnDefs": [
+                       {"className": "dt-center", "targets": "_all"}
+                     ],
+        "lengthMenu": [[10, 20, 40, -1], [10, 20, 40, "All"]],
+        "oLanguage": {
+            "sLengthMenu": "Display _MENU_"
+        }
+};
 if ( ! $.fn.DataTable.isDataTable( '#overlays_table' ) ) {
   $('#overlays_table').DataTable(defaultOptions);
 }
