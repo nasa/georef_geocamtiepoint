@@ -369,8 +369,7 @@ class QuadTree(models.Model):
                                      clon, clat)
         srs = gdalUtil.EPSG_4326
         # get original image
-        rawImageUrl = overlay.getRawImageData().image.url
-        imgPath = re.sub(r'.*/data/', settings.DATA_ROOT, rawImageUrl)
+        imgPath = overlay.getRawImageData().image.url.replace('/data/', settings.DATA_ROOT)
         # reproject and tar the output tiff
         geotiffExportName = exportName + ('-%s-geotiff_%s' % (imageSizeType, timestamp))
         geotiffFolderPath = settings.DATA_ROOT + 'geocamTiePoint/export/' + geotiffExportName
