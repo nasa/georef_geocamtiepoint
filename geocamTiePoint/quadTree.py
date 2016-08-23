@@ -313,7 +313,7 @@ class ZipWriter(object):
         for root, dirs, files in os.walk(self.dirName):
             #filter the list so that only the  files with matching frame number gets zipped.
             if frame:
-                toBeZipped = [f for f in files if (frame in f) and ('.zip' not in f)]
+                toBeZipped = [f for f in files if ((frame in f) and ('.zip' not in f)) and ('temp' not in f)]
             else:
                 toBeZipped = files
                 
