@@ -69,16 +69,17 @@ $(function($) {
         template: $('#template-list-overlays').html(),
         initialize: function() {
         	app.views.View.prototype.initialize.apply(this, arguments);
-            app.overlays.forEach(function(overlay) {
-            	if (overlay.attributes.points) {
+        	app.overlays.forEach(function(overlay) {
+        		overlay.updateCenterPoint();
+        		if (overlay.attributes.points) {
 	            	var numTiePts = overlay.attributes.points.length;
-            		overlay.set('numTiePts', numTiePts);
+	            	overlay.set('numTiePts', numTiePts);
             	} else {
             		overlay.set('numTiePts', 0);
             	}
-            });
-            this.context = { overlays: app.overlays };
-            app.overlays.on('remove', function() {this.render();}, this);
+        	});
+        	this.context = { overlays: app.overlays };
+        	app.overlays.on('remove', function() {this.render();}, this);
         },
         deleteOverlay: function(overlay_id) {
             var dialog = this.$('#confirmDelete');
@@ -313,45 +314,15 @@ $(function($) {
                 }
             });
             // when markers are drawn, calculate the center point too.
-            this.updateCenterPointMarker(); 
-			return this._drawMarkers(latLons_in_gmap_space);
-        },
-        
-    	// applies the current transform to the center point of the image in pixels
-    	// to get a new lat long value for center point. 
-        updateCenterPointMarker: function() {
-        	var model = this.model;
-        	model.fetch({ 'success': function(model) {
-        		if (model.get('transform')) {
-        			var transform = (geocamTiePoint.transform.deserializeTransform
-        					(model.get('transform')));
-        			var imageSize = model.get('imageSize');
-        			var w = imageSize[0];
-        			var h = imageSize[1];
-        			if (transform && centerPointMarker) {
-        				var updateCenter = false;
-        				if (transform.toDict().type == 'CameraModelTransform') {
-        					// if it is a cameraModelTransform, center will be updated in the 
-        					// forward function.
-        					updateCenter = true; 
-        				}
-    					// calculate the new center
-    					var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2}, updateCenter);
-    					if (updateCenter == false) {
-							var lat = transformedCenter.lat();
-							var lon = transformedCenter.lng();
-							// update the marker title
-							var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
-							centerPointMarker.title = centerPtLabel;
-							// update the overlay model's center pt in db
-							model.set('centerLat', lat);
-							model.set('centerLon', lon);
-    					}
-        			} else {
-        				console.log("Transformation matrix not available. Center point cannot be updated");
-        			}
-        		}
+            model.fetch({ 'success': function(model) {
+            	model.updateCenterPoint();
+				// update the marker title
+            	var lat = model.get('centerLat');
+            	var lon = model.get('centerLon');
+				var centerPtLabel = maputils.createCenterPointLabelText(lat, lon);
+				centerPointMarker.title = centerPtLabel;
         	}});
+			return this._drawMarkers(latLons_in_gmap_space);
         },
         
 		drawCenterPointMarker: function() {

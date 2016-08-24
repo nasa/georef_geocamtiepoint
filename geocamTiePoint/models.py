@@ -449,6 +449,12 @@ class Overlay(models.Model):
     license = models.URLField(blank=True,
                               verbose_name='License permitting reuse (optional)',
                               choices=settings.GEOCAM_TIE_POINT_LICENSE_CHOICES)
+    centerLat = models.FloatField(null=True, blank=True, default=0)
+    centerLon = models.FloatField(null=True, blank=True, default=0) 
+    
+    nadirLat = models.FloatField(null=True, blank=True, default=0)
+    nadirLon = models.FloatField(null=True, blank=True, default=0) 
+    
     # extras: a special JSON-format field that holds additional
     # schema-free fields in the overlay model. Members of the field can
     # be accessed using dot notation. currently used extras subfields
@@ -458,10 +464,13 @@ class Overlay(models.Model):
     readyToExport = models.BooleanField(default=False)
     # true if output product (geotiff, RMS error, etc) has been written to file. 
     writtenToFile = models.BooleanField(default=False)
-    # exportFields: fields to export to the user as a metadata text file.
-    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 'imageSourceUrl', 'creator', 'readyToExport')
-    # importFields: fields to have around in the json dictionary in javascript.
-    importFields = ('name', 'description', 'imageSourceUrl', 'readyToExport')
+    # exportFields: export these fields to the client side (as JSON)
+    exportFields = ('key', 'lastModifiedTime', 'name', 'description', 
+                    'imageSourceUrl', 'creator', 'readyToExport', 
+                    'centerLat', 'centerLon', 'nadirLat', 'nadirLon')
+    # importFields: import these fields from the client side and save their values to the database.
+    importFields = ('name', 'description', 'imageSourceUrl', 'readyToExport', 
+                    'centerLat', 'centerLon', 'nadirLat', 'nadirLon')
     importExtrasFields = ('points', 'transform')
 
     def getRawImageData(self):

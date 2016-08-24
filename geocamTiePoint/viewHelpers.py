@@ -189,8 +189,8 @@ def registerImage(overlay):
     else: 
         print "Error: Cannot get image path!"
         return None
-    centerLat = overlay.extras.centerLat
-    centerLon = overlay.extras.centerLon
+    centerLat = overlay.centerLat
+    centerLon = overlay.centerLon
     focalLength = overlay.extras.focalLength_unitless
     acq_date = overlay.extras.acquisitionDate
     acq_date = acq_date[:4] + '.' + acq_date[4:6] + '.' + acq_date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
@@ -285,10 +285,10 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
         except:
             pass
         centerPtDict = register.getCenterPoint(issImage)
-        overlay.extras.centerLat = round(centerPtDict["lat"],2)
-        overlay.extras.centerLon = round(centerPtDict["lon"],2)
-        overlay.extras.nadirLat = issImage.extras.nadirLat
-        overlay.extras.nadirLon = issImage.extras.nadirLon
+        overlay.centerLat = round(centerPtDict["lat"],2)
+        overlay.centerLon = round(centerPtDict["lon"],2)
+        overlay.nadirLat = issImage.extras.nadirLat
+        overlay.nadirLon = issImage.extras.nadirLon
         ad = issImage.extras.acquisitionDate
         overlay.extras.acquisitionDate = ad[:4] + ':' + ad[4:6] + ':' + ad[6:] # convert YYYYMMDD to YYYY:MM:DD 
         at = issImage.extras.acquisitionTime
