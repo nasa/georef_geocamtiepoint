@@ -70,7 +70,6 @@ $(function($) {
         initialize: function() {
         	app.views.View.prototype.initialize.apply(this, arguments);
         	app.overlays.forEach(function(overlay) {
-        		overlay.updateCenterPoint();
         		if (overlay.attributes.points) {
 	            	var numTiePts = overlay.attributes.points.length;
 	            	overlay.set('numTiePts', numTiePts);
