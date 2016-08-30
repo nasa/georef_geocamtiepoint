@@ -176,38 +176,37 @@ def getRotatedImageData(overlayId, totalRotation):
 """
 Autoregistration
 """
-
-def registerImage(overlay):
-    """
-    Runs automatic registration (c++ function) on the given ISS image.
-    """
-    imagePath = None
-    focalLength = None
-    imageData = overlay.imageData
-    if imageData:
-        imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
-    else: 
-        print "Error: Cannot get image path!"
-        return None
-    centerLat = overlay.centerLat
-    centerLon = overlay.centerLon
-    focalLength = overlay.extras.focalLength_unitless
-    acq_date = overlay.extras.acquisitionDate
-    acq_date = acq_date[:4] + '.' + acq_date[4:6] + '.' + acq_date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
-    try: 
-        refImagePath = None
-        referenceGeoTransform = None
-        debug = True
-        force = False
-        slowMethod = True
-        (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
-                                                                                                          focalLength, acq_date, refImagePath, 
-                                                                                                          referenceGeoTransform, debug, force, slowMethod)
-    except:
-        return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
-    overlay.extras.transform = imageToProjectedTransform.getJsonDict()
-    overlay.generateAlignedQuadTree()
-    overlay.save()
+# def registerImage(overlay):
+#     """
+#     Runs automatic registration (c++ function) on the given ISS image.
+#     """
+#     imagePath = None
+#     focalLength = None
+#     imageData = overlay.imageData
+#     if imageData:
+#         imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
+#     else: 
+#         print "Error: Cannot get image path!"
+#         return None
+#     centerLat = overlay.centerLat
+#     centerLon = overlay.centerLon
+#     focalLength = overlay.extras.focalLength_unitless
+#     acq_date = overlay.extras.acquisitionDate
+#     acq_date = acq_date[:4] + '.' + acq_date[4:6] + '.' + acq_date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
+#     try: 
+#         refImagePath = None
+#         referenceGeoTransform = None
+#         debug = True
+#         force = False
+#         slowMethod = True
+#         (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
+#                                                                                                           focalLength, acq_date, refImagePath, 
+#                                                                                                           referenceGeoTransform, debug, force, slowMethod)
+#     except:
+#         return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
+#     overlay.extras.transform = imageToProjectedTransform.getJsonDict()
+#     overlay.generateAlignedQuadTree()
+#     overlay.save()
 
 
 """
@@ -290,7 +289,7 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
         overlay.nadirLat = issImage.extras.nadirLat
         overlay.nadirLon = issImage.extras.nadirLon
         ad = issImage.extras.acquisitionDate
-        overlay.extras.acquisitionDate = ad[:4] + ':' + ad[4:6] + ':' + ad[6:] # convert YYYYMMDD to YYYY:MM:DD 
+        overlay.extras.acquisitionDate = ad[:4] + '/' + ad[4:6] + '/' + ad[6:] # convert YYYYMMDD to YYYY:MM:DD 
         at = issImage.extras.acquisitionTime
         overlay.extras.acquisitionTime = at[:2] + ':' + ad[2:4] + ':' + ad[4:6] # convert HHMMSS to HH:MM:SS
         overlay.extras.focalLength_unitless = issImage.extras.focalLength_unitless

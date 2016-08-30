@@ -17,16 +17,14 @@ DELT – Delete the entire record
 <thead class="table_header">
 	<tr>
 		<th>FRAME</th>
-		<th>BY</th>
-		<th>DATE</th>
-		<th>TIME</th>
+		<th>ACQUISITION</th>
 		<th>NLAT</th>
 	    <th>NLON</th>
 	    <th>LENS</th>
 	    <th>CLAT</th>
 	    <th>CLON</th>
 	    <th>TPTS</th>
-	    <th>LAST</th>
+	    <th>LAST UPDATED</th>
 	    <th>EDIT</th>
 	    <th>DELT</th>
     </tr>
@@ -34,7 +32,7 @@ DELT – Delete the entire record
 
 {{#each overlays.models }}
 	<tr>
-		<td> 
+ 		<td> 
 			{{#if attributes.alignedTilesUrl}}
 				<a href="#overlay/{{id}}">
 			{{/if}}
@@ -43,9 +41,7 @@ DELT – Delete the entire record
 				</a> 
 			{{/if}}
 		</td>
-		<td> {{ attributes.creator }}</td>
-		<td> {{ attributes.acquisitionDate }}</td>
-    	<td> {{ attributes.acquisitionTime }} </td>
+		<td> {{ attributes.acquisitionDate }} {{ attributes.acquisitionTime }}</td>
     	<td> {{ attributes.nadirLat }}</td>
 		<td> {{ attributes.nadirLon }}</td>
 		<td> {{ attributes.focalLength_unitless }} </td>
@@ -84,6 +80,7 @@ calcDataTableHeight = function() {
     var h =  Math.floor($(window).height()*heightPercentage/100);
     return h + 'px';
 };
+
 defaultOptions = {
         bAutoWidth: true,
         stateSave: true,
@@ -101,6 +98,7 @@ defaultOptions = {
             "sLengthMenu": "Display _MENU_"
         }
 };
+
 if ( ! $.fn.DataTable.isDataTable( '#overlays_table' ) ) {
   $('#overlays_table').DataTable(defaultOptions);
 }
