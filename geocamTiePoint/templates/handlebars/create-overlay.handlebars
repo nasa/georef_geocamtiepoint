@@ -1,91 +1,21 @@
 <div id="new_overlay_view">
-	<h3> Create a New Overlay</h3>
+	<h3> Create New Overlays</h3>
+	
 	<ul class="nav nav-tabs" id="formTabs">
-		<li data-target="#imageIdSubmit"><a href="#imageIdSubmit">
-				From an ID </a></li>
-<!-- 		<li class="active" data-target="#fileUpload"><a
-			href="#fileUpload">Upload</a></li>
-		<li data-target="#urlSubmit"><a href="#urlSubmit"> From a URL</a></li> -->
+		<li data-target="#imageIdSubmit"><a href="#imageIdSubmit"> From an ID </a></li>
 	</ul>
 	<div class="tab-content">
 		<div class="tab-pane active" id="imageIdSubmit">
-			<form encytype="multipart/form-data" action="/overlays/new.json" method="post">
-				<table>
-<!-- 					<tr>
-						<th> <label for ="id_sequence"> Sequence </label> </th>
-						<td> <input id="id_sequence" name="sequence" type="checkbox"/> </td>
-					</tr> -->
-					<tr>
-						<th><label for="id_mission">Mission:</label></th>
-						<td><input id="id_mission" name="mission" type="text" /></td>
-					</tr>
-					<tr>
-						<th><label for="id_roll">Roll:</label></th>
-						<td><input id="id_roll" name="roll" type="text" /></td>
-					</tr>
-					<tr>
-						<th> <label for ="id_frame"> Frame: </label> </th>
-						<td><input id="id_frame" name="frame" type="text"></td>
-						<td id="toText" style="display: none">to</td>
-						<td><input id="id_endFrame" name="endFrame" type="text" placeholder="End #" style="display: none"></td>
-					</tr>
-					<tr>
-						<td><ul id="id_imageSize">
-							<label for="id_imageSize_0" style="display:none;"><input id="id_imageSize_0"
-								name="imageSize" type="radio" value="small" checked style="display:none;" /> Default </label>
-							<!-- <label for="id_imageSize_1"><input id="id_imageSize_1"
-									name="imageSize" type="radio" value="large" /> Large</label>  -->
-						</ul></td>
-					</tr>
-<!-- 					<tr>
-						<th><label for="id_autoregister"> Autoregister </label></th>
-						<td><input id="id_autoregister" name="autoregister" type="checkbox" ></td>
-					</tr> -->
-					<tr>
-						<td><input class="submitButton" type="submit" value="Submit" />
-							{{{ token }}}</td>
-					</tr>
-				</table>
-			</form>
+			<table id="create_overlays">
+				<tr>
+					<td class="columnSpacer"><input class="imageId" name="imageId" type="text" placeholder="i.e. ISS039-E-12345"/> </td>
+					<td class="columnSpacer"> <button id="id_add" type="button">Add</button></td>
+				</tr>
+
+				<tr>
+					<td> <button id="createOverlaysButton" type="button"> Submit </button></td>
+				</tr>
+			</table>
 		</div>
-<!-- 		<div class="tab-pane" id="fileUpload">
-			<form encytype="multipart/form-data" action="/overlays/new.json"
-				method="post">
-				<div id="uploadControlGroup" class="control-group">
-					<table>
-						<tr>
-							<th><label>Choose an image to upload <span
-									class="import-requirements"> {{ importRequirementsText
-										}} </span></label></th>
-						</tr>
-						<tr>
-							<td><input id="id_image" name="image" type="file" /></td>
-						</tr>
-						<tr>
-							<td><input class="submitButton" type="submit" value="Submit" />
-								{{{ token }}}</td>
-						</tr>
-					</table>
-				</div>
-			</form>
-		</div>
-		<div class="tab-pane" id="urlSubmit">
-			<form encytype="multipart/form-data" action="/overlays/new.json"
-				method="post">
-				<div id="uploadControlGroup" class="control-group">
-					<table>
-						<tr>
-							<th><label for="id_imageUrl">Image URL:</label></th>
-							<td><input id="id_imageUrl" name="imageUrl" type="url" /></td>
-						</tr>
-						<tr>
-							<td><input class="submitButton" type="submit" value="Submit" />
-								{{{ token }}}</td>
-						</tr>
-					</table>
-				</div>
-			</form>
-		</div>
-	</div> -->
 	<div id="formErrorContainer"></div>
 </div>

@@ -301,39 +301,35 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
     return overlay
 
 
-def createOverlayFromFileUpload(form, author):
-    # 10% "grace period" on max import file size
-    imageFileField = form.cleaned_data['image']
-    if ImageFileField: 
-        if imageFileField.size > settings.MAX_IMPORT_FILE_SIZE * 1.1:
-            return ErrorJSONResponse("Your overlay image is %s MB, larger than the maximum allowed size of %s MB."
-                                     % (toMegaBytes(imageRef.size),
-                                        toMegaBytes(settings.MAX_IMPORT_FILE_SIZE)))
-        overlay = createOverlay(author, imageFileField)
-        return overlay
-    else: 
-        return ErrorJSONResponse("imageFileField not valid")
+# def createOverlayFromFileUpload(form, author):
+#     # 10% "grace period" on max import file size
+#     imageFileField = form.cleaned_data['image']
+#     if ImageFileField: 
+#         if imageFileField.size > settings.MAX_IMPORT_FILE_SIZE * 1.1:
+#             return ErrorJSONResponse("Your overlay image is %s MB, larger than the maximum allowed size of %s MB."
+#                                      % (toMegaBytes(imageRef.size),
+#                                         toMegaBytes(settings.MAX_IMPORT_FILE_SIZE)))
+#         overlay = createOverlay(author, imageFileField)
+#         return overlay
+#     else: 
+#         return ErrorJSONResponse("imageFileField not valid")
+# 
+# 
+# def createOverlayFromURL(form, author):
+#     imageUrl = form.cleaned_data['imageUrl']
+#     imageFile = imageInfo.getImageFile(imageUrl)
+#     overlay = createOverlay(author, imageFile, issImage)
+#     return overlay
 
 
-def createOverlayFromID(form, author):
+def createOverlayFromID(mission, roll, frame, sizeType, author):
     # this is the only case where we can calculate the initial center point.
-    mission = form.cleaned_data['mission']
-    roll = form.cleaned_data['roll']
-    frame = form.cleaned_data['frame']
-    sizeType = form.cleaned_data['imageSize']  # small or large
     issImage = ISSimage(mission, roll, frame, sizeType)
     imageUrl = issImage.imageUrl
     # get image data from url
     imageFile = imageInfo.getImageFile(imageUrl)
     overlay = createOverlay(author, imageFile, issImage, sizeType)
     return overlay, issImage
-    
-
-def createOverlayFromURL(form, author):
-    imageUrl = form.cleaned_data['imageUrl']
-    imageFile = imageInfo.getImageFile(imageUrl)
-    overlay = createOverlay(author, imageFile, issImage)
-    return overlay
 
 
 """

@@ -7,7 +7,7 @@
 from fileinput import filename
 
 from django.shortcuts import render_to_response
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound, JsonResponse
 from django.http import HttpResponseNotAllowed, Http404
 from django.template import RequestContext
 from django.shortcuts import get_object_or_404
@@ -17,6 +17,7 @@ from django.core.files import File
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
 from django.dispatch import receiver
 from django.db.models.signals import pre_save, post_save, post_delete
@@ -26,6 +27,7 @@ from geocamTiePoint.viewHelpers import *
 from geocamTiePoint import forms
 from geocamUtil.icons import rotate
 from geocamUtil import imageInfo
+
 
 if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
@@ -261,40 +263,68 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
 
 @csrf_exempt
 def overlayNewJSON(request):
-    """
-    This gets called when user submits a create new overlay form. 
-    """
-    # if this is a POST request we need to process the form data
+#     pydevd.settrace('128.102.236.155')
     if request.method == 'POST':
-        # create a form instance and populate it with data from the request:
-        form = forms.NewImageDataForm(request.POST, request.FILES)
         author = request.user
-        issImage = None
-        if form.is_valid():
-            overlay = None
-            if form.cleaned_data['image']: # if user uploaded a file
-                overlay = createOverlayFromFileUpload(form, author)
-            elif form.cleaned_data['imageUrl']:
-                overlay = createOverlayFromURL(form, author)
-            elif (form.cleaned_data['mission'] and form.cleaned_data['mission'] and form.cleaned_data['mission']):
-                overlay, issImage = createOverlayFromID(form, author)
-            else: 
-                return ErrorJSONResponse("User submitted an invalid form")
-            # check for error.
-            if checkIfErrorJSONResponse(overlay):
-                return overlay
-            # generate initial quad tree
-            overlay.generateUnalignedQuadTree()
-#             # register the overlay using feature detection if the flag is on.
-#             if form.cleaned_data['autoregister']:
-#                 # Only run registerImage if the center point is available.
-#                 errorResponse = registerImage(overlay)
-#                 if errorResponse:
-#                     return errorResponse
-            redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
-            return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
+        index, issID = request.POST.items()[0]
+        try: 
+            mission, roll, frame = issID.split('-') 
+        except: 
+            redirectUrl = reverse('geocamTiePoint_overlayNew')
+            messages.add_message(request, messages.error, 'Invalid ISS Image ID')  # ASK TAMAR
+            return render_to_response(redirectUrl, {}, context_instance=RequestContext(request))
+        size = 'large'
+        overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
+        # check for error.
+        if checkIfErrorJSONResponse(overlay):
+            return JsonResponse({issID: "error"})
+        redirectUrl = "#overlay/" + str(overlay.key) + "/edit"
+        return JsonResponse({issID: "success", "url": redirectUrl})
+#         redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
+        # this needs to somehow pass back the progress!
+        
+#         return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
     else:
         return HttpResponseNotAllowed(('POST'))
+
+
+# @csrf_exempt
+# def overlayNewJSON(request):
+#     """
+#     This gets called when user submits a create new overlay form. 
+#     """
+#     pydevd.settrace('128.102.237.12')
+#     # if this is a POST request we need to process the form data
+#     if request.method == 'POST':
+#         imageId = 
+# #         form = forms.NewImageDataForm(request.POST, request.FILES)
+#         author = request.user
+#         issImage = None
+#         if form.is_valid():
+#             overlay = None
+#             if form.cleaned_data['image']: # if user uploaded a file
+#                 overlay = createOverlayFromFileUpload(form, author)
+#             elif form.cleaned_data['imageUrl']:
+#                 overlay = createOverlayFromURL(form, author)
+#             elif (form.cleaned_data['mission'] and form.cleaned_data['mission'] and form.cleaned_data['mission']):
+#                 overlay, issImage = createOverlayFromID(form, author)
+#             else: 
+#                 return ErrorJSONResponse("User submitted an invalid form")
+#             # check for error.
+#             if checkIfErrorJSONResponse(overlay):
+#                 return overlay
+#             # generate initial quad tree
+#             overlay.generateUnalignedQuadTree()
+# #             # register the overlay using feature detection if the flag is on.
+# #             if form.cleaned_data['autoregister']:
+# #                 # Only run registerImage if the center point is available.
+# #                 errorResponse = registerImage(overlay)
+# #                 if errorResponse:
+# #                     return errorResponse
+#             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
+#             return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
+#     else:
+#         return HttpResponseNotAllowed(('POST'))
 
 
 @csrf_exempt
