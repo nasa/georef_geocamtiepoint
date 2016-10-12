@@ -263,7 +263,6 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
 
 @csrf_exempt
 def overlayNewJSON(request):
-#     pydevd.settrace('128.102.236.155')
     if request.method == 'POST':
         author = request.user
         index, issID = request.POST.items()[0]
@@ -274,16 +273,15 @@ def overlayNewJSON(request):
             messages.add_message(request, messages.error, 'Invalid ISS Image ID')  # ASK TAMAR
             return render_to_response(redirectUrl, {}, context_instance=RequestContext(request))
         size = 'large'
-        overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
+        try: 
+            overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
+        except: 
+            return JsonResponse({issID: "error"})
         # check for error.
         if checkIfErrorJSONResponse(overlay):
             return JsonResponse({issID: "error"})
         redirectUrl = "#overlay/" + str(overlay.key) + "/edit"
         return JsonResponse({issID: "success", "url": redirectUrl})
-#         redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
-        # this needs to somehow pass back the progress!
-        
-#         return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
     else:
         return HttpResponseNotAllowed(('POST'))
 

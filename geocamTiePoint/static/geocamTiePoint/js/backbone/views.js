@@ -965,8 +965,13 @@ $(function($) {
         
         createEditLink: function(index, url, imageId) {
             var childNum = index + 1; 
-            $( "#create_overlays tr:nth-child(" + childNum + ")").html('<a href="' + url +'">'+imageId +'</a>');
+            $( "#create_overlays tr:nth-child(" + childNum + ")").html('<a href="' + url +'" target="_blank">'+ imageId +'</a>');
         	
+        },
+        
+        showCreateMoreBtn: function(createBtn) {
+        	createBtn.prop("disabled",false);
+        	createBtn.replaceWith($('<input type="button" value = "Create more" onclick="location.reload()";/>'));
         },
         
         submitForm: function() {
@@ -980,6 +985,9 @@ $(function($) {
             	imageIdJson[index] = imageId;
             	// start the spinner
             	that.startSpinner(index, imageId);
+
+            	var createBtn = $('#createOverlaysButton');
+            	createBtn.prop("disabled",true);
             	
             	// send this to the server
             	$.ajax({
@@ -988,15 +996,17 @@ $(function($) {
                     data: imageIdJson,
                     dataType: 'json',
                     success: function(data){
-                    	console.log("successfully submitted the form");
-                    	console.log(data);
                     	// replace the spinner with a hyperlink to the url.
                     	that.createEditLink(index, data['url'], imageId);
+                    	// replace the upload btn with upload more
+                    	if (index == 0) {
+                    		that.showCreateMoreBtn(createBtn);
+                    	}
                     }, 
                     error: function(xhr, status, error) {
                     	console.log("xhr", xhr);
                     	console.log("status", status);
-                    	console.log("error", error);
+                    	alert("error in NewOverlayView: ", error);
                     }
                 });
             });

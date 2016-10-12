@@ -222,7 +222,7 @@ def createImageData(imageFile, sizeType):
     # handle PDFs (convert pdf to png)
     if contentType in settings.PDF_MIME_TYPES:
         if not settings.PDF_IMPORT_ENABLED:
-            return ErrorJSONResponse("PDF images are no longer supported.")
+            return None
         # convert PDF to raster image
         pngData = pdf.convertPdf(bits)
         imageContent = pngData
@@ -232,7 +232,7 @@ def createImageData(imageFile, sizeType):
             image = PIL.Image.open(StringIO(bits))
         except Exception as e:  # pylint: disable=W0703
             logging.error("PIL failed to open image: " + str(e))
-            return ErrorJSONResponse("There was a problem reading the image.")
+            return None
         if image.mode != 'RGBA':
             # add alpha channel to image for better
             # transparency handling later
@@ -262,7 +262,10 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
     Creates an imageData object and an overlay object from the information 
     gathered from an uploaded image.
     """
-    imageData = createImageData(imageFile, sizeType)
+    try: 
+        imageData = createImageData(imageFile, sizeType)
+    except: 
+        raise ValueError("Could not create image data")
     #if the overlay with the image name already exists, return it.
     imageOverlays = Overlay.objects.filter(name=imageFile.name)
     if len(imageOverlays) > 0:
@@ -323,12 +326,15 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
 
 
 def createOverlayFromID(mission, roll, frame, sizeType, author):
-    # this is the only case where we can calculate the initial center point.
-    issImage = ISSimage(mission, roll, frame, sizeType)
-    imageUrl = issImage.imageUrl
-    # get image data from url
-    imageFile = imageInfo.getImageFile(imageUrl)
-    overlay = createOverlay(author, imageFile, issImage, sizeType)
+    try:
+        # this is the only case where we can calculate the initial center point.
+        issImage = ISSimage(mission, roll, frame, sizeType)
+        imageUrl = issImage.imageUrl
+        # get image data from url
+        imageFile = imageInfo.getImageFile(imageUrl)
+        overlay = createOverlay(author, imageFile, issImage, sizeType)
+    except: 
+        raise ValueError("Could not create overlay from ID")
     return overlay, issImage
 
 
