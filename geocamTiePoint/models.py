@@ -643,7 +643,7 @@ class IssTelemetry(models.Model):
 
 
 class AutomatchResults(models.Model):
-    issMRF = models.CharField(max_length=255, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
+    issMRF = models.CharField(max_length=255, unique=True, help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") 
     matchedImageId = models.CharField(max_length=255, blank=True)
     matchConfidence = models.CharField(max_length=255, blank=True)
     matchDate = models.DateTimeField(null=True, blank=True)
