@@ -12,6 +12,7 @@ import datetime
 import re
 import logging
 import threading
+import sys
 
 try:
     from cStringIO import StringIO
@@ -36,6 +37,8 @@ from geocamUtil.models.ExtrasDotField import ExtrasDotField
 from geocamTiePoint import quadTree, transform, rpcModel, gdalUtil
 from geocamUtil.ErrorJSONResponse import ErrorJSONResponse, checkIfErrorJSONResponse
 from georef_imageregistration import offline_config, registration_common
+
+from deepzoom.models import DeepZoom
 
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
@@ -124,18 +127,21 @@ class ISSimage:
         return  rootUrl + "/" + self.mission + "/" + self.mission + "-" + self.roll + "-" + self.frame + ".jpg"
 
 
+
 class ImageData(models.Model):
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key
     image = models.ImageField(upload_to=getNewImageFileName,
-                              max_length=255, help_text="displayed image")
+                              max_length=512, 
+                              help_text="displayed image")
+    #TODO: unenhancedImage and enhancedImage are deprecated. delete them later.
     unenhancedImage = models.ImageField(upload_to=getNewImageFileName,
                                         max_length=255, help_text="raw image")
-    width = models.IntegerField(null=True, blank=True, default=0, help_text="raw image width in pixels")
-    height = models.IntegerField(null=True, blank=True, default=0, help_text="raw image height in pixels")
-    sizeType = models.CharField(null=True, blank=True, max_length=50, help_text="either small (default) or large")
     enhancedImage = models.ImageField(upload_to=getNewImageFileName,
                               max_length=255, help_text="altered image")
+    width = models.PositiveIntegerField(null=True, blank=True, default=0, help_text="raw image width in pixels")
+    height = models.PositiveIntegerField(null=True, blank=True, default=0, help_text="raw image height in pixels")
+    sizeType = models.CharField(null=True, blank=True, max_length=50, help_text="either small (default) or large")
     contentType = models.CharField(max_length=50)
     overlay = models.ForeignKey('Overlay', null=True, blank=True)
     checksum = models.CharField(max_length=128, blank=True)
@@ -152,7 +158,64 @@ class ImageData(models.Model):
     # stores mission roll frame of the image. i.e. "ISS039-E-12345"
     issMRF = models.CharField(max_length=255, null=True, blank=True,
                               help_text="Please use the following format: <em>[Mission ID]-[Roll]-[Frame number]</em>") # ISS mission roll frame id of image.
-
+    # deep zoom fields
+    try:
+        DEFAULT_CREATE_DEEPZOOM = settings.DEFAULT_CREATE_DEEPZOOM_OPTION
+    except AttributeError:
+        DEFAULT_CREATE_DEEPZOOM = False
+        
+    #Optionally generate deep zoom from uploaded image if set to True.
+    create_deepzoom = models.BooleanField(default=DEFAULT_CREATE_DEEPZOOM,
+                                          help_text="Generate deep zoom?")
+     
+    #Link this image to generated deep zoom.
+    associated_deepzoom = models.ForeignKey(DeepZoom,
+                                            null=True,
+                                            blank=True,
+                                            related_name="%(app_label)s_%(class)s",
+                                            editable=False,
+                                            on_delete=models.SET_NULL)
+    
+    
+    def create_deepzoom_slug(self):
+        """
+        Returns a string instance for deepzoom slug.
+        """
+        if self.image.file.name:
+            try: 
+                fullpath = self.image.file.name
+                basename = os.path.basename(im.image.file.name)
+                filename, extension = basename.split('.')
+            except: 
+                return 'no_name'
+            deepzoomSlug = filename + "_deepzoom_" + str(self.id)
+            return deepzoomSlug.lower()
+        else: 
+            return "no_name"
+    
+    
+    def create_deepzoom_image(self):
+        """
+        Creates and processes deep zoom image files to storage.
+        Returns instance of newly created DeepZoom instance for associating   
+        uploaded image to it.
+        """
+        try:
+            deepzoomSlug = self.create_deepzoom_slug()
+            dz = DeepZoom.objects.create(associated_image=self.image.name, 
+                                         name=deepzoomSlug)
+            dz.create_deepzoom_files()
+            self.associated_deepzoom = dz
+            self.create_deepzoom = False
+            self.save()
+        except (TypeError, ValueError, AttributeError) as err:
+            print("Error: Incorrect deep zoom parameter(s) in settings.py: {0}".format(err))
+            raise
+        except:
+            print("Unexpected error creating deep zoom: {0}".format(sys.exc_info()[1:2]))
+            raise
+        return dz
+    
     def __unicode__(self):
         if self.overlay:
             overlay_id = self.overlay.key

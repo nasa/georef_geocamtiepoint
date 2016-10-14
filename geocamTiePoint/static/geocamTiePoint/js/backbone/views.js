@@ -970,6 +970,7 @@ $(function($) {
         },
         
         showCreateMoreBtn: function(createBtn) {
+        	// once the overlays are created, show create more -> routes back to location reload.
         	createBtn.prop("disabled",false);
         	createBtn.replaceWith($('<input type="button" value = "Create more" onclick="location.reload()";/>'));
         },
