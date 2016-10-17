@@ -75,30 +75,3 @@ GEOCAM_TIE_POINT_LICENSE_CHOICES = (
 # aligned tiles from public overlays can be viewed by any non-logged-in
 # user, even though the app is in private beta.
 GEOCAM_TIE_POINT_PUBLIC_BY_DEFAULT = True
-
-#===django-deepzoom settings====================================================
-#  This logging profile should be added to your project settings to catch any 
-#  file handling exceptions.
-TEST_ROOT = os.path.abspath(os.path.dirname(__file__))
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(TEST_ROOT, 'deepzoom.exception.log'),
-        },
-    },
-    'loggers': {
-        'deepzoom.models': {
-            'handlers': ['file'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-    },
-}
-
-
-#EOF django-deepzoom test project settings

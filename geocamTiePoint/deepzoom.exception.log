@@ -1,0 +1,35 @@
+`DEEPZOOM_PARAMS` incorrectly defined!
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/dist-packages/deepzoom/models.py", line 91, in create_deepzoom_files
+    dz_params = settings.DEEPZOOM_PARAMS
+  File "/usr/local/lib/python2.7/dist-packages/django/conf/__init__.py", line 56, in __getattr__
+    return getattr(self._wrapped, name)
+AttributeError: 'Settings' object has no attribute 'DEEPZOOM_PARAMS'
+`DEEPZOOM_PARAMS` incorrectly defined!
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/dist-packages/deepzoom/models.py", line 91, in create_deepzoom_files
+    dz_params = settings.DEEPZOOM_PARAMS
+  File "/usr/local/lib/python2.7/dist-packages/django/conf/__init__.py", line 56, in __getattr__
+    return getattr(self._wrapped, name)
+AttributeError: 'Settings' object has no attribute 'DEEPZOOM_PARAMS'
+`DEEPZOOM_PARAMS` incorrectly defined!
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/dist-packages/deepzoom/models.py", line 91, in create_deepzoom_files
+    dz_params = settings.DEEPZOOM_PARAMS
+  File "/usr/local/lib/python2.7/dist-packages/django/conf/__init__.py", line 56, in __getattr__
+    return getattr(self._wrapped, name)
+AttributeError: 'Settings' object has no attribute 'DEEPZOOM_PARAMS'
+`DEEPZOOM_PARAMS` incorrectly defined!
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/dist-packages/deepzoom/models.py", line 91, in create_deepzoom_files
+    dz_params = settings.DEEPZOOM_PARAMS
+  File "/usr/local/lib/python2.7/dist-packages/django/conf/__init__.py", line 56, in __getattr__
+    return getattr(self._wrapped, name)
+AttributeError: 'Settings' object has no attribute 'DEEPZOOM_PARAMS'
+`DEEPZOOM_PARAMS` incorrectly defined!
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/dist-packages/deepzoom/models.py", line 91, in create_deepzoom_files
+    dz_params = settings.DEEPZOOM_PARAMS
+  File "/usr/local/lib/python2.7/dist-packages/django/conf/__init__.py", line 56, in __getattr__
+    return getattr(self._wrapped, name)
+AttributeError: 'Settings' object has no attribute 'DEEPZOOM_PARAMS'

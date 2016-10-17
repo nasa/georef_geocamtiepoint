@@ -275,6 +275,7 @@ def overlayNewJSON(request):
         size = 'large'
         try: 
             overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
+            dz = overlay.imageData.create_deepzoom_image()
         except: 
             return JsonResponse({issID: "error"})
         # check for error.

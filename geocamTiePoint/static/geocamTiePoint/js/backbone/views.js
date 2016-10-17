@@ -102,7 +102,6 @@ $(function($) {
      * single Overlay.
      * Base class for both OverlayGoogleMapsView and SplitOverlayView
      */
-    
     app.views.OverlayView = app.views.View.extend({
         initialize: function(options) {
             app.views.View.prototype.initialize.apply(this, arguments);
@@ -234,6 +233,22 @@ $(function($) {
 
     }); // end OverlayGoogleMapsView base class
 
+    app.views.ImageQtreeView = app.views.OverlayView.extend({
+    	template: '<div id="image_canvas"></div>',
+    	beforeRender: function() {
+    		//pass
+    	},
+    	afterRender: function() {
+    		var model = this.model;
+    		var deepzoomTileSource = model.get('deepzoom_path');
+    	    var viewer = OpenSeadragon({
+    	        id: "split_right",
+    	        prefixUrl: "/static/external/js/openseadragon/images/",
+    	        tileSources: deepzoomTileSource
+    	    });
+    	}
+    });
+    
 //    app.views.ImageQtreeView = app.views.OverlayGoogleMapsView.extend({
 //        template: '<div id="image_canvas"></div>',
 //
@@ -553,11 +568,11 @@ $(function($) {
             $('#helpCloseBtn').click(function() {
                 $('#helpText').modal('hide');
             });
-//            this.imageView = new app.views.ImageQtreeView({
-//                el: '#split_right',
-//                model: this.model,
-//                debug: false,
-//            }).render();
+            this.imageView = new app.views.ImageQtreeView({
+                el: '#split_right',
+                model: this.model,
+                debug: false,
+            }).render();
             this.imageView = null;
             this.mapView = new app.views.MapView({
                 el: '#split_left',
@@ -565,7 +580,7 @@ $(function($) {
             }).render();
 
             var splitview = this;
-            var subviews = [this.mapView, this.imageView];
+            var subviews = [this.mapView /*, this.imageView*/];
             this.$('#split_container').bind('resize', function(evt) {
                 // ensure Google Maps instances get resized when the
                 // splitter moves.
@@ -856,7 +871,7 @@ $(function($) {
                 google.maps.event.removeListener(selectHandlers.pop());
             }
             var splitView = this;
-            var views = [this.imageView, this.mapView];
+            var views = [/*this.imageView, */this.mapView];
             /* Select one pair of markers at a time */
             _.each(views, function(view) {
                 _.each(view.markers, function(marker, index) {

@@ -176,20 +176,16 @@ class ImageData(models.Model):
                                             editable=False,
                                             on_delete=models.SET_NULL)
     
-    
     def create_deepzoom_slug(self):
         """
         Returns a string instance for deepzoom slug.
         """
-        if self.image.file.name:
+        if self.issMRF:
             try: 
-                fullpath = self.image.file.name
-                basename = os.path.basename(im.image.file.name)
-                filename, extension = basename.split('.')
+                deepzoomSlug = self.issMRF + "_deepzoom_" + str(self.id)
+                return deepzoomSlug.lower()
             except: 
-                return 'no_name'
-            deepzoomSlug = filename + "_deepzoom_" + str(self.id)
-            return deepzoomSlug.lower()
+                return "no_name"
         else: 
             return "no_name"
     
@@ -203,7 +199,9 @@ class ImageData(models.Model):
         try:
             deepzoomSlug = self.create_deepzoom_slug()
             dz = DeepZoom.objects.create(associated_image=self.image.name, 
-                                         name=deepzoomSlug)
+                                         name=deepzoomSlug,
+                                         slug=deepzoomSlug)
+            
             dz.create_deepzoom_files()
             self.associated_deepzoom = dz
             self.create_deepzoom = False
@@ -572,6 +570,12 @@ class Overlay(models.Model):
                                       + 'Z')
         # calculate and export urls for client convenience
         result['url'] = reverse('geocamTiePoint_overlayIdJson', args=[self.key])
+        try: 
+            deepzoomRoot = settings.DEEPZOOM_ROOT.replace(settings.PROJ_ROOT, '/')
+            deepzoomFile = self.imageData.associated_deepzoom.name + '/' + self.imageData.associated_deepzoom.name + '.dzi'
+            result['deepzoom_path'] = deepzoomRoot + deepzoomFile
+        except: 
+            pass
         # set image size
         result['imageSize'] = [self.imageData.width, self.imageData.height]
         if 'issMRF' not in result:
