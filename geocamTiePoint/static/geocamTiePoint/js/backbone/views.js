@@ -58,6 +58,8 @@ $(function($) {
             '<img src="/static/georef/icons/GeoRefNoBox.png"/>' +
             '</a></li>' +
             '<li class="nav_pad_vertical navbar-text">' +
+            '<a href="/">Overview</a></li>' +
+            '<li class="nav_pad_vertical navbar-text">' +
             '<a href="#overlays/">List Overlays</a></li>' +
             '</ul>' +
             '<p class="pull-right navbar-text" style="float:right">' +

@@ -603,6 +603,13 @@ class Overlay(models.Model):
                                               args=[self.key,
                                                     'geotiff',
                                                     str(self.alignedQuadTree.geotiffExportName)])
+        try:
+            mission, roll, frame = self.name.split('-')
+            result['mission'] = mission
+            result['roll'] = roll
+            result['frame'] = frame[:-4]
+        except:
+            pass
         return result
 
     def setJsonDict(self, jsonDict):
