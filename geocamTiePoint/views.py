@@ -34,6 +34,7 @@ if settings.USING_APP_ENGINE:
     from google.appengine.api import taskqueue
 
 
+
 @login_required
 def backbone(request):
     initial_overlays = Overlay.objects.order_by('pk')
@@ -276,7 +277,8 @@ def overlayNewJSON(request):
         try: 
             overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
             dz = overlay.imageData.create_deepzoom_image()
-        except: 
+        except Exception as e: 
+            print "exception is %s" % e
             return JsonResponse({issID: "error"})
         # check for error.
         if checkIfErrorJSONResponse(overlay):
@@ -285,45 +287,6 @@ def overlayNewJSON(request):
         return JsonResponse({issID: "success", "url": redirectUrl})
     else:
         return HttpResponseNotAllowed(('POST'))
-
-
-# @csrf_exempt
-# def overlayNewJSON(request):
-#     """
-#     This gets called when user submits a create new overlay form. 
-#     """
-#     pydevd.settrace('128.102.237.12')
-#     # if this is a POST request we need to process the form data
-#     if request.method == 'POST':
-#         imageId = 
-# #         form = forms.NewImageDataForm(request.POST, request.FILES)
-#         author = request.user
-#         issImage = None
-#         if form.is_valid():
-#             overlay = None
-#             if form.cleaned_data['image']: # if user uploaded a file
-#                 overlay = createOverlayFromFileUpload(form, author)
-#             elif form.cleaned_data['imageUrl']:
-#                 overlay = createOverlayFromURL(form, author)
-#             elif (form.cleaned_data['mission'] and form.cleaned_data['mission'] and form.cleaned_data['mission']):
-#                 overlay, issImage = createOverlayFromID(form, author)
-#             else: 
-#                 return ErrorJSONResponse("User submitted an invalid form")
-#             # check for error.
-#             if checkIfErrorJSONResponse(overlay):
-#                 return overlay
-#             # generate initial quad tree
-#             overlay.generateUnalignedQuadTree()
-# #             # register the overlay using feature detection if the flag is on.
-# #             if form.cleaned_data['autoregister']:
-# #                 # Only run registerImage if the center point is available.
-# #                 errorResponse = registerImage(overlay)
-# #                 if errorResponse:
-# #                     return errorResponse
-#             redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
-#             return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
-#     else:
-#         return HttpResponseNotAllowed(('POST'))
 
 
 @csrf_exempt

@@ -40,6 +40,7 @@ from georef_imageregistration import offline_config, registration_common
 
 from deepzoom.models import DeepZoom
 
+
 # poor man's local memory cache for one quadtree tile generator. a
 # common access pattern is that the same instance of the app gets
 # multiple tile requests on the same quadtree. optimize for that case by
@@ -201,7 +202,6 @@ class ImageData(models.Model):
             dz = DeepZoom.objects.create(associated_image=self.image.name, 
                                          name=deepzoomSlug,
                                          slug=deepzoomSlug)
-            
             dz.create_deepzoom_files()
             self.associated_deepzoom = dz
             self.create_deepzoom = False
