@@ -29,7 +29,7 @@ $(function($) {
         afterRender: function() {}, // optional hook
         render: function() {
             this.beforeRender();
-            if (! this._renderedTemplate) {
+            if (!this._renderedTemplate && this.template != null) {
                 this._renderedTemplate = Handlebars.compile(this.template);
             }
             if (! this.context && ! this.model) { this.context = {}; }
@@ -40,8 +40,10 @@ $(function($) {
             } else {
                 context = this.model.toJSON();
             }
-            var output = this._renderedTemplate(context);
-            this.$el.html(output);
+            if ((this._renderedTemplate != null) && (this._renderedTemplate != undefined)) {
+            	var output = this._renderedTemplate(context);
+            	this.$el.html(output);
+        	}
             this.afterRender();
             if (this.el === $(app.container_id)[0]) {
                 app.currentView = this;
@@ -99,6 +101,7 @@ $(function($) {
 
 
     app.views.HomeView = app.views.ListOverlaysView;
+    
     /*
      * OverlayView: id-accepting base class for views that deal with a
      * single Overlay.
@@ -110,7 +113,7 @@ $(function($) {
             if (this.id && !this.model) {
                 this.model = app.overlays.get(this.id);
             }
-            assert(this.model, 'Requires a model!');
+            assert(this.model, 'Requires an Overlay model!');
         },
 
         getState: function() {
@@ -123,6 +126,34 @@ $(function($) {
     });
 
 
+    // contains functions related to displaying tie points.
+    app.views.TiePointView = apps.views.View.extend({
+    	initialize: function(options) {
+    		app.views.View.prototype.initialize.apply(this, arguments);
+    		if (this.id && !this.model) {
+    			this.model = app.tiepoints.get(this.id)
+    		}
+    		assert(this.model, 'Requires a TiePoint model!')
+    	},
+    	render: function(){ /*no-op*/ },
+    	drawMarkers: function() {
+    		
+    	},
+    });
+    
+    app.views.MapsTiePointView = app.views.TiePointView({
+    	initialize:function(options){
+    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
+    	},
+    });
+    
+    app.views.ImageTiePointView = app.views.TiePointView({
+    	initialize:function(options){
+    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
+    	},
+    });
+    
+    
     /*
      * OverlayGoogleMapsView:
      * Base class for ImageQtreeView and MapView
@@ -234,26 +265,6 @@ $(function($) {
         }
 
     }); // end OverlayGoogleMapsView base class
-    
-    app.views.ImageQtreeView = app.views.OverlayView.extend({
-    	template: $('#template-osd-image-viewer').html(), 
-        initialize: function(options) {
-            app.views.OverlayView.prototype.initialize.apply(this, arguments);
-            this.markers = [];
-        },
-    	beforeRender: function() {
-    		//pass
-    	},
-    	afterRender: function() {
-    		var model = this.model;
-    		var deepzoomTileSource = model.get('deepzoom_path');
-    	    var viewer = OpenSeadragon({
-    	        id: "osd_viewer",
-    	        prefixUrl: "/static/external/js/openseadragon/images/",
-    	        tileSources: deepzoomTileSource
-    	    });
-    	}
-    });
     
     app.views.MapView = app.views.OverlayGoogleMapsView.extend({
         template: '<div id="map_canvas"></div>',
@@ -397,6 +408,35 @@ $(function($) {
 	*/	}, 
 
     }); // end MapView
+    
+    app.views.ImageQtreeView = app.views.OverlayView.extend({
+    	template: $('#template-osd-image-viewer').html(), 
+        initialize: function(options) {
+            app.views.OverlayView.prototype.initialize.apply(this, arguments);
+            this.markers = [];
+        },
+    	beforeRender: function() {
+    		//pass
+    	},
+    	afterRender: function() {
+    		var model = this.model;
+    		var deepzoomTileSource = model.get('deepzoom_path');
+    	    var viewer = OpenSeadragon({
+    	        id: "osd_viewer",
+    	        prefixUrl: "/static/external/js/openseadragon/images/",
+    	        tileSources: deepzoomTileSource
+    	    });
+    	    
+    	    // Using jQuery UI slider
+    	    $("#slider").slider({
+    	        min: -180,
+    	        max: 180,
+    	        slide: function(event, ui) {
+    	            viewer.viewport.setRotation(ui.value);
+    	        }
+    	    });
+    	}
+    });
 
     app.views.SplitOverlayView = app.views.OverlayView.extend({
         helpSteps: [

@@ -12,9 +12,30 @@ assert(! _.isUndefined(MIN_ZOOM_OFFSET),
        'Missing global: MIN_ZOOM_OFFSET');
 
 $(function($) {
-    app.models.Overlay = Backbone.Model.extend({
+	app.models.TiePoint = Backbone.AssociatedModel.extend({
+	  defaults: {
+		  coords = []; // holds (x,y) coordinate pairs.
+	  }
+	});
+
+	app.models.TiePointCollection = Backbone.Collection.extend({
+	    model: app.models.TiePoint,
+	});
+	
+    app.tiepoints = new app.TiePointCollection();
+	
+    app.models.Overlay = Backbone.AssociatedModel.extend({
         idAttribute: 'key', // Backend uses "key" as the primary key
 
+        relations: [
+                    {
+                    	type: Backbone.Many,
+                    	key: 'tiepoints',
+                    	collectionType: TiePointCollection, 
+                    	relatedModel: TiePoint
+                    }
+        ],
+        
         initialize: function() {
             // Bind all the model's function properties to the instance,
             // so they can be passed around as event handlers and such.
