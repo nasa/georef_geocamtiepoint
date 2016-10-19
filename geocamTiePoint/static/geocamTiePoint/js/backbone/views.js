@@ -153,18 +153,13 @@ $(function($) {
     	},
     });
     
-//    app.views.MapsTiePointView = app.views.TiePointView({
-//    	initialize:function(options){
-//    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
-//    	},
-//    });
-//    
+    // Deal with rendering and removing the tie point in the image view.
     app.views.ImageTiePointView = app.views.View.extend({
     	initialize: function(options) {
     		app.views.View.prototype.initialize.apply(this, arguments);
     		this.viewer = options.viewer;
     		this.model.on('destroy', this.destroy);
-    		this.model.collection.on('change', this.handleNumberChange);
+    		this.model.collection.on('remove', this.handleNumberChange);
     		this.render();
     	},
     	render: function() {
