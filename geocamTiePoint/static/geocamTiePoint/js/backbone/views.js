@@ -428,12 +428,37 @@ $(function($) {
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
             vent.on('navigate', function() {this.navigate();}, this);
-            vent.on('startAddTiepoint', function() {
-            	this.addTiepoints();}, this);
+            vent.on('startAddTiepoint', function() {this.addTiepoints();}, this);
             vent.on('startDeleteTiepoint', function() {this.deleteTiepoints();}, this);
         },
         addTiepoints: function() {
     		$("#osd_viewer").css( 'cursor',"pointer");
+    		var context = this;
+    		//Canvas-click event handler
+    		this.viewer.addHandler('canvas-click', function(event) {
+    			context.tiepointClickHandler(event);
+    		});
+    	},
+    	tiepointClickHandler: function(event){
+    		/*
+			If the canvas is clicked, calculate 3 points
+				1.) webPoint: Normal pixel coordinates of the webpage
+				2.) viewportPoint: OSD's coordinate system
+						i.) "By default, a single image will be placed with its left side at viewport x = 0 and its right side at viewport x = 1. 
+						The default top is at at viewport y = 0 and its bottom is wherever is appropriate for the image's aspect ratio. For instance, the bottom of a square image would be at y = 1, but the bottom of an image that's twice as wide as it is tall would be at y = 0.5."
+				3.) imagePoint: The pixel coordinates of the image  
+				*/
+			
+			if (app.mode == mode.ADD_TIEPOINTS) {
+	    		var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
+				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+
+				var newPoint = new app.models.TiePoint({
+					coords: [imagePoint.x, imagePoint.y]
+				});
+				var tiepoints = this.model.get('points');
+				tiepoints.add(newPoint);
+			}
     	},
     	deleteTiepoints: function() {
     		$("#osd_viewer").css( 'cursor',"not-allowed");  // could do url(bla) where bla goes to X image
@@ -462,28 +487,6 @@ $(function($) {
     	        }
     	    });
     	    
-    	    var context = this;
-    		//Canvas-click event handler
-    		this.viewer.addHandler('canvas-click', function(event) {
-    			/*
-    			If the canvas is clicked, calculate 3 points
-    				1.) webPoint: Normal pixel coordinates of the webpage
-    				2.) viewportPoint: OSD's coordinate system
-    						i.) "By default, a single image will be placed with its left side at viewport x = 0 and its right side at viewport x = 1. 
-    						The default top is at at viewport y = 0 and its bottom is wherever is appropriate for the image's aspect ratio. For instance, the bottom of a square image would be at y = 1, but the bottom of an image that's twice as wide as it is tall would be at y = 0.5."
-    				3.) imagePoint: The pixel coordinates of the image  
-    				*/
-    				var viewportPoint = context.viewer.viewport.pointFromPixel(event.position);
-    				var imagePoint = context.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-    				
-    				if (app.mode == mode.ADD_TIEPOINTS) {
-    					var newPoint = new app.models.TiePoint({
-    						coords: [imagePoint.x, imagePoint.y]
-    					});
-    					var tiepoints = context.model.get('points');
-    					tiepoints.add(newPoint);
-    				}
-    		});
     	}
     	
     });
