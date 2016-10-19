@@ -32,11 +32,7 @@ $(function($) {
                     {
                     	type: Backbone.HasMany,
                     	key: 'points',
-                    	relatedModel: app.models.TiePoint,
-                    	reverseRelation: {
-                            key: 'overlay',
-                            type: Backbone.HasOne
-                          }
+                    	relatedModel: app.models.TiePoint
                     }
         ],
         defaults: {

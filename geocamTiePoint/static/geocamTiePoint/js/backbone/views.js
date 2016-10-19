@@ -535,6 +535,11 @@ $(function($) {
     	        }
     	    });
     	    
+    	    // construct prior tiepoints
+    	    _.each(this.model.points, function(point){
+    	    	new app.views.ImageTiePointView({model:point, viewer: this.viewer});
+    	    }, this);
+    	    
     	}
     	
     });
