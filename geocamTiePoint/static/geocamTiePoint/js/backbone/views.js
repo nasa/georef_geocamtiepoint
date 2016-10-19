@@ -159,11 +159,60 @@ $(function($) {
 //    	},
 //    });
 //    
-//    app.views.ImageTiePointView = app.views.TiePointView({
-//    	initialize:function(options){
-//    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
-//    	},
-//    });
+    app.views.ImageTiePointView = app.views.View.extend({
+    	initialize: function(options) {
+    		app.views.View.prototype.initialize.apply(this, arguments);
+    		this.viewer = options.viewer;
+    		this.model.on('destroy', this.destroy);
+    		this.model.collection.on('change', this.handleNumberChange);
+    		this.render();
+    	},
+    	render: function() {
+    		var context = this;
+    		var marker_id = this.model.cid + "_marker";
+    		this.img = document.createElement('img');
+    		this.img.id = marker_id;
+    		this.img.src = "/static/geocamTiePoint/images/marker.png";
+    		this.img.onclick = function() {context.handleClick()};
+    		var text_id = this.model.cid + "_text";
+			this.numberText = document.createElement('span');
+			this.numberText.id = text_id;
+			this.numberText.innerHTML=(this.model.collection.indexOf(this.model));
+			this.numberText.setAttribute('class','tiepoint_number');
+			this.numberText.onclick = function() {context.handleClick()};
+			var osdPoint = new OpenSeadragon.Point(this.model.get('coords')[0], this.model.get('coords')[1]);
+			var viewportPoint = this.viewer.viewport.imageToViewportCoordinates(osdPoint);
+			this.viewer.addOverlay({
+				element: this.img,
+				location: viewportPoint,
+				rotationMode: OpenSeadragon.OverlayRotationMode.NO_ROTATION,
+				placement: OpenSeadragon.Placement.BOTTOM
+			});
+			this.markerOverlay = this.viewer.getOverlayById(marker_id);
+			this.viewer.addOverlay({
+				element: this.numberText, 
+				location: viewportPoint,
+				rotationMode: OpenSeadragon.OverlayRotationMode.NO_ROTATION,
+				placement: OpenSeadragon.Placement.TOP	
+			});
+			this.textOverlay = this.viewer.getOverlayById(text_id);
+    	},
+    	handleNumberChange: function() {
+    		this.numberText.innerHTML=(this.model.collection.indexOf(this.model));
+    	},
+    	handleClick: function() {
+    		if (app.mode == mode.DELETE_TIEPOINTS){
+    			this.model.collection.remove(this);
+    			this.destroy();
+    		}
+    	},
+    	destroy: function() {
+    		this.viewer.removeOverlay(this.markerOverlay);
+    		this.viewer.removeOverlay(this.textOverlay);
+    		this.markerOverlay.destroy();
+    		this.textOverlay.destroy();
+    	}
+    });
     
     
     /*
@@ -430,6 +479,11 @@ $(function($) {
             vent.on('navigate', function() {this.navigate();}, this);
             vent.on('startAddTiepoint', function() {this.addTiepoints();}, this);
             vent.on('startDeleteTiepoint', function() {this.deleteTiepoints();}, this);
+            this.model.on('add:points', function(point){this.renderNewPoint(point);}, this);
+
+        },
+        renderNewPoint: function(point){
+        	new app.views.ImageTiePointView({model:point, viewer: this.viewer});
         },
         addTiepoints: function() {
     		$("#osd_viewer").css( 'cursor',"pointer");
@@ -448,7 +502,6 @@ $(function($) {
 						The default top is at at viewport y = 0 and its bottom is wherever is appropriate for the image's aspect ratio. For instance, the bottom of a square image would be at y = 1, but the bottom of an image that's twice as wide as it is tall would be at y = 0.5."
 				3.) imagePoint: The pixel coordinates of the image  
 				*/
-			
 			if (app.mode == mode.ADD_TIEPOINTS) {
 	    		var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
 				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);

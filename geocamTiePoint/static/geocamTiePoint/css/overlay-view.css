@@ -55,3 +55,7 @@ div.top, div.bottom {
     font-size: 25px;
     width: 100%;
 }
+
+.tiepoint_number {
+	color: yellow;
+}

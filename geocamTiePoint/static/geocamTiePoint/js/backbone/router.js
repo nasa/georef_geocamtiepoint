@@ -36,7 +36,8 @@ $(function($) {
 
         editOverlay: function(overlay_id) {
             console.log('Routed to editOverlay for ' + overlay_id);
-            var view = new app.views.SplitOverlayView({id: overlay_id});
+            var model = app.overlays.get(overlay_id);
+            var view = new app.views.SplitOverlayView({id: overlay_id, model: model});
             view.render();
         },
 
