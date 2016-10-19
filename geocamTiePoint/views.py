@@ -3,7 +3,7 @@
 # the Administrator of the National Aeronautics and Space Administration.
 # All Rights Reserved.
 # __END_LICENSE__
-
+import pydevd
 from fileinput import filename
 
 from django.shortcuts import render_to_response
@@ -33,11 +33,28 @@ if settings.USING_APP_ENGINE:
     from google.appengine.api import backends
     from google.appengine.api import taskqueue
 
-
-
 @login_required
 def backbone(request):
     initial_overlays = Overlay.objects.order_by('pk')
+    templates = get_handlebars_templates(settings.GEOCAM_TIE_POINT_HANDLEBARS_DIR)
+    if request.method == 'GET':
+        return render_to_response('geocamTiePoint/backbone.html',
+            {
+                'templates': templates,
+                'initial_overlays_json': dumps(list(o.jsonDict for o in initial_overlays)) if initial_overlays else [],
+                'settings': export_settings(),
+                'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
+                'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
+                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
+                'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles')
+            },
+            context_instance=RequestContext(request))
+    else:
+        return HttpResponseNotAllowed(['GET'])
+    
+@login_required
+def edit_overlay(request, overlay_id):
+    initial_overlays = [Overlay.objects.get(pk=overlay_id)]
     templates = get_handlebars_templates(settings.GEOCAM_TIE_POINT_HANDLEBARS_DIR)
     if request.method == 'GET':
         return render_to_response('geocamTiePoint/backbone.html',

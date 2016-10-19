@@ -17,6 +17,9 @@ from geocamTiePoint import views
 urlpatterns = [ ## New Workflow ##
                 url(r'^b/$', views.backbone,
                     {}, 'geocamTiePoint_backbone'),
+
+                url(r'^overlay/(?P<overlay_id>\d+)/edit$', views.edit_overlay,
+                    {}, 'geocamTiePoint_edit_overlay'),
             
                 ## for export data products (kml, geotiff, html) ##
                 url(r'^getExportFilesList$', views.getExportFilesList, 

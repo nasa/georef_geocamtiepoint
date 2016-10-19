@@ -3,8 +3,20 @@ app.views = {};
 app.map = app.map || {}; //namespace for map helper stuff
 var centerPointMarker = null;
 
+vent = _.extend({}, Backbone.Events);
+
+// modes
+mode = {
+NAVIGATE:0,
+ADD_TIEPOINTS: 1,
+DELETE_TIEPOINTS: 2
+}
+
+
 $(function($) {
 
+	app.mode = mode.NAVIGATE;
+	
     app.container_id = '#backbone_app_container';
 
     /*
@@ -127,7 +139,7 @@ $(function($) {
 
 
     // contains functions related to displaying tie points.
-    app.views.TiePointView = apps.views.View.extend({
+    app.views.TiePointView = app.views.View.extend({
     	initialize: function(options) {
     		app.views.View.prototype.initialize.apply(this, arguments);
     		if (this.id && !this.model) {
@@ -141,17 +153,17 @@ $(function($) {
     	},
     });
     
-    app.views.MapsTiePointView = app.views.TiePointView({
-    	initialize:function(options){
-    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
-    	},
-    });
-    
-    app.views.ImageTiePointView = app.views.TiePointView({
-    	initialize:function(options){
-    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
-    	},
-    });
+//    app.views.MapsTiePointView = app.views.TiePointView({
+//    	initialize:function(options){
+//    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
+//    	},
+//    });
+//    
+//    app.views.ImageTiePointView = app.views.TiePointView({
+//    	initialize:function(options){
+//    		(app.views.TiePointView.prototype.initialize.apply(this, arguments));
+//    	},
+//    });
     
     
     /*
@@ -162,6 +174,7 @@ $(function($) {
     app.views.OverlayGoogleMapsView = app.views.OverlayView.extend({
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
+            this.options = options;
             this.markers = [];
             this.on('gmap_loaded', this.initGmapUIHandlers);
             this.model.on('change:points', this.drawMarkers, this);
@@ -271,8 +284,7 @@ $(function($) {
         overlay_enabled: true,
 
         initialize: function(options) {
-            (app.views.OverlayGoogleMapsView.prototype.initialize.apply
-             (this, arguments));
+            app.views.OverlayGoogleMapsView.prototype.initialize.apply(this, arguments);
             if (this.id && !this.model) {
                 this.model = app.overlays.get(this.id);
             }
@@ -409,19 +421,33 @@ $(function($) {
 
     }); // end MapView
     
+    // OpenSeadragon image view
     app.views.ImageQtreeView = app.views.OverlayView.extend({
+    	// modes
     	template: $('#template-osd-image-viewer').html(), 
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
-            this.markers = [];
+            vent.on('navigate', function() {this.navigate();}, this);
+            vent.on('startAddTiepoint', function() {
+            	this.addTiepoints();}, this);
+            vent.on('startDeleteTiepoint', function() {this.deleteTiepoints();}, this);
         },
+        addTiepoints: function() {
+    		$("#osd_viewer").css( 'cursor',"pointer");
+    	},
+    	deleteTiepoints: function() {
+    		$("#osd_viewer").css( 'cursor',"not-allowed");  // could do url(bla) where bla goes to X image
+    	},
+    	navigate: function() {
+    		$("#osd_viewer").css( 'cursor',"auto");
+    	},
     	beforeRender: function() {
     		//pass
     	},
     	afterRender: function() {
     		var model = this.model;
     		var deepzoomTileSource = model.get('deepzoom_path');
-    	    var viewer = OpenSeadragon({
+    	    this.viewer = OpenSeadragon({
     	        id: "osd_viewer",
     	        prefixUrl: "/static/external/js/openseadragon/images/",
     	        tileSources: deepzoomTileSource
@@ -435,10 +461,66 @@ $(function($) {
     	            viewer.viewport.setRotation(ui.value);
     	        }
     	    });
+    	    
+    	    var context = this;
+    		//Canvas-click event handler
+    		this.viewer.addHandler('canvas-click', function(event) {
+    			/*
+    			If the canvas is clicked, calculate 3 points
+    				1.) webPoint: Normal pixel coordinates of the webpage
+    				2.) viewportPoint: OSD's coordinate system
+    						i.) "By default, a single image will be placed with its left side at viewport x = 0 and its right side at viewport x = 1. 
+    						The default top is at at viewport y = 0 and its bottom is wherever is appropriate for the image's aspect ratio. For instance, the bottom of a square image would be at y = 1, but the bottom of an image that's twice as wide as it is tall would be at y = 0.5."
+    				3.) imagePoint: The pixel coordinates of the image  
+    				*/
+    				var viewportPoint = context.viewer.viewport.pointFromPixel(event.position);
+    				var imagePoint = context.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+    				
+    				if (app.mode == mode.ADD_TIEPOINTS) {
+    					var newPoint = new app.models.TiePoint({
+    						coords: [imagePoint.x, imagePoint.y]
+    					});
+    					var tiepoints = context.model.get('points');
+    					tiepoints.add(newPoint);
+    				}
+    		});
     	}
+    	
     });
 
     app.views.SplitOverlayView = app.views.OverlayView.extend({
+    	events: {
+    		'click #btn_navigate': function() { vent.trigger('navigate', mode.NAVIGATE);},
+            'click #btn_add_tiepoint': function() { vent.trigger('startAddTiepoint', mode.ADD_TIEPOINTS);},
+            'click #btn_delete_tiepoint': function() { vent.trigger('startDeleteTiepoint', mode.DELETE_TIEPOINTS);},
+    	},
+       
+    	initialize: function(options) {
+    		app.views.OverlayView.prototype.initialize.apply(this, arguments);
+    		vent.on('navigate', function(mode) {this.updateMode(mode);}, this);
+    		vent.on('startAddTiepoint', function(mode) {this.updateMode(mode);}, this);
+    		vent.on('startDeleteTiepoint', function(mode) {this.updateMode(mode);}, this);
+    	},
+    	updateMode: function(newmode){
+    		app.mode = newmode;
+    		switch(newmode){
+    		case mode.NAVIGATE:
+    			$("#btn_navigate").addClass('active');
+    			$("#btn_add_tiepoint").removeClass('active');
+    			$("#btn_delete_tiepoint").removeClass('active');
+    			break;
+    		case mode.ADD_TIEPOINTS:
+    			$("#btn_navigate").removeClass('active');
+    			$("#btn_add_tiepoint").addClass('active');
+    			$("#btn_delete_tiepoint").removeClass('active');
+    			break;
+    		case mode.DELETE_TIEPOINTS:
+    			$("#btn_navigate").removeClass('active');
+    			$("#btn_add_tiepoint").removeClass('active');
+    			$("#btn_delete_tiepoint").addClass('active');
+    			break;
+    		}
+    	},
         helpSteps: [
             {
                 promptText: 'Click matching landmarks on both sides' +
@@ -467,7 +549,7 @@ $(function($) {
  
         beforeRender: function() {
             if (this.helpIndex == null) {
-                if (this.model.get('alignedTilesUrl')) {
+                if (this.model == undefined || this.model.get('alignedTilesUrl')) {
                     this.helpIndex = 1;
                 } else {
                     this.helpIndex = 0;
@@ -794,17 +876,17 @@ $(function($) {
             var splitView = this;
             var views = [this.imageView, this.mapView];
             /* Select one pair of markers at a time */
-            _.each(views, function(view) {
-                _.each(view.markers, function(marker, index) {
-                    selectHandlers.push(
-                        google.maps.event.addListener(
-                            marker, 'mousedown', function() {
-                                splitView.selectMarker(index);
-                            }
-                        )
-                    );
-                });
-            });
+//            _.each(views, function(view) {
+//                _.each(view.markers, function(marker, index) {
+//                    selectHandlers.push(
+//                        google.maps.event.addListener(
+//                            marker, 'mousedown', function() {
+//                                splitView.selectMarker(index);
+//                            }
+//                        )
+//                    );
+//                });
+//            });
         },
 
         selectedMarkers: function() {
@@ -841,6 +923,7 @@ $(function($) {
           '</div>',
 
         initialize: function(options) {
+        	this.options = options;
             var parentView = options.parentView;
             this.context = {
               videoId: options.videoId,

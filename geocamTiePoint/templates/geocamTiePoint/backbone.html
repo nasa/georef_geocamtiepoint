@@ -44,8 +44,8 @@
 	<script type="text/javascript" src="/static/geocamTiePoint/js/transform.js"></script>
 	<script type="text/javascript" src="/static/geocamTiePoint/js/maputils.js"></script>
 	
-	<script type="text/javascript" src="/static/external/js/backbone.js"></script>
-	<script type="text/javascript" src="/static/external/js/backbone-associations.min.js"></script>
+	<script type="text/javascript" src="/static/external/js/backbone-min.js"></script>
+	<script type="text/javascript" src="/static/external/js/backbone-relational.js"></script>
 	<script type="text/javascript" src="/static/geocamTiePoint/js/backbone/models.js"></script>
 	<script type="text/javascript" src="/static/geocamTiePoint/js/backbone/views.js"></script>
 	<script type="text/javascript" src="/static/geocamTiePoint/js/backbone/router.js"></script>
@@ -54,11 +54,14 @@
 		window.settings = {{settings|safe}};
 		
 		$(function($){
-		    app.overlays = app.overlays || new app.models.OverlayCollection;
+		    //app.overlays = app.overlays || new app.models.OverlayCollection;
 		    {% if initial_overlays_json %}
 		    // Seed app.overlays with initally loaded data
 		    var overlay_bootstrap = {{ initial_overlays_json|safe }};
-		    app.overlays.reset(overlay_bootstrap);
+		    app.overlays = new app.models.OverlayCollection(overlay_bootstrap);
+		    //app.overlays.reset(overlay_bootstrap);
+		    {% else %}
+		    app.overlays = new app.models.OverlayCollection();
 		    {% endif %}
 		    app.navbar = new app.views.NavbarView({el: $('#navbar').addClass('navbar')});
 		    app.navbar.render();

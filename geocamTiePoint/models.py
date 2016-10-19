@@ -610,6 +610,14 @@ class Overlay(models.Model):
             result['frame'] = frame[:-4]
         except:
             pass
+        
+        if result['points']:
+            newpoints = []
+            for point in result['points']:
+                newpoints.append({'coords':point})
+            result['points'] = newpoints
+#         else:
+#             del result['points']
         return result
 
     def setJsonDict(self, jsonDict):

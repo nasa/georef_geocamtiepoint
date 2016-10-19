@@ -12,34 +12,37 @@ assert(! _.isUndefined(MIN_ZOOM_OFFSET),
        'Missing global: MIN_ZOOM_OFFSET');
 
 $(function($) {
-	app.models.TiePoint = Backbone.AssociatedModel.extend({
-	  defaults: {
-		  coords = []; // holds (x,y) coordinate pairs.
-	  }
-	});
+	// Represents a single tie point
+//	app.models.TiePoint = Backbone.AssociatedModel.extend({
+//	  defaults: {
+//		  coords:[] // holds (x,y) coordinate pairs.
+//	  }
+//	});
+	
+	app.models.TiePoint = Backbone.RelationalModel.extend({
+		  defaults: {
+			  coords:[] // holds (x,y) coordinate pairs.
+		  }
+		});
 
-	app.models.TiePointCollection = Backbone.Collection.extend({
-	    model: app.models.TiePoint,
-	});
-	
-    app.tiepoints = new app.TiePointCollection();
-	
-    app.models.Overlay = Backbone.AssociatedModel.extend({
+    app.models.Overlay = Backbone.RelationalModel.extend({
         idAttribute: 'key', // Backend uses "key" as the primary key
 
         relations: [
                     {
-                    	type: Backbone.Many,
-                    	key: 'tiepoints',
-                    	collectionType: TiePointCollection, 
-                    	relatedModel: TiePoint
+                    	type: Backbone.HasMany,
+                    	key: 'points',
+                    	relatedModel: app.models.TiePoint
                     }
         ],
+        defaults: {
+        	points: [],
+        },
         
-        initialize: function() {
+        initialize: function(arguments) {
             // Bind all the model's function properties to the instance,
             // so they can be passed around as event handlers and such.
-            _.bindAll(this);
+            //_.bindAll(this);
             this.on('before_warp', this.beforeWarp);
         },
 
@@ -292,7 +295,8 @@ $(function($) {
         }
     });
 
-    app.OverlayCollection = Backbone.Collection.extend({
+    // TODO delete as we are just working on a single overlay
+    app.models.OverlayCollection = Backbone.Collection.extend({
         model: app.models.Overlay,
         url: '/overlays.json',
         comparator: function(overlay) {
@@ -301,5 +305,5 @@ $(function($) {
         }
     });
 
-    app.overlays = new app.OverlayCollection();
+    app.overlays = new app.models.OverlayCollection();
 });
