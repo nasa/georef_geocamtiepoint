@@ -13,18 +13,52 @@ assert(! _.isUndefined(MIN_ZOOM_OFFSET),
 
 $(function($) {
 	// Represents a single tie point
-//	app.models.TiePoint = Backbone.AssociatedModel.extend({
-//	  defaults: {
-//		  coords:[] // holds (x,y) coordinate pairs.
-//	  }
-//	});
-	
 	app.models.TiePoint = Backbone.RelationalModel.extend({
 		  defaults: {
-			  coords:[] // holds (x,y) coordinate pairs.
+			  imageCoords:[], // holds (x,y) coordinate pairs for image.
+		  	  mapCoords:[] // holds (x,y) coordinate pairs for map.
+		  },
+		  constructor: function(attributes, options){
+			  Backbone.RelationalModel.apply( this, arguments );
+			  this.parse(attributes, options);
+		  },
+		  toJSON : function() {
+			  var result = [];
+			  if (!_.isEmpty(this.mapCoords)){
+				  result.push.apply(result, this.mapCoords);
+			  } else {
+				  result.push.apply(result, [null, null]);
+			  }
+			  if (!_.isEmpty(this.imageCoords)){
+				  result.push.apply(result, this.imageCoords);
+			  } else {
+				  result.push.apply(result, [null, null]);
+			  }
+			  return result;
+		  },
+		  isMapCoord: function(value) {
+			  //TODO does this make any sense?
+			  value = Math.abs(value);
+			  return value >= 999999;
+		  },
+		  parse: function(data, options){
+			  if (Array.isArray(data) && !_.isEmpty(data)){
+				  if (data.length == 4){
+					  mapCoords = [data[0], data[1]];
+					  imageCoords = [data[2], data[3]];
+				  } else if (data.length == 2) {
+					  //TODO how do we know if it is map or image coords stored?
+					  if (this.isMapCoord(data[0])) {
+						  mapCoords = [data[0], data[1]];
+					  } else {
+						  imageCoords = [data[0], data[1]];
+					  }
+				  }
+			  }
 		  }
 		});
 
+	// represents a single map overlay
     app.models.Overlay = Backbone.RelationalModel.extend({
         idAttribute: 'key', // Backend uses "key" as the primary key
 
@@ -42,7 +76,7 @@ $(function($) {
         initialize: function(arguments) {
             // Bind all the model's function properties to the instance,
             // so they can be passed around as event handlers and such.
-            //_.bindAll(this);
+            //_.bindAll(this);  //TODO does not seem to be necessary, remove
             this.on('before_warp', this.beforeWarp);
         },
 
@@ -67,13 +101,14 @@ $(function($) {
             return url;
         },
 
-        parse: function(resp, xhr) {
-            // Ensure server-side state never overwrites local points value
-            if (this.has('points') && 'points' in resp) {
-                delete resp.points;
-            }
-            return resp;
-        },
+//        parse: function(resp, xhr) {
+//            // Ensure server-side state never overwrites local points value
+//        	// TODO why would this happen, if we control the sync?
+//            if (this.has('points') && 'points' in resp) {
+//                delete resp.points;
+//            }
+//            return resp;
+//        },
 
         getAlignedImageTileUrl: function(coord, zoom) {
             var normalizedCoord = getNormalizedCoord(coord, zoom);
@@ -115,6 +150,22 @@ $(function($) {
                 new google.maps.LatLng(bounds.south, bounds.west),
                 new google.maps.LatLng(bounds.north, bounds.east)
             );
+        },
+        
+        getFirstEmptyTiepoint: function(coordKey) {
+        	// if there is a tiepoint that has coordinates from the other side but not whichSide, return it.
+        	var found = null;
+        	var points = this.get('points');
+        	if (points.isEmpty()){
+        		return found;
+        	}
+        	points.each(function(point){
+				    				if (found == null && _.isEmpty(point.get(coordKey))){
+				    					found = point;
+				    					return;
+				    				}
+		        				});
+		    return found;
         },
 
         /**

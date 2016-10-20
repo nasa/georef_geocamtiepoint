@@ -611,11 +611,11 @@ class Overlay(models.Model):
         except:
             pass
         
-        if result['points']:
-            newpoints = []
-            for point in result['points']:
-                newpoints.append({'coords':point})
-            result['points'] = newpoints
+#         if result['points']:
+#             newpoints = []
+#             for point in result['points']:
+#                 newpoints.append({'coords':point})
+#             result['points'] = newpoints
 #         else:
 #             del result['points']
         return result

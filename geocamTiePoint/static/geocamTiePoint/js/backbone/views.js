@@ -1,4 +1,6 @@
-var app = app || {};
+
+assert(!_.isUndefined(window.actionPerformed),
+	                   'Missing global actionPerformed().  Check for undo.js');
 app.views = {};
 app.map = app.map || {}; //namespace for map helper stuff
 var centerPointMarker = null;
@@ -50,7 +52,7 @@ $(function($) {
                 context = (_.isFunction(this.context) ?
                            this.context() : this.context);
             } else {
-                context = this.model.toJSON();
+                context = this.model.attributes;
             }
             if ((this._renderedTemplate != null) && (this._renderedTemplate != undefined)) {
             	var output = this._renderedTemplate(context);
@@ -129,42 +131,55 @@ $(function($) {
         },
 
         getState: function() {
-            return this.model.toJSON();
+            return this.model.attributes; //.toJSON();
         },
 
         setState: function(state) {
             return this.model.set(state);
         }
     });
-
-
-    // contains functions related to displaying tie points.
-    app.views.TiePointView = app.views.View.extend({
-    	initialize: function(options) {
-    		app.views.View.prototype.initialize.apply(this, arguments);
-    		if (this.id && !this.model) {
-    			this.model = app.tiepoints.get(this.id)
-    		}
-    		assert(this.model, 'Requires a TiePoint model!')
-    	},
-    	render: function(){ /*no-op*/ },
-    	drawMarkers: function() {
-    		
-    	},
-    });
     
-    // Deal with rendering and removing the tie point in the image view.
-    app.views.ImageTiePointView = app.views.View.extend({
+    app.views.TiepointView = app.views.View.extend({
     	initialize: function(options) {
     		app.views.View.prototype.initialize.apply(this, arguments);
-    		this.viewer = options.viewer;
-    		this.model.on('destroy', this.destroy);
-    		this.model.collection.on('remove', this.handleNumberChange);
+    		this.processOptions(options);
+    		this.model.on('destroy', this.hide, this);
+    		this.model.collection.on('remove', this.handleNumberChange, this);
     		this.render();
+    	},
+    	handleNumberChange: function() {
+    		var index = this.getIndex();
+    		if (index >= 0){
+    			this.setNumberText(index);
+    		}
+    	},
+    	handleClick: function() {
+    		if (app.mode == mode.DELETE_TIEPOINTS){
+    			if (this.model != undefined){
+    				this.hide();
+    				this.model.collection.off('remove', this.handleNumberChange, this);
+    				this.model.collection.remove(this.model);
+    			}
+    		}
+    	},
+    	getIndex: function() {
+    		var result = this.model.collection.indexOf(this.model);
+    		if (result >= 0){
+    			return result + 1;
+    		}
+    		return result;
+    	}
+    });
+
+
+    // Handle rendering, moving and deleting the tie point in the image view.
+    app.views.ImageTiePointView = app.views.TiepointView.extend({
+    	processOptions: function(options){
+    		this.viewer = options.viewer;
     	},
     	render: function() {
     		var context = this;
-    		var marker_id = this.model.cid + "_marker";
+    		var marker_id = this.model.cid + "_imgmarker";
     		this.img = document.createElement('img');
     		this.img.id = marker_id;
     		this.img.src = "/static/geocamTiePoint/images/marker.png";
@@ -172,10 +187,10 @@ $(function($) {
     		var text_id = this.model.cid + "_text";
 			this.numberText = document.createElement('span');
 			this.numberText.id = text_id;
-			this.numberText.innerHTML=(this.model.collection.indexOf(this.model));
+			this.setNumberText(this.getIndex());
 			this.numberText.setAttribute('class','tiepoint_number');
 			this.numberText.onclick = function() {context.handleClick()};
-			var osdPoint = new OpenSeadragon.Point(this.model.get('coords')[0], this.model.get('coords')[1]);
+			var osdPoint = new OpenSeadragon.Point(this.model.get('imageCoords')[0], this.model.get('imageCoords')[1]);
 			var viewportPoint = this.viewer.viewport.imageToViewportCoordinates(osdPoint);
 			this.viewer.addOverlay({
 				element: this.img,
@@ -192,16 +207,17 @@ $(function($) {
 			});
 			this.textOverlay = this.viewer.getOverlayById(text_id);
     	},
-    	handleNumberChange: function() {
-    		this.numberText.innerHTML=(this.model.collection.indexOf(this.model));
+    	updateTiepointFromMarker: function() {
+    		//TODO implement
+    		//this.model.set('imageCoords',latLonToMeters(this.marker.getPosition());
     	},
-    	handleClick: function() {
-    		if (app.mode == mode.DELETE_TIEPOINTS){
-    			this.model.collection.remove(this);
-    			this.destroy();
-    		}
+    	handleSelect: function() {
+    		//TODO implement
     	},
-    	destroy: function() {
+    	setNumberText: function(value){
+    		this.numberText.innerHTML=value;
+    	},
+    	hide: function() {
     		this.viewer.removeOverlay(this.markerOverlay);
     		this.viewer.removeOverlay(this.textOverlay);
     		this.markerOverlay.destroy();
@@ -209,6 +225,52 @@ $(function($) {
     	}
     });
     
+    
+    // Handle rendering, moving and deleting the tie point in the map view.
+    app.views.GoogleMapTiePointView = app.views.TiepointView.extend({
+    	processOptions: function(options){
+    		this.gmap = options.gmap;
+    	},
+    	render: function() {
+            this.marker = maputils.createLabeledMarker(metersToLatLon(this.model.get('mapCoords')),
+			           								   this.getIndex(),
+			           								   this.gmap);
+            this.marker_id = this.marker.label.span.id;
+            this.initMarkerDragHandlers();
+    	},
+    	initMarkerDragHandlers: function() {
+    		var context = this;
+            google.maps.event.addListener(this.marker, 'dragstart', function(evt) {
+                 window.draggingG = true;
+                 context.trigger('dragstart');
+             });
+            google.maps.event.addListener(this.marker, 'dragend',
+              _.bind(function(event) {
+                  actionPerformed();
+                  context.updateTiepointFromMarker();
+                  _.delay(function() {window.draggingG = false;}, 200);
+              }));
+    	},
+    	updateTiepointFromMarker: function() {
+    		this.model.set('mapCoords',latLonToMeters(this.marker.getPosition()));
+    	},
+    	handleSelect: function() {
+    		this.marker.set('selected', true);
+//    		this.initMarkerDragHandlers();
+    	},
+    	handleNumberChange: function() {
+    		var index = this.getIndex();
+    		if (index >= 0){
+    			this.marker.label.span.innerHTML=index;
+    		}
+    	},
+    	hide: function() {
+    		if (!_.isUndefined(this.marker)){
+    			$("#" + this.marker_id).remove();
+    			this.marker.setMap(null);
+    		}
+    	}
+    });
     
     /*
      * OverlayGoogleMapsView:
@@ -219,80 +281,85 @@ $(function($) {
         initialize: function(options) {
             app.views.OverlayView.prototype.initialize.apply(this, arguments);
             this.options = options;
-            this.markers = [];
             this.on('gmap_loaded', this.initGmapUIHandlers);
-            this.model.on('change:points', this.drawMarkers, this);
+//            this.model.on('change:points', this.drawMarkers, this);
         },
 
-        updateTiepointFromMarker: function(index, marker) {
-            assert(false, 'Override me in a subclass!');
-        },
+//        updateTiepointFromMarker: function(index, marker) {
+//            assert(false, 'Override me in a subclass!');
+//        },
 
-        _drawMarkers: function(latlons_in_gmap_space) {
-            var model = this.model;
-            var gmap = this.gmap;
-            var selected_idx;
-            // destroy existing markers, if they exist.
-            while (this.markers && this.markers.length > 0) {
-                var marker = this.markers.pop();
-                if (marker.get('selected')) selected_idx = this.markers.length;
-                // get the id of the marker
-                var markerId = marker.label.span.id;
-                markerId = "#" + markerId;
-                // remove the marker label
-                $(markerId).remove();
-                marker.setMap(null);
-            }
-            var markers = this.markers = [];
-            _.each(latlons_in_gmap_space, function(latLon, index) {
-                if (! _.any(_.values(latLon), _.isNull)) {
-                    var marker = (maputils.createLabeledMarker(latLon,
-                                                       '' + (index + 1),
-                                                       gmap));
-                    if (index === selected_idx) marker.set('selected', true);
-                    this.initMarkerDragHandlers(marker);
-                    markers[index] = marker;
-                }
-            }, this);
-            model.trigger('redraw_markers');
-        },
+//        _drawMarkers: function(latlons_in_gmap_space) {
+//            var model = this.model;
+//            var gmap = this.gmap;
+//            var selected_idx;
+//            // destroy existing markers, if they exist.
+//            while (this.markers && this.markers.length > 0) {
+//                var marker = this.markers.pop();
+//                if (marker.get('selected')) selected_idx = this.markers.length;
+//                // get the id of the marker
+//                var markerId = marker.label.span.id;
+//                markerId = "#" + markerId;
+//                // remove the marker label
+//                $(markerId).remove();
+//                marker.setMap(null);
+//            }
+//            var markers = this.markers = [];
+//            _.each(latlons_in_gmap_space, function(latLon, index) {
+//                if (! _.any(_.values(latLon), _.isNull)) {
+//                    var marker = (maputils.createLabeledMarker(latLon,
+//                                                       '' + (index + 1),
+//                                                       gmap));
+//                    if (index === selected_idx) marker.set('selected', true);
+//                    this.initMarkerDragHandlers(marker);
+//                    markers[index] = marker;
+//                }
+//            }, this);
+//            model.trigger('redraw_markers');
+//        },
 
-        drawMarkers: function() {
-            assert(false, 'Override me in a subclass!');
-        },
+//        drawMarkers: function() {
+//            assert(false, 'Override me in a subclass!');
+//        },
 
-        selectMarker: function(idx) {
-            _.each(this.markers, function(marker, i) {
-                marker.set('selected', i === idx);
-            });
-            app.currentView.trigger('change_selection');
-        },
+//        selectMarker: function(idx) {
+//            _.each(this.markers, function(marker, i) {
+//                marker.set('selected', i === idx);
+//            });
+//            app.currentView.trigger('change_selection');
+//        },
 
-        getSelectedMarkerIndex: function() {
-            var selected_idx = -1;
-            _.each(this.markers, function(marker, i) {
-                if (marker.get('selected')) {
-                    selected_idx = i;
-                    return true;
-                }
-            });
-            return selected_idx;
-        },
+//        getSelectedMarkerIndex: function() {
+//            var selected_idx = -1;
+//            _.each(this.markers, function(marker, i) {
+//                if (marker.get('selected')) {
+//                    selected_idx = i;
+//                    return true;
+//                }
+//            });
+//            return selected_idx;
+//        },
         
         handleClick: function(event) {
-            if (!_.isUndefined(window.draggingG) && draggingG) return;
-            assert(!_.isUndefined(window.actionPerformed),
-                   'Missing global actionPerformed().  Check for undo.js');
-            actionPerformed();
-            var latLng = event.latLng;
-            var index = this.markers.length;
-            var marker = maputils.createLabeledMarker(latLng,
-                                                      '' + (index + 1),
-                                                      this.gmap);
-            this.initMarkerDragHandlers(marker);
-            this.markers.push(marker);
-            this.updateTiepointFromMarker(index, marker, false);
-            app.currentView.selectMarker(index);
+        	if (app.mode == mode.ADD_TIEPOINTS){
+                
+	            if (!_.isUndefined(window.draggingG) && draggingG){
+	            	return;
+	            }
+	            actionPerformed();
+	            
+	            var foundPoint = this.model.getFirstEmptyTiepoint('mapCoords');
+	            if (foundPoint != null){
+	            	foundPoint.set('mapCoords', latLonToMeters(event.latLng));
+	            	this.renderPoint(foundPoint);
+	            } else {
+	            	var newPoint = new app.models.TiePoint({
+	            		mapCoords: latLonToMeters(event.latLng)
+	            	});
+	            	var tiepoints = this.model.get('points');
+	            	tiepoints.add(newPoint);
+	            }
+        	}
         },
 
         initGmapUIHandlers: function() {
@@ -301,25 +368,25 @@ $(function($) {
                                                   _.bind(this.handleClick,
                                                          this));
                 }
-        },
-
-        initMarkerDragHandlers: function(marker) {
-            var view = this;
-            (google.maps.event.addListener
-             (marker, 'dragstart', function(evt) {
-                 window.draggingG = true;
-                 view.trigger('dragstart');
-             }));
-            (google.maps.event.addListener
-             (marker, 'dragend',
-              _.bind(function(event) {
-                  actionPerformed();
-                  var index = this.markers.indexOf(marker);
-                  assert(index >= 0, 'Marker not found.');
-                  this.updateTiepointFromMarker(index, marker, false);
-                  _.delay(function() {window.draggingG = false;}, 200);
-              }, this)));
         }
+
+//        initMarkerDragHandlers: function(marker) {
+//            var view = this;
+//            (google.maps.event.addListener
+//             (marker, 'dragstart', function(evt) {
+//                 window.draggingG = true;
+//                 view.trigger('dragstart');
+//             }));
+//            (google.maps.event.addListener
+//             (marker, 'dragend',
+//              _.bind(function(event) {
+//                  actionPerformed();
+//                  var index = this.markers.indexOf(marker);
+//                  assert(index >= 0, 'Marker not found.');
+//                  this.updateTiepointFromMarker(index, marker, false);
+//                  _.delay(function() {window.draggingG = false;}, 200);
+//              }, this)));
+//        }
 
     }); // end OverlayGoogleMapsView base class
     
@@ -333,6 +400,12 @@ $(function($) {
                 this.model = app.overlays.get(this.id);
             }
             assert(this.model, 'Requires a model!');
+            this.model.on('add:points', function(point){this.renderPoint(point)}, this);
+        },
+        renderPoint: function(point){
+        	if (!_.isEmpty(point.get('mapCoords'))){
+        		new app.views.GoogleMapTiePointView({model:point, gmap: this.gmap});
+        	}
         },
 
         afterRender: function() {
@@ -347,27 +420,24 @@ $(function($) {
                 draggableCursor: 'crosshair'
             };
 
-            var gmap = new google.maps.Map(this.$('#map_canvas')[0],
+            this.gmap = new google.maps.Map(this.$('#map_canvas')[0],
                                            mapOptions);
 
             // disable 45-degree imagery
-            gmap.setTilt(0);
-            var overlay = this.model.toJSON();
-            this.gmap = gmap;
+            this.gmap.setTilt(0);
 
-            if (overlay.bounds) {
-                fitNamedBounds(overlay.bounds, gmap);
+            if (this.model.get('bounds')) {
+                fitNamedBounds(this.model.get('bounds'), this.gmap);
             } else {
             	try { 
             		this.panMapToCenterPoint();
             	} catch (err) {
             		console.log("Error while panning the map to center point");
-            		maputils.handleNoGeolocation(gmap, false);
+            		maputils.handleNoGeolocation(this.gmap, false);
             	} 
             }
-            if (! this.options.readonly) {
-                this.drawMarkers();
-            }
+            
+            this.drawMarkers();
             
             this.trigger('gmap_loaded');
 
@@ -429,21 +499,23 @@ $(function($) {
         },
 
         drawMarkers: function() {
-            var latLons = [];
-            _.each(this.model.get('points'), function(point, index) {
-                var meterCoords = { x: point[0], y: point[1] };
-                if (! _.any(_.values(meterCoords), _.isNull)) {
-                    var latLon = metersToLatLon(meterCoords);
-                    latLons.push(latLon);
-                }
-            }, this);
-            result = this._drawMarkers(latLons);
+        	
+        	this.model.get('points').each(function(point){
+        		this.renderNewPoint(point);
+        	}, this);
+//                var meterCoords = { x: point[0], y: point[1] };
+//                if (! _.any(_.values(meterCoords), _.isNull)) {
+//                    var latLon = metersToLatLon(meterCoords);
+//                    latLons.push(latLon);
+//                }
+//            }, this);
+//            result = this._drawMarkers(latLons);
         },
 
-        updateTiepointFromMarker: function(index, marker) {
-            var coords = latLonToMeters(marker.getPosition());
-            this.model.updateTiepoint('map', index, coords);
-        },
+//        updateTiepointFromMarker: function(index, marker) {
+//            var coords = latLonToMeters(marker.getPosition());
+//            this.model.updateTiepoint('map', index, coords);
+//        },
         
         showCurrentInfo: function() {
 	/*			// shows the lat lon of where the cursor is on the map
@@ -474,11 +546,12 @@ $(function($) {
             vent.on('navigate', function() {this.navigate();}, this);
             vent.on('startAddTiepoint', function() {this.addTiepoints();}, this);
             vent.on('startDeleteTiepoint', function() {this.deleteTiepoints();}, this);
-            this.model.on('add:points', function(point){this.renderNewPoint(point);}, this);
-
+            this.model.on('add:points', function(point){this.renderPoint(point);}, this);
         },
-        renderNewPoint: function(point){
-        	new app.views.ImageTiePointView({model:point, viewer: this.viewer});
+        renderPoint: function(point){
+        	if (!_.isEmpty(point.get('imageCoords'))){
+        		new app.views.ImageTiePointView({model:point, viewer: this.viewer});
+        	}
         },
         addTiepoints: function() {
     		$("#osd_viewer").css( 'cursor',"pointer");
@@ -498,14 +571,24 @@ $(function($) {
 				3.) imagePoint: The pixel coordinates of the image  
 				*/
 			if (app.mode == mode.ADD_TIEPOINTS) {
+				if (!_.isUndefined(window.draggingG) && window.draggingG) return;
+	            actionPerformed();
+	            
 	    		var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
 				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
 
-				var newPoint = new app.models.TiePoint({
-					coords: [imagePoint.x, imagePoint.y]
-				});
-				var tiepoints = this.model.get('points');
-				tiepoints.add(newPoint);
+				var foundPoint = this.model.getFirstEmptyTiepoint('imageCoords');
+	            if (foundPoint != null){
+	            	foundPoint.set('imageCoords', [imagePoint.x, imagePoint.y]);
+	            	this.renderPoint(foundPoint);
+	            } else {
+	            	var newPoint = new app.models.TiePoint({
+						imageCoords: [imagePoint.x, imagePoint.y]
+					});
+					var tiepoints = this.model.get('points');
+					tiepoints.add(newPoint);
+	            }
+				
 			}
     	},
     	deleteTiepoints: function() {
@@ -518,14 +601,14 @@ $(function($) {
     		//pass
     	},
     	afterRender: function() {
-    		var model = this.model;
-    		var deepzoomTileSource = model.get('deepzoom_path');
+    		var deepzoomTileSource = this.model.get('deepzoom_path');
     	    this.viewer = OpenSeadragon({
     	        id: "osd_viewer",
     	        prefixUrl: "/static/external/js/openseadragon/images/",
     	        tileSources: deepzoomTileSource
     	    });
     	    
+    	    var viewer = this.viewer;
     	    // Using jQuery UI slider
     	    $("#slider").slider({
     	        min: -180,
@@ -611,9 +694,9 @@ $(function($) {
                     this.helpIndex = 0;
                 }
             }
-            this.context = { issMRF: this.model.toJSON()['issMRF'], 
-            				 width: this.model.toJSON()['imageSize'][0],
-            				 height: this.model.toJSON()['imageSize'][1]}
+            this.context = { issMRF: this.model.get('issMRF'), 
+            				 width: this.model.get('imageSize')[0],
+            				 height: this.model.get('imageSize')[1]}
         },
 
         afterRender: function() {
