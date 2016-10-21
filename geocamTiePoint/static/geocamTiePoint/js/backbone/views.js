@@ -136,6 +136,20 @@ $(function($) {
 
         setState: function(state) {
             return this.model.set(state);
+        }, 
+        
+        addOrUpdateTiepoint: function(key, value){
+        	var foundPoint = this.model.getFirstEmptyTiepoint(key);
+            if (foundPoint != null){
+            	foundPoint.set(key, value);
+            	this.renderPoint(foundPoint);
+            } else {
+            	var newPoint = new app.models.TiePoint({
+					key: value
+				});
+				var tiepoints = this.model.get('points');
+				tiepoints.add(newPoint);
+            }
         }
     });
     
@@ -156,6 +170,7 @@ $(function($) {
     	handleClick: function() {
     		if (app.mode == mode.DELETE_TIEPOINTS){
     			if (this.model != undefined){
+    				actionPerformed();
     				this.hide();
     				this.model.collection.off('remove', this.handleNumberChange, this);
     				this.model.collection.remove(this.model);
@@ -163,9 +178,12 @@ $(function($) {
     		}
     	},
     	getIndex: function() {
-    		var result = this.model.collection.indexOf(this.model);
-    		if (result >= 0){
-    			return result + 1;
+    		var result = -1;
+    		if (!_.isUndefined(this.model.collection)){
+	    		result = this.model.collection.indexOf(this.model);
+	    		if (result >= 0){
+	    			return result + 1;
+	    		}
     		}
     		return result;
     	}
@@ -347,18 +365,8 @@ $(function($) {
 	            	return;
 	            }
 	            actionPerformed();
-	            
-	            var foundPoint = this.model.getFirstEmptyTiepoint('mapCoords');
-	            if (foundPoint != null){
-	            	foundPoint.set('mapCoords', latLonToMeters(event.latLng));
-	            	this.renderPoint(foundPoint);
-	            } else {
-	            	var newPoint = new app.models.TiePoint({
-	            		mapCoords: latLonToMeters(event.latLng)
-	            	});
-	            	var tiepoints = this.model.get('points');
-	            	tiepoints.add(newPoint);
-	            }
+				this.addOrUpdateTiepoint('mapCoords', latLonToMeters(event.latLng));
+
         	}
         },
 
@@ -501,7 +509,7 @@ $(function($) {
         drawMarkers: function() {
         	
         	this.model.get('points').each(function(point){
-        		this.renderNewPoint(point);
+        		this.renderPoint(point);
         	}, this);
 //                var meterCoords = { x: point[0], y: point[1] };
 //                if (! _.any(_.values(meterCoords), _.isNull)) {
@@ -576,18 +584,7 @@ $(function($) {
 	            
 	    		var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
 				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-
-				var foundPoint = this.model.getFirstEmptyTiepoint('imageCoords');
-	            if (foundPoint != null){
-	            	foundPoint.set('imageCoords', [imagePoint.x, imagePoint.y]);
-	            	this.renderPoint(foundPoint);
-	            } else {
-	            	var newPoint = new app.models.TiePoint({
-						imageCoords: [imagePoint.x, imagePoint.y]
-					});
-					var tiepoints = this.model.get('points');
-					tiepoints.add(newPoint);
-	            }
+				this.addOrUpdateTiepoint('imageCoords', [imagePoint.x, imagePoint.y]);
 				
 			}
     	},
@@ -619,7 +616,7 @@ $(function($) {
     	    });
     	    
     	    // construct prior tiepoints
-    	    _.each(this.model.points, function(point){
+    	    this.model.get('points').each(function(point){
     	    	new app.views.ImageTiePointView({model:point, viewer: this.viewer});
     	    }, this);
     	    
@@ -895,32 +892,34 @@ $(function($) {
             this.$('#promptNextStep').click(_.bind(this.nextHelpStep, this));
         },
 
+        observePoints: function() {
+            if (this.get('points').length >= 2) {
+                if (_.filter(this.get('points'),
+                             function(p) {
+                                 return _.all(p, _.identity);
+                             }).length >= 2) {
+                    save_button.attr('disabled', false);
+                    done_button.attr('disabled', false);
+                    this.off('change:points', observePoints);
+                }
+            }
+        },
+        
         initWorkflowControls: function() {
             var splitView = this;
             var overlay = this.model;
 
             // Don't allow the user to save the tiepoints until at least
             // two are defined.
+            //TODO why?
             if (! overlay.get('points') || overlay.get('points').length < 2) {
-                var save_button = $('button#save');
-                save_button.attr('disabled', true);
+//                var save_button = $('button#save');
+//                save_button.attr('disabled', true);
                 
                 var done_button = $('button#done');
                 done_button.attr('disabled', true);
                 
-                function observePoints() {
-                    if (this.get('points').length >= 2) {
-                        if (_.filter(this.get('points'),
-                                     function(p) {
-                                         return _.all(p, _.identity);
-                                     }).length >= 2) {
-                            save_button.attr('disabled', false);
-                            done_button.attr('disabled', false);
-                            this.off('change:points', observePoints);
-                        }
-                    }
-                }
-                overlay.on('change:points', observePoints, overlay);
+                overlay.on('change:points', this.observePoints, overlay);
             }
 
             $('button#save').click(function() {

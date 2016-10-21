@@ -231,8 +231,9 @@ $(function($) {
                         model.trigger('warp_success');
                     }
                 };
-    			Backbone.Model.prototype.save.call(overlay, {},
-    												saveOptions);
+                overlay.save(saveOptions);
+//    			Backbone.Model.prototype.save.call(overlay, {},
+//    												saveOptions);
     		},
     		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
     		dataType: "json"

@@ -16,21 +16,29 @@ $(function($) {
 	app.models.TiePoint = Backbone.RelationalModel.extend({
 		  defaults: {
 			  imageCoords:[], // holds (x,y) coordinate pairs for image.
-		  	  mapCoords:[] // holds (x,y) coordinate pairs for map.
+		  	  mapCoords:{} // holds 
 		  },
 		  constructor: function(attributes, options){
 			  Backbone.RelationalModel.apply( this, arguments );
 			  this.parse(attributes, options);
 		  },
+		  isValid: function() {
+				var result =  (!_.isEmpty(this.get('mapCoords')) && 
+							   !_.isEmpty(this.get('imageCoords')) &&
+							   $.isNumeric(this.get('mapCoords').x) &&  
+							   $.isNumeric(this.get('imageCoords')[0]));
+				return result;
+		  },
 		  toJSON : function() {
 			  var result = [];
-			  if (!_.isEmpty(this.mapCoords)){
-				  result.push.apply(result, this.mapCoords);
+			  if (!_.isEmpty(this.get('mapCoords'))){
+				  result.push(this.get('mapCoords').x);
+				  result.push(this.get('mapCoords').y);
 			  } else {
-				  result.push.apply(result, [null, null]);
+				  result = [null, null];
 			  }
-			  if (!_.isEmpty(this.imageCoords)){
-				  result.push.apply(result, this.imageCoords);
+			  if (!_.isEmpty(this.get('imageCoords'))){
+				  result.push.apply(result, this.get('imageCoords'));
 			  } else {
 				  result.push.apply(result, [null, null]);
 			  }
@@ -44,14 +52,16 @@ $(function($) {
 		  parse: function(data, options){
 			  if (Array.isArray(data) && !_.isEmpty(data)){
 				  if (data.length == 4){
-					  mapCoords = [data[0], data[1]];
-					  imageCoords = [data[2], data[3]];
+					  this.set('mapCoords',{x:data[0], 
+							  	   			y:data[1]});
+					  this.set('imageCoords', [data[2], data[3]]);;
 				  } else if (data.length == 2) {
 					  //TODO how do we know if it is map or image coords stored?
 					  if (this.isMapCoord(data[0])) {
-						  mapCoords = [data[0], data[1]];
+						  this.set('mapCoords',{x:data[0], 
+				  	   							y:data[1]});
 					  } else {
-						  imageCoords = [data[0], data[1]];
+						  this.set('imageCoords', [data[0], data[1]]);
 					  }
 				  }
 			  }
@@ -78,6 +88,10 @@ $(function($) {
             // so they can be passed around as event handlers and such.
             //_.bindAll(this);  //TODO does not seem to be necessary, remove
             this.on('before_warp', this.beforeWarp);
+//            this.on('change', this.save);
+//            this.on('change:points', this.save, this);
+//            this.on('add:points', this.save, this);
+//            this.on('remove:points', this.save, this);
         },
 
         url: function() {
@@ -112,7 +126,9 @@ $(function($) {
 
         getAlignedImageTileUrl: function(coord, zoom) {
             var normalizedCoord = getNormalizedCoord(coord, zoom);
-            if (!normalizedCoord) {return null;}
+            if (!normalizedCoord) {
+            	return null;
+            }
             return fillTemplate(this.get('alignedTilesUrl'),
                 {zoom: zoom,
                  x: normalizedCoord.x,
@@ -250,15 +266,24 @@ $(function($) {
 
         computeTransform: function() {
             // only operate on points that have all four values.
-            var points = _.filter(this.get('points'), function(coords) {
-                return _.all(coords, _.identity);
-            });
+        	var points = [];
+        	this.get('points').each(function(point){
+        		if (point.isValid()){
+        			points.push(point.toJSON());
+        		} 
+        	});
+//            var points = _.filter(this.get('points').models, function(point) {
+//            	return point.isValid();
+////                return _.all(coords, _.identity);
+//            });
             // a minimum of two tiepoints are required to compute the transform
-            if (points.length < 2) return false;
+            if (points.length < 2) {
+            	return false;
+            }
+            
             // issMRF will be undefined for all other transforms besides CameraModelFrame
-            var issMRF = this.get('issMRF'); 
             // set the 'transform' field of the overlay model with the newly computed tform.
-            var transform = geocamTiePoint.transform.getTransform(points, issMRF, this);
+            var transform = geocamTiePoint.transform.getTransform(points, this.get('issMRF'), this);
             if (typeof transform != 'undefined') {
             	this.set('transform',
                         (points ?
@@ -271,9 +296,7 @@ $(function($) {
         save: function(attributes, options) {
             // Always compute transform on before save.
             this.computeTransform();
-            var model = this;
-            return Backbone.Model.prototype.save.call(model, attributes,
-                                                      options);
+            return Backbone.RelationalModel.prototype.save.apply(this, attributes, options);
         },
 
         beforeWarp: function() {
