@@ -198,6 +198,7 @@ $(function($) {
     	return new CameraModelTransform(params, imageId);
     };
 
+    //TODO look at this code and remove if unused.  Should save through overlay.warp.
     CameraModelTransform.fit = function(cls, toPts, fromPts, imageId, overlay) {
     	/**
     	 * Sends a request to the server and retrieves 

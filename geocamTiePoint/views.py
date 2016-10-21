@@ -3,7 +3,6 @@
 # the Administrator of the National Aeronautics and Space Administration.
 # All Rights Reserved.
 # __END_LICENSE__
-import pydevd
 from fileinput import filename
 
 from django.shortcuts import render_to_response

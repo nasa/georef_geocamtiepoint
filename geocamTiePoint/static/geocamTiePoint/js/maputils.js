@@ -36,7 +36,9 @@ $(function($) {
 		assert(typeof levelsPast !== 'undefined', 'Missing: settings.'
 				+ 'GEOCAM_TIE_POINT_ZOOM_LEVELS_PAST_OVERLAY_RESOLUTION');
 		return new google.maps.ImageMapType({
-			getTileUrl : overlayModel.getAlignedImageTileUrl,
+			getTileUrl : function(coord, zoom) {
+				overlayModel.getAlignedImageTileUrl(coord, zoom);
+			},
 			tileSize : new google.maps.Size(TILE_SIZE, TILE_SIZE),
 			maxZoom : (overlayModel.maxZoom() + levelsPast),
 			minZoom : MIN_ZOOM_OFFSET,
@@ -110,8 +112,7 @@ $(function($) {
 
 		var marker = new google.maps.Marker(markerOpts);
 		google.maps.event.addListener(marker, 'selected_changed', function() {
-			marker.setIcon(marker.get('selected') ? selectedIcon
-					: unselectedIcon);
+			marker.setIcon(marker.get('selected') ? selectedIcon : unselectedIcon);
 		});
 
 		return marker;

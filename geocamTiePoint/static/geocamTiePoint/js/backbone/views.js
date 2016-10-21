@@ -139,14 +139,13 @@ $(function($) {
         }, 
         
         addOrUpdateTiepoint: function(key, value){
-        	var foundPoint = this.model.getFirstEmptyTiepoint(key);
+        	var foundPoint = this.model.getFirstIncompleteTiepoint(key);
             if (foundPoint != null){
             	foundPoint.set(key, value);
             	this.renderPoint(foundPoint);
             } else {
-            	var newPoint = new app.models.TiePoint({
-					key: value
-				});
+            	var newPoint = new app.models.TiePoint();
+            	newPoint.set(key, value);
 				var tiepoints = this.model.get('points');
 				tiepoints.add(newPoint);
             }
@@ -157,7 +156,7 @@ $(function($) {
     	initialize: function(options) {
     		app.views.View.prototype.initialize.apply(this, arguments);
     		this.processOptions(options);
-    		this.model.on('destroy', this.hide, this);
+    		this.model.on('destroy', this.destroy, this);
     		this.model.collection.on('remove', this.handleNumberChange, this);
     		this.render();
     	},
@@ -171,12 +170,26 @@ $(function($) {
     		if (app.mode == mode.DELETE_TIEPOINTS){
     			if (this.model != undefined){
     				actionPerformed();
-    				this.hide();
-    				this.model.collection.off('remove', this.handleNumberChange, this);
-    				this.model.collection.remove(this.model);
+//    				this.hide();
+//    				this.stopListening();
+//    				this.model.collection.off('remove', this.handleNumberChange, this);
+    				this.model.destroy();
+//    				this.model = undefined;
+//    				this.hide();
     			}
     		}
     	},
+        destroy: function () {
+            this.undelegateEvents();
+            this.hide();
+            this.stopListening();
+        },
+        stopListening: function() {
+        	if (this.model.collection != undefined){
+        		this.model.collection.off('remove', this.handleNumberChange, this);
+        	}
+        	app.views.View.prototype.stopListening.apply(this, arguments);
+        },
     	getIndex: function() {
     		var result = -1;
     		if (!_.isUndefined(this.model.collection)){
@@ -226,8 +239,11 @@ $(function($) {
 			this.textOverlay = this.viewer.getOverlayById(text_id);
     	},
     	updateTiepointFromMarker: function() {
-    		//TODO implement
-    		//this.model.set('imageCoords',latLonToMeters(this.marker.getPosition());
+    		//TODO test
+    		actionPerformed();
+    		var viewportPoint = this.markerOverlay.location;
+			var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+    		this.model.set('imageCoords',imagePoint);
     	},
     	handleSelect: function() {
     		//TODO implement
@@ -236,10 +252,14 @@ $(function($) {
     		this.numberText.innerHTML=value;
     	},
     	hide: function() {
-    		this.viewer.removeOverlay(this.markerOverlay);
-    		this.viewer.removeOverlay(this.textOverlay);
-    		this.markerOverlay.destroy();
-    		this.textOverlay.destroy();
+    		if (!_.isUndefined(this.markerOverlay)){
+	    		this.viewer.removeOverlay(this.markerOverlay);
+	    		this.viewer.removeOverlay(this.textOverlay);
+	    		this.markerOverlay.destroy();
+	    		this.textOverlay.destroy();
+	    		this.markerOverlay = undefined;
+	    		this.textOverlay = undefined;
+    		}
     	}
     });
     
@@ -259,15 +279,25 @@ $(function($) {
     	initMarkerDragHandlers: function() {
     		var context = this;
             google.maps.event.addListener(this.marker, 'dragstart', function(evt) {
-                 window.draggingG = true;
-                 context.trigger('dragstart');
+            	if (app.mode == mode.ADD_TIEPOINTS){
+            		window.draggingG = true;
+            		context.trigger('dragstart');
+            	}
              });
             google.maps.event.addListener(this.marker, 'dragend',
               _.bind(function(event) {
-                  actionPerformed();
-                  context.updateTiepointFromMarker();
+            	  if (app.mode == mode.ADD_TIEPOINTS){
+            		  actionPerformed();
+            		  context.updateTiepointFromMarker();
+            	  }
                   _.delay(function() {window.draggingG = false;}, 200);
               }));
+            
+            this.marker.addListener('click', function(event){
+            	if (app.mode == mode.DELETE_TIEPOINTS){
+            		context.handleClick();
+            	}
+            });
     	},
     	updateTiepointFromMarker: function() {
     		this.model.set('mapCoords',latLonToMeters(this.marker.getPosition()));
@@ -409,6 +439,11 @@ $(function($) {
             }
             assert(this.model, 'Requires a model!');
             this.model.on('add:points', function(point){this.renderPoint(point)}, this);
+            this.model.on('change:points', this.destroyAlignedImageQtree, this);
+            this.model.on('add:points', this.destroyAlignedImageQtree, this);
+            this.model.on('remove:points', this.destroyAlignedImageQtree, this);
+            this.model.on('warp_success', this.refreshAlignedImageQtree, this);
+            this.on('dragstart', this.destroyAlignedImageQtree, this);
         },
         renderPoint: function(point){
         	if (!_.isEmpty(point.get('mapCoords'))){
@@ -450,21 +485,18 @@ $(function($) {
             this.trigger('gmap_loaded');
 
             /* Events and init for the qtree overlay */
-            this.model.on('change:points', function() {
-                if (_.isUndefined(this.previousPoints) ||
-                    ! _.isEqual(this.previousPoints,
-                                this.model.get('points'))) {
-                    // Serialize and deserialize to create a deep copy.
-                    this.previousPoints = (JSON.parse
-                                           (JSON.stringify
-                                            (this.model.get('points'))));
-                    this.destroyAlignedImageQtree();
-                    if (this.model.get('points').length > 2) this.model.warp();
-                }
-            }, this);
-            this.on('dragstart', this.destroyAlignedImageQtree, this);
-            this.model.on('add_point', this.destroyAlignedImageQtree, this);
-            this.model.on('warp_success', this.refreshAlignedImageQtree, this);
+//            this.model.on('change:points', function() {
+////                if (_.isUndefined(this.previousPoints) ||
+////                    ! _.isEqual(this.previousPoints,
+////                                this.model.get('points'))) {
+////                    // Serialize and deserialize to create a deep copy.
+////                    this.previousPoints = (JSON.parse
+////                                           (JSON.stringify
+////                                            (this.model.get('points'))));
+//                    this.destroyAlignedImageQtree();
+////                    if (this.model.get('points').length > 2) this.model.warp();
+//                }
+//            }, this);
             if (this.model.get('transform') &&
                 this.model.get('transform').type) {
                 this.initAlignedImageQtree();
@@ -579,9 +611,7 @@ $(function($) {
 				3.) imagePoint: The pixel coordinates of the image  
 				*/
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				if (!_.isUndefined(window.draggingG) && window.draggingG) return;
 	            actionPerformed();
-	            
 	    		var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
 				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
 				this.addOrUpdateTiepoint('imageCoords', [imagePoint.x, imagePoint.y]);
@@ -602,7 +632,9 @@ $(function($) {
     	    this.viewer = OpenSeadragon({
     	        id: "osd_viewer",
     	        prefixUrl: "/static/external/js/openseadragon/images/",
-    	        tileSources: deepzoomTileSource
+    	        tileSources: deepzoomTileSource,
+    	        gestureSettingsMouse: {clickToZoom: false,
+    	        				  	   dblClickToZoom: false}
     	    });
     	    
     	    var viewer = this.viewer;
@@ -615,10 +647,14 @@ $(function($) {
     	        }
     	    });
     	    
-    	    // construct prior tiepoints
-    	    this.model.get('points').each(function(point){
-    	    	new app.views.ImageTiePointView({model:point, viewer: this.viewer});
-    	    }, this);
+    	    var model = this.model;
+    	    this.viewer.addHandler('open', function() {
+        	    // construct prior tiepoints
+        	    model.get('points').each(function(point){
+        	    	new app.views.ImageTiePointView({model:point, viewer: viewer});
+        	    });
+    	    	
+    	    });
     	    
     	}
     	
@@ -636,6 +672,10 @@ $(function($) {
     		vent.on('navigate', function(mode) {this.updateMode(mode);}, this);
     		vent.on('startAddTiepoint', function(mode) {this.updateMode(mode);}, this);
     		vent.on('startDeleteTiepoint', function(mode) {this.updateMode(mode);}, this);
+    		this.model.on('points_lt_2', function(save) {this.handleFewPoints(save);}, this);
+    	},
+    	handleFewPoints: function(save) {
+        	$('input#done').prop('checked', false);
     	},
     	updateMode: function(newmode){
     		app.mode = newmode;
@@ -892,18 +932,18 @@ $(function($) {
             this.$('#promptNextStep').click(_.bind(this.nextHelpStep, this));
         },
 
-        observePoints: function() {
-            if (this.get('points').length >= 2) {
-                if (_.filter(this.get('points'),
-                             function(p) {
-                                 return _.all(p, _.identity);
-                             }).length >= 2) {
-                    save_button.attr('disabled', false);
-                    done_button.attr('disabled', false);
-                    this.off('change:points', observePoints);
-                }
-            }
-        },
+//        observePoints: function() {
+//            if (this.get('points').length >= 2) {
+//                if (_.filter(this.get('points'),
+//                             function(p) {
+//                                 return _.all(p, _.identity);
+//                             }).length >= 2) {
+//                    save_button.attr('disabled', false);
+//                    done_button.attr('disabled', false);
+//                    this.off('change:points', observePoints);
+//                }
+//            }
+//        },
         
         initWorkflowControls: function() {
             var splitView = this;
@@ -912,15 +952,15 @@ $(function($) {
             // Don't allow the user to save the tiepoints until at least
             // two are defined.
             //TODO why?
-            if (! overlay.get('points') || overlay.get('points').length < 2) {
-//                var save_button = $('button#save');
-//                save_button.attr('disabled', true);
-                
-                var done_button = $('button#done');
-                done_button.attr('disabled', true);
-                
-                overlay.on('change:points', this.observePoints, overlay);
-            }
+//            if (! overlay.get('points') || overlay.get('points').length < 2) {
+////                var save_button = $('button#save');
+////                save_button.attr('disabled', true);
+//                
+//                var done_button = $('button#done');
+//                done_button.attr('disabled', true);
+//                
+//                overlay.on('change:points', this.observePoints, overlay);
+//            }
 
             $('button#save').click(function() {
                 var button = $(this);
@@ -935,18 +975,18 @@ $(function($) {
             var saveStatus = $('#saveStatus');
             this.model.on('before_warp', function() {
                 //saveStatus.text(saveStatus.data('saving-text'));
-                (saveStatus.html
-                 ('<img src="/static/geocamTiePoint/images/loading.gif">'));
-            }).on('warp_success', function() {
+                saveStatus.html('<img src="/static/geocamTiePoint/images/loading.gif">');
+            })
+            this.model.on('warp_success', function() {
                 saveStatus.text(saveStatus.data('saved-text'));
-            }).on('warp_server_error', function() {
-                (saveStatus.html
-                 ($('<span class="error">').text
-                  (saveStatus.data('server-error'))));
-            }).on('warp_server_unreachable', function() {
-                (saveStatus.html
-                 ($('<span class="error">').text
-                  (saveStatus.data('server-unreachable'))));
+            })
+            
+            this.model.on('warp_server_error', function() {
+                saveStatus.html($('<span class="error">').text(saveStatus.data('server-error')));
+            })
+            
+            this.model.on('warp_server_unreachable', function() {
+                saveStatus.html($('<span class="error">').text(saveStatus.data('server-unreachable')));
             });
 
             $('button#export').click(function() {
@@ -964,15 +1004,17 @@ $(function($) {
                 }
             });
             
-            if (overlay.attributes.readyToExport) {
+            if (overlay.get('readyToExport')) {
             	$('input#done').prop('checked', true);
             } 
             
             $('input#done').change(function(evt) {
                 if (this.checked) {
-                	overlay.save({'readyToExport': 1});
+                	this.set('readyToExport', true);
+                	overlay.save({'readyToExport': 1}, overlay.defaultSaveOptions);
                 } else {
-                	overlay.save({'readyToExport': 0});
+                	this.set('readyToExport', false);
+                	overlay.save({'readyToExport': 0}, overlay.defaultSaveOptions);
                 }
             });
             

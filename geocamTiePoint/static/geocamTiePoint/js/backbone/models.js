@@ -16,7 +16,7 @@ $(function($) {
 	app.models.TiePoint = Backbone.RelationalModel.extend({
 		  defaults: {
 			  imageCoords:[], // holds (x,y) coordinate pairs for image.
-		  	  mapCoords:{} // holds 
+		  	  mapCoords:{} // holds dictionary of x: y: where the values are meters in the map
 		  },
 		  constructor: function(attributes, options){
 			  Backbone.RelationalModel.apply( this, arguments );
@@ -30,6 +30,15 @@ $(function($) {
 				return result;
 		  },
 		  toJSON : function() {
+			  // return none if invalid
+//			  if (this.isValid()) {
+//				  var result = [];
+//				  result.push(this.get('mapCoords').x);
+//				  result.push(this.get('mapCoords').y);
+//				  result.push.apply(result, this.get('imageCoords'));
+//				  return result;
+//			  }
+//			  return null;
 			  var result = [];
 			  if (!_.isEmpty(this.get('mapCoords'))){
 				  result.push(this.get('mapCoords').x);
@@ -44,25 +53,30 @@ $(function($) {
 			  }
 			  return result;
 		  },
-		  isMapCoord: function(value) {
-			  //TODO does this make any sense?
-			  value = Math.abs(value);
-			  return value >= 999999;
-		  },
+//		  isMapCoord: function(value) {
+//			  //TODO does this make any sense?
+//			  value = Math.abs(value);
+//			  return value >= 999999;
+//		  },
 		  parse: function(data, options){
 			  if (Array.isArray(data) && !_.isEmpty(data)){
 				  if (data.length == 4){
 					  this.set('mapCoords',{x:data[0], 
 							  	   			y:data[1]});
-					  this.set('imageCoords', [data[2], data[3]]);;
-				  } else if (data.length == 2) {
-					  //TODO how do we know if it is map or image coords stored?
-					  if (this.isMapCoord(data[0])) {
-						  this.set('mapCoords',{x:data[0], 
-				  	   							y:data[1]});
-					  } else {
-						  this.set('imageCoords', [data[0], data[1]]);
-					  }
+					  this.set('imageCoords', [data[2], data[3]]);
+					  this.unset('0',['silent']);
+					  this.unset('1',['silent']);
+					  this.unset('2',['silent']);
+					  this.unset('3',['silent']);
+//				  } else if (data.length == 2) {
+					  //TODO Grace states this is never the case; delete this block if so
+//					  //TODO how do we know if it is map or image coords stored?
+//					  if (this.isMapCoord(data[0])) {
+//						  this.set('mapCoords',{x:data[0], 
+//				  	   							y:data[1]});
+//					  } else {
+//						  this.set('imageCoords', [data[0], data[1]]);
+//					  }
 				  }
 			  }
 		  }
@@ -79,19 +93,30 @@ $(function($) {
                     	relatedModel: app.models.TiePoint
                     }
         ],
+        
         defaults: {
         	points: [],
         },
-        
+        defaultSaveOptions : {
+                error: function(model, response) {
+                    if (options.error) {
+                    	options.error();
+                    }
+                },
+                success: function(model, response) {
+                    if (options.success) {
+                    	options.success();
+                    }
+                }
+        },
         initialize: function(arguments) {
             // Bind all the model's function properties to the instance,
             // so they can be passed around as event handlers and such.
             //_.bindAll(this);  //TODO does not seem to be necessary, remove
-            this.on('before_warp', this.beforeWarp);
-//            this.on('change', this.save);
-//            this.on('change:points', this.save, this);
-//            this.on('add:points', this.save, this);
-//            this.on('remove:points', this.save, this);
+//            this.on('change', this.warp);
+//            this.on('change:points', this.warp, this);
+//            this.on('add:points', this.warp, this);
+//            this.on('remove:points', this.warp, this);
         },
 
         url: function() {
@@ -115,14 +140,13 @@ $(function($) {
             return url;
         },
 
-//        parse: function(resp, xhr) {
-//            // Ensure server-side state never overwrites local points value
-//        	// TODO why would this happen, if we control the sync?
-//            if (this.has('points') && 'points' in resp) {
-//                delete resp.points;
-//            }
-//            return resp;
-//        },
+        parse: function(resp, xhr) {
+            // Ensure server-side state never overwrites local points value
+            if (!_.isEmpty(this.get('points')) && 'points' in resp) {
+                delete resp['points'];
+            }
+            return resp;
+        },
 
         getAlignedImageTileUrl: function(coord, zoom) {
             var normalizedCoord = getNormalizedCoord(coord, zoom);
@@ -168,7 +192,7 @@ $(function($) {
             );
         },
         
-        getFirstEmptyTiepoint: function(coordKey) {
+        getFirstIncompleteTiepoint: function(coordKey) {
         	// if there is a tiepoint that has coordinates from the other side but not whichSide, return it.
         	var found = null;
         	var points = this.get('points');
@@ -189,37 +213,37 @@ $(function($) {
          * tiepoint array.  Will add a new tiepoint if one doesn't
          * already exist at that index.
         */
-        updateTiepoint: function(whichSide, pointIndex, coords, drawMarkerFlag) {
-        	// drawMarkerFlag is set to true unless function is called with 'false' as an arg.
-        	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
-        	//  this flag is set to true if this fcn is called by handle click
-        	var clickedOnImageViewFlag = (whichSide == 'image') && (drawMarkerFlag == false);
-            if (clickedOnImageViewFlag) { 
-            	var overlay = this;
-            	// undo the rotation on tie pts before saving the coords.
-            	coords = maputils.undoTiePtRotation(coords, overlay);
-            }
-            var points = this.get('points');
-            var initial_length = points.length;
-            var tiepoint = points[pointIndex] || [null, null, null, null];
-            var coordIdx = {
-                'map': [0, 1],
-                'image': [2, 3]
-            }[whichSide];
-            assert(coordIdx, 'Unexpected whichSide argument: ' + whichSide);
-            tiepoint[coordIdx[0]] = coords.x;
-            tiepoint[coordIdx[1]] = coords.y;
-            points[pointIndex] = tiepoint;
-            this.set('points', points);
-            if (points.length > initial_length) this.trigger('add_point');
-            // if it is a map side or if the draw marker flag is on, trigger overlay's drawMarker call.
-            if (!clickedOnImageViewFlag) { 
-            	// we don't want to call this if it is new point on the 
-            	// image side (from user click) because it will rotate the 
-            	// already rotated point again.
-            	this.trigger('change:points');
-            }
-        },
+//        updateTiepoint: function(whichSide, pointIndex, coords, drawMarkerFlag) {
+//        	// drawMarkerFlag is set to true unless function is called with 'false' as an arg.
+//        	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
+//        	//  this flag is set to true if this fcn is called by handle click
+//        	var clickedOnImageViewFlag = (whichSide == 'image') && (drawMarkerFlag == false);
+//            if (clickedOnImageViewFlag) { 
+//            	var overlay = this;
+//            	// undo the rotation on tie pts before saving the coords.
+//            	coords = maputils.undoTiePtRotation(coords, overlay);
+//            }
+//            var points = this.get('points');
+//            var initial_length = points.length;
+//            var tiepoint = points[pointIndex] || [null, null, null, null];
+//            var coordIdx = {
+//                'map': [0, 1],
+//                'image': [2, 3]
+//            }[whichSide];
+//            assert(coordIdx, 'Unexpected whichSide argument: ' + whichSide);
+//            tiepoint[coordIdx[0]] = coords.x;
+//            tiepoint[coordIdx[1]] = coords.y;
+//            points[pointIndex] = tiepoint;
+//            this.set('points', points);
+//            if (points.length > initial_length) this.trigger('add_point');
+//            // if it is a map side or if the draw marker flag is on, trigger overlay's drawMarker call.
+//            if (!clickedOnImageViewFlag) { 
+//            	// we don't want to call this if it is new point on the 
+//            	// image side (from user click) because it will rotate the 
+//            	// already rotated point again.
+//            	this.trigger('change:points');
+//            }
+//        },
         
         // applies current transform to the center pixel of image to get the
         // new world coordinates of the center point.
@@ -248,7 +272,7 @@ $(function($) {
 						// update the overlay model's center pt in db
 						model.set('centerLat', lat);
 						model.set('centerLon', lon);
-						model.save();
+						model.save(model.attributes, model.defaultSaveOptions);
 					}
     			} else {
     				console.log("Transformation matrix not available. Center point cannot be updated");
@@ -256,13 +280,13 @@ $(function($) {
     		}
         },
 
-        deleteTiepoint: function(index) {
-            actionPerformed();
-            points = this.get('points');
-            points.splice(index, 1);
-            this.set('points', points);
-            this.trigger('change:points');
-        },
+//        deleteTiepoint: function(index) {
+//            actionPerformed();
+//            points = this.get('points');
+//            points.splice(index, 1);
+//            this.set('points', points);
+//            this.trigger('change:points');
+//        },
 
         computeTransform: function() {
             // only operate on points that have all four values.
@@ -272,12 +296,10 @@ $(function($) {
         			points.push(point.toJSON());
         		} 
         	});
-//            var points = _.filter(this.get('points').models, function(point) {
-//            	return point.isValid();
-////                return _.all(coords, _.identity);
-//            });
+        	
             // a minimum of two tiepoints are required to compute the transform
             if (points.length < 2) {
+            	this.trigger('points_lt_2');
             	return false;
             }
             
@@ -299,15 +321,8 @@ $(function($) {
             return Backbone.RelationalModel.prototype.save.apply(this, attributes, options);
         },
 
-        beforeWarp: function() {
-            // We have to clear this because this.fetch() won't.
-            this.unset('htmlExportUrl');
-            this.unset('kmlExportUrl');
-            this.unset('geotiffExportUrl');
-        },
-
         warp: function(options) {
-            // Save the overlay, which triggers a server-side warp.
+            // Warp the overlay on the server by computing the transform and saving.
             options = options || {};
             var model = this;
             model.trigger('before_warp');
@@ -318,14 +333,18 @@ $(function($) {
                     } else {
                         model.trigger('warp_server_error');
                     }
-                    if (options.error) options.error();
+                    if (options.error) {
+                    	options.error();
+                    }
                 },
                 success: function(model, response) {
-                    if (options.success) options.success();
                     model.trigger('warp_success');
+                    if (options.success) {
+                    	options.success();
+                    }
                 }
             };
-            this.save({}, saveOptions);  // hits overlayIdJson on serverside
+            this.save(null, saveOptions);  // hits overlayIdJson on serverside
         },
         
         getExportPendingObj: function(type) {
@@ -369,7 +388,7 @@ $(function($) {
         }
     });
 
-    // TODO delete as we are just working on a single overlay
+    // TODO delete when we refactor to take list out of backbone.html
     app.models.OverlayCollection = Backbone.Collection.extend({
         model: app.models.Overlay,
         url: '/overlays.json',
