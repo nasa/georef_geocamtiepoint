@@ -46,17 +46,6 @@ $(function($) {
 		});
 	};
 
-
-	maputils.createCenterPointLabelText = function(lat, lon) {
-		if (typeof(lat) == 'number') {
-			lat = lat.toFixed(6);	
-		}
-		if (typeof(lon) == 'number') {
-			lon = lon.toFixed(6);
-		}
-		return "lat,lon:" + lat + "," + lon;
-	};
-
 	maputils.latLonToCatalogBingMapsClipboardScript = function(lat, lon) {
 		return "http://www.bing.com/maps/&cp="+lat+"~"+lon;
 	};
@@ -66,35 +55,12 @@ $(function($) {
 			var latlon = marker.title.split(":")[1].split(",");
 			return latlon;
 		}
-	}
-
-	maputils.createCenterPointMarker = function(imageViewLatLon, centerLat, centerLon, map, options) {
-		var image = '/static/geocamTiePoint/images/crosshairs.png';
-		var label = maputils.createCenterPointLabelText(centerLat, centerLon);
-		var markerOpts = {
-				title : label,
-				draggable : false,
-				position : imageViewLatLon,
-				map : map,
-				raiseOnDrag : false,
-				icon : image
-		};
-		markerOpts = _.extend(markerOpts, options);
-		var marker = new google.maps.Marker(markerOpts);
-		google.maps.event.addListener(marker, 'click', function() {
-			var latlon = maputils.getLatLonFromMarkerTitle(marker);
-			var lat = latlon[0];
-			var lon = latlon[1];
-			var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
-			copyToClipboard(lat, lon, bingMapScript);
-		});
-		return marker;
-
-		function copyToClipboard(lat, lon, text) {
-			window.prompt("Copy lat,lon: "+lat+", "+lon+" to clipboard: Ctrl+C", text);
-		}
 	};
 
+	maputils.copyToClipboard = function (lat,lon, text) {
+		window.prompt("Copy lat,lon: "+lat+", "+lon+" to clipboard: Ctrl+C", text);
+	};
+	
 	maputils.createLabeledMarker = function(latLng, label, map, options) {
 		var unselectedIcon = 'https://maps.gstatic.com/mapfiles/markers2/marker_blank.png';
 		var selectedIcon = 'https://maps.google.com/intl/en_us/mapfiles/ms/micons/blue.png';

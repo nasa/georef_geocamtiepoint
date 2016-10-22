@@ -204,6 +204,8 @@ $(function($) {
 		}
 	});
 
+	
+	
 	// Handle rendering, moving and deleting the tie point in the image view.
 	app.views.ImageTiePointView = app.views.TiepointView.extend({
 		processOptions : function(options) {
@@ -722,6 +724,7 @@ $(function($) {
 				id : "osd_viewer",
 				prefixUrl : "/static/external/js/openseadragon/images/",
 				tileSources : deepzoomTileSource,
+				toolbar: "toolbarDiv",
 				gestureSettingsMouse : {
 					clickToZoom : false,
 					dblClickToZoom : false
@@ -731,7 +734,7 @@ $(function($) {
 			var viewer = this.viewer;
 			
 			// Using jQuery UI slider
-			$("#slider").slider({
+			$("#rotation_slider").slider({
 				min : -180,
 				max : 180,
 				slide : function(event, ui) {
@@ -750,9 +753,14 @@ $(function($) {
 				});
 
 			});
-
+			// on center point click, display the lat lon script
+			$('#center_pt_button').click(function(){
+				var lat = model.get('centerLat');
+				var lon = model.get('centerLon');
+				var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
+				maputils.copyToClipboard(lat, lon, bingMapScript);
+			});
 		}
-
 	});
 
 	app.views.SplitOverlayView = app.views.OverlayView
