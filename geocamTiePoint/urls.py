@@ -36,10 +36,6 @@ urlpatterns = [ ## New Workflow ##
                 url(r'^cameraModelTransformForward/$', views.cameraModelTransformForward, 
                     {}, 'geocamTiePoint_cameraModelTransformForward'),
                 
-                ## rotation slider sends ajax request to create a new overlay with rotated image ##
-                url(r'^rotateOverlay/$', views.rotateOverlay, 
-                    {}, 'geocamTiePoint_rotateOverlay'), 
-                
                 ## image enhancement requests from the client handled here
                 url(r'^enhanceImage/$', views.createEnhancedImageTiles, 
                     {}, 'geocamTiePoint_createEnhancedImageTiles'),    

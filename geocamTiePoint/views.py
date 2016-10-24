@@ -44,7 +44,6 @@ def backbone(request):
                 'settings': export_settings(),
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
                 'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
-                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
                 'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles')
             },
             context_instance=RequestContext(request))
@@ -63,7 +62,6 @@ def edit_overlay(request, overlay_id):
                 'settings': export_settings(),
                 'cameraModelTransformFitUrl': reverse('geocamTiePoint_cameraModelTransformFit'), 
                 'cameraModelTransformForwardUrl': reverse('geocamTiePoint_cameraModelTransformForward'), 
-                'rotateOverlayUrl': reverse('geocamTiePoint_rotateOverlay'),
                 'enhanceImageUrl': reverse('geocamTiePoint_createEnhancedImageTiles')
             },
             context_instance=RequestContext(request))
@@ -131,72 +129,7 @@ def createEnhancedImageTiles(request):
             previousQuadTree.delete()  # delete the old tiles
         data = {'status': 'success', 'id': overlay.key}
         return HttpResponse(json.dumps(data))
-       
-
-@csrf_exempt
-def rotateOverlay(request):
-    """
-    Called in response to the ajax request sent from the client when 
-    user moves the rotation slider or inputs rotation. 
-
-    re renders page with rotated image.
-    """
-    if request.is_ajax() and request.method == 'POST':
-        data = request.POST
-        # get the rotation angle input from the user
-        rotationAngle = data["rotation"]        
-        rotationAngle = int(rotationAngle) # convert str to int
-        # get the id of the current overlay
-        overlayId = data["overlayId"]
-        # get the overlay object
-        overlay = Overlay.objects.get(key=overlayId)
-        # add the user's new rotation request to the total rotation
-        overlay.extras.totalRotation = rotationAngle
-        # original image uploaded by the user
-        rawImageData = overlay.getRawImageData()
-        rawImage = getImage(rawImageData, DISPLAY)
-        
-        # save out the original image size
-        overlay.extras.orgImageSize = rawImage.size
-        #rotate the image (minus sign since PIL rotates counter clockwise)
-        rotatedImage = rawImage.rotate(-1*overlay.extras.totalRotation, 
-                                            PIL.Image.BICUBIC, expand=1)
-        # data that needs to be deleted after overlay save
-        isRaw = overlay.imageData.raw
-        previousImageDataId = overlay.imageData.id
-        previousQuadTreeId = overlay.unalignedQuadTree.id
-        
-        # create a new image data object with new image
-        newImageData = overlay.imageData
-        newImageData.pk = None
-        newImageData.raw = False
-        newImageData.contentType = 'image/png'
-        newImageData.rotationAngle = overlay.extras.totalRotation
-        if isRaw: # if previous image was a raw image
-            newImageData.image = None 
-        newImageData.save()
-        
-        # save the rotated image to the new ImageData object
-        saveImageToDatabase(rotatedImage, newImageData, [DISPLAY, UNENHANCED])
-
-        # apply any existing enhancements
-        applyEnhancement(newImageData) 
-        
-        # replace the imageData of overlay
-        overlay.imageData = newImageData
-        overlay.extras.rotatedImageSize = rotatedImage.size
-        overlay.save()
-
-        # generate new set of tiles
-        overlay.generateUnalignedQuadTree()
-        
-        if not isRaw:
-            QuadTree.objects.get(id=previousQuadTreeId).delete()
-            ImageData.objects.get(id=previousImageDataId).delete()
-        
-        data = {'status': 'success', 'id': overlay.key}
-        return HttpResponse(json.dumps(data))
-        
+               
 
 @csrf_exempt
 def cameraModelTransformFit(request):
@@ -299,6 +232,8 @@ def overlayNewJSON(request):
         # check for error.
         if checkIfErrorJSONResponse(overlay):
             return JsonResponse({issID: "error"})
+        # generate initial quad tree
+        overlay.generateUnalignedQuadTree()
         redirectUrl = "#overlay/" + str(overlay.key) + "/edit"
         return JsonResponse({issID: "success", "url": redirectUrl})
     else:
