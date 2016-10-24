@@ -154,9 +154,11 @@ $(function($) {
 			this.render();
 		},
 		handleNumberChange : function() {
-			var index = this.getIndex();
-			if (index >= 0) {
-				this.setNumberText(index);
+			if (this.model != null){
+				var index = this.getIndex();
+				if (index >= 0) {
+					this.setNumberText(index);
+				}
 			}
 		},
 		handleDeleteClick : function() {
@@ -173,6 +175,7 @@ $(function($) {
 			this.undelegateEvents();
 			this.hide();
 			this.stopListening();
+			this.model = null;
 		},
 		stopListening : function() {
 			if (this.model.collection != undefined) {
