@@ -53,11 +53,6 @@ $(function($) {
 			  }
 			  return result;
 		  },
-//		  isMapCoord: function(value) {
-//			  //TODO does this make any sense?
-//			  value = Math.abs(value);
-//			  return value >= 999999;
-//		  },
 		  parse: function(data, options){
 			  if (Array.isArray(data) && !_.isEmpty(data)){
 				  if (data.length == 4){
@@ -68,15 +63,6 @@ $(function($) {
 					  this.unset('1',['silent']);
 					  this.unset('2',['silent']);
 					  this.unset('3',['silent']);
-//				  } else if (data.length == 2) {
-					  //TODO Grace states this is never the case; delete this block if so
-//					  //TODO how do we know if it is map or image coords stored?
-//					  if (this.isMapCoord(data[0])) {
-//						  this.set('mapCoords',{x:data[0], 
-//				  	   							y:data[1]});
-//					  } else {
-//						  this.set('imageCoords', [data[0], data[1]]);
-//					  }
 				  }
 			  }
 		  }
@@ -97,26 +83,13 @@ $(function($) {
         defaults: {
         	points: [],
         },
-        defaultSaveOptions : {
-                error: function(model, response) {
-                    if (options.error) {
-                    	options.error();
-                    }
-                },
-                success: function(model, response) {
-                    if (options.success) {
-                    	options.success();
-                    }
-                }
-        },
         initialize: function(arguments) {
-            // Bind all the model's function properties to the instance,
-            // so they can be passed around as event handlers and such.
-            //_.bindAll(this);  //TODO does not seem to be necessary, remove
 //            this.on('change', this.warp);
 //            this.on('change:points', this.warp, this);
 //            this.on('add:points', this.warp, this);
 //            this.on('remove:points', this.warp, this);
+        	this.on('sync', this.handleWarpSuccess, this);
+        	this.on('error', function(model, response, options) {this.handleWarpError(response)}, this);
         },
 
         url: function() {
@@ -140,14 +113,15 @@ $(function($) {
             return url;
         },
 
-        parse: function(resp, xhr) {
-            // Ensure server-side state never overwrites local points value
-            if (!_.isEmpty(this.get('points')) && 'points' in resp) {
-                delete resp['points'];
-            }
-            return resp;
+        set: function(attributes, options){
+        	if (!_.isUndefined(attributes.points) && !_.isUndefined(this.get('points'))) {
+        		_.each(_.clone(this.get('points').models), function(point) {
+        			  point.destroy();
+        			});
+        	}
+        	return Backbone.RelationalModel.prototype.set.apply(this, arguments);
         },
-
+        
         getAlignedImageTileUrl: function(coord, zoom) {
             var normalizedCoord = getNormalizedCoord(coord, zoom);
             if (!normalizedCoord) {
@@ -272,21 +246,13 @@ $(function($) {
 						// update the overlay model's center pt in db
 						model.set('centerLat', lat);
 						model.set('centerLon', lon);
-						model.save(model.attributes, model.defaultSaveOptions);
+						model.save(model.attributes);
 					}
     			} else {
     				console.log("Transformation matrix not available. Center point cannot be updated");
     			}
     		}
         },
-
-//        deleteTiepoint: function(index) {
-//            actionPerformed();
-//            points = this.get('points');
-//            points.splice(index, 1);
-//            this.set('points', points);
-//            this.trigger('change:points');
-//        },
 
         computeTransform: function() {
             // only operate on points that have all four values.
@@ -300,6 +266,7 @@ $(function($) {
             // a minimum of two tiepoints are required to compute the transform
             if (points.length < 2) {
             	this.trigger('points_lt_2');
+            	this.unset('transform');
             	return false;
             }
             
@@ -321,30 +288,22 @@ $(function($) {
             return Backbone.RelationalModel.prototype.save.apply(this, attributes, options);
         },
 
+        handleWarpError: function(response){
+        	if (response.readyState < 4) {
+                this.trigger('warp_server_unreachable');
+            } else {
+                this.trigger('warp_server_error');
+            }
+        },
+        handleWarpSuccess: function() {
+        	this.trigger('warp_success')
+        },
         warp: function(options) {
             // Warp the overlay on the server by computing the transform and saving.
             options = options || {};
             var model = this;
             model.trigger('before_warp');
-            saveOptions = {
-                error: function(model, response) {
-                    if (response.readyState < 4) {
-                        model.trigger('warp_server_unreachable');
-                    } else {
-                        model.trigger('warp_server_error');
-                    }
-                    if (options.error) {
-                    	options.error();
-                    }
-                },
-                success: function(model, response) {
-                    model.trigger('warp_success');
-                    if (options.success) {
-                    	options.success();
-                    }
-                }
-            };
-            this.save(null, saveOptions);  // hits overlayIdJson on serverside
+            this.save();  // hits overlayIdJson on serverside
         },
         
         getExportPendingObj: function(type) {
