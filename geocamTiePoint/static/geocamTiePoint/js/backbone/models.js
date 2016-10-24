@@ -266,6 +266,7 @@ $(function($) {
             // a minimum of two tiepoints are required to compute the transform
             if (points.length < 2) {
             	this.trigger('points_lt_2');
+            	this.unset('transform');
             	return false;
             }
             
