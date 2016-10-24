@@ -30,15 +30,6 @@ $(function($) {
 				return result;
 		  },
 		  toJSON : function() {
-			  // return none if invalid
-//			  if (this.isValid()) {
-//				  var result = [];
-//				  result.push(this.get('mapCoords').x);
-//				  result.push(this.get('mapCoords').y);
-//				  result.push.apply(result, this.get('imageCoords'));
-//				  return result;
-//			  }
-//			  return null;
 			  var result = [];
 			  if (!_.isEmpty(this.get('mapCoords'))){
 				  result.push(this.get('mapCoords').x);
@@ -56,9 +47,13 @@ $(function($) {
 		  parse: function(data, options){
 			  if (Array.isArray(data) && !_.isEmpty(data)){
 				  if (data.length == 4){
-					  this.set('mapCoords',{x:data[0], 
-							  	   			y:data[1]});
-					  this.set('imageCoords', [data[2], data[3]]);
+					  if (data[0] != null){
+						  this.set('mapCoords',{x:data[0], 
+							  	   				y:data[1]});
+					  }
+					  if (data[2] != null){
+						  this.set('imageCoords', [data[2], data[3]]);
+					  }
 					  this.unset('0',['silent']);
 					  this.unset('1',['silent']);
 					  this.unset('2',['silent']);
@@ -71,12 +66,14 @@ $(function($) {
 	// represents a single map overlay
     app.models.Overlay = Backbone.RelationalModel.extend({
         idAttribute: 'key', // Backend uses "key" as the primary key
-
         relations: [
                     {
                     	type: Backbone.HasMany,
                     	key: 'points',
-                    	relatedModel: app.models.TiePoint
+                    	relatedModel: app.models.TiePoint,
+                    	reverseRelation: {
+                    	      key: 'overlay'
+                    	    }
                     }
         ],
         
@@ -84,12 +81,19 @@ $(function($) {
         	points: [],
         },
         initialize: function(arguments) {
-//            this.on('change', this.warp);
-//            this.on('change:points', this.warp, this);
-//            this.on('add:points', this.warp, this);
-//            this.on('remove:points', this.warp, this);
+        	this.hasChangedSinceLastSync = false;
+        	this.on('postActionPerformed', this.warp, this);
+        	vent.on('undo', this.handleChange, this);
+        	vent.on('redo', this.handleChange, this);
+            this.on('change:points', this.modelChanged, this);
+            this.on('add:points', this.modelChanged, this);
+            this.on('remove:points', this.modelChanged, this);
         	this.on('sync', this.handleWarpSuccess, this);
         	this.on('error', function(model, response, options) {this.handleWarpError(response)}, this);
+        },
+        
+        modelChanged: function() {
+            this.hasChangedSinceLastSync = true;
         },
 
         url: function() {
@@ -182,43 +186,6 @@ $(function($) {
 		    return found;
         },
 
-        /**
-         * Update one "side" (map or image) of an entry in the model's
-         * tiepoint array.  Will add a new tiepoint if one doesn't
-         * already exist at that index.
-        */
-//        updateTiepoint: function(whichSide, pointIndex, coords, drawMarkerFlag) {
-//        	// drawMarkerFlag is set to true unless function is called with 'false' as an arg.
-//        	drawMarkerFlag = typeof drawMarkerFlag !== 'undefined' ? drawMarkerFlag : true;
-//        	//  this flag is set to true if this fcn is called by handle click
-//        	var clickedOnImageViewFlag = (whichSide == 'image') && (drawMarkerFlag == false);
-//            if (clickedOnImageViewFlag) { 
-//            	var overlay = this;
-//            	// undo the rotation on tie pts before saving the coords.
-//            	coords = maputils.undoTiePtRotation(coords, overlay);
-//            }
-//            var points = this.get('points');
-//            var initial_length = points.length;
-//            var tiepoint = points[pointIndex] || [null, null, null, null];
-//            var coordIdx = {
-//                'map': [0, 1],
-//                'image': [2, 3]
-//            }[whichSide];
-//            assert(coordIdx, 'Unexpected whichSide argument: ' + whichSide);
-//            tiepoint[coordIdx[0]] = coords.x;
-//            tiepoint[coordIdx[1]] = coords.y;
-//            points[pointIndex] = tiepoint;
-//            this.set('points', points);
-//            if (points.length > initial_length) this.trigger('add_point');
-//            // if it is a map side or if the draw marker flag is on, trigger overlay's drawMarker call.
-//            if (!clickedOnImageViewFlag) { 
-//            	// we don't want to call this if it is new point on the 
-//            	// image side (from user click) because it will rotate the 
-//            	// already rotated point again.
-//            	this.trigger('change:points');
-//            }
-//        },
-        
         // applies current transform to the center pixel of image to get the
         // new world coordinates of the center point.
         updateCenterPoint: function() {
@@ -296,13 +263,17 @@ $(function($) {
             }
         },
         handleWarpSuccess: function() {
+        	this.hasChangedSinceLastSync = false;
         	this.trigger('warp_success')
+        },
+        handleChange: function() {
+        	if (this.hasChangedSinceLastSync){
+        		this.warp();
+        	}
         },
         warp: function(options) {
             // Warp the overlay on the server by computing the transform and saving.
-            options = options || {};
-            var model = this;
-            model.trigger('before_warp');
+            this.trigger('before_warp');
             this.save();  // hits overlayIdJson on serverside
         },
         

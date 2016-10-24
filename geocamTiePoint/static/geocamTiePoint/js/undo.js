@@ -75,17 +75,23 @@ function debugUndo() {
 */
 
 function undo() {
-    if (undoStackG.length < 1) return;
+    if (undoStackG.length < 1) {
+    	return;
+    }
     pushState(redoStackG);
     popState(undoStackG);
     enableUndoButtons();
+    vent.trigger('undo');
 }
 
 function redo() {
-    if (redoStackG.length < 1) return;
+    if (redoStackG.length < 1) {
+    	return;
+    }
     pushState(undoStackG);
     popState(redoStackG);
     enableUndoButtons();
+    vent.trigger('redo');
 }
 
 function enableUndoButtons() {
@@ -109,6 +115,9 @@ function actionPerformed() {
     }
     var result = pushState(undoStackG);
     enableUndoButtons();
-
     return result;
+}
+
+function postActionPerformed(model) {
+	model.trigger('postActionPerformed');
 }
