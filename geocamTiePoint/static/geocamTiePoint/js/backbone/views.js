@@ -445,14 +445,12 @@ $(function($) {
 
 		handleClick : function(event) {
 			if (app.mode == mode.ADD_TIEPOINTS) {
-
 				if (!_.isUndefined(window.draggingG) && draggingG) {
 					return;
 				}
 				actionPerformed();
 				this.addOrUpdateTiepoint('mapCoords',
 						latLonToMeters(event.latLng));
-
 			}
 		},
 
@@ -498,15 +496,15 @@ $(function($) {
 					this.model.on('add:points', function(point) {
 						this.renderPoint(point)
 					}, this);
-					this.model.on('change:points',
-							this.destroyAlignedImageQtree, this);
-					this.model.on('add:points', this.destroyAlignedImageQtree,
-							this);
-					this.model.on('remove:points',
-							this.destroyAlignedImageQtree, this);
-					this.model.on('warp_success',
-							this.refreshAlignedImageQtree, this);
-					this.on('dragstart', this.destroyAlignedImageQtree, this);
+//					this.model.on('change:points',
+//							this.destroyAlignedImageQtree, this);
+//					this.model.on('add:points', this.destroyAlignedImageQtree,
+//							this);
+//					this.model.on('remove:points',
+//							this.destroyAlignedImageQtree, this);
+//					this.model.on('warp_success',
+//							this.refreshAlignedImageQtree, this);
+//					this.on('dragstart', this.destroyAlignedImageQtree, this);
 				},
 				renderPoint : function(point) {
 					if (!_.isEmpty(point.get('mapCoords'))) {
@@ -574,10 +572,11 @@ $(function($) {
 
 				initAlignedImageQtree : function() {
 					var DEFAULT_OPACITY = 40;
+					var overlayEnabled = this.overlay_enabled;
+					var alignedImageVisible = this.alignedImageVisible;
 					if (this.overlay_enabled && !this.alignedImageVisible) {
 						this.alignedImageVisible = true;
-						var mapType = new maputils.AlignedImageMapType(
-								this.model);
+						var mapType = new maputils.AlignedImageMapType(this.model);
 						this.gmap.overlayMapTypes.insertAt(0, mapType);
 						if (_.isUndefined(this.model.overlayOpacity)) {
 							this.model.overlayOpacity = DEFAULT_OPACITY;
@@ -595,12 +594,12 @@ $(function($) {
 				},
 
 				destroyAlignedImageQtree : function() {
-					if (this.alignedImageVisible) {
-						this.gmap.overlayMapTypes.pop();
-						this.gmap.controls[google.maps.ControlPosition.TOP_RIGHT]
-								.pop();
-						this.alignedImageVisible = false;
-					}
+//					if (this.alignedImageVisible) {
+//						this.gmap.overlayMapTypes.pop();
+//						this.gmap.controls[google.maps.ControlPosition.TOP_RIGHT]
+//								.pop();
+//						this.alignedImageVisible = false;
+//					}
 				},
 
 				refreshAlignedImageQtree : function() {
@@ -879,7 +878,7 @@ $(function($) {
 					}).render();
 
 					var splitview = this;
-					var subviews = [ this.mapView /* , this.imageView */];
+					var subviews = [ this.mapView ];
 					this.$('#split_container').bind('resize', function(evt) {
 						// ensure Google Maps instances get resized when the
 						// splitter moves.
