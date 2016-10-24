@@ -150,8 +150,8 @@ $(function($) {
 			app.views.View.prototype.initialize.apply(this, arguments);
 			this.processOptions(options);
 			this.model.on('destroy', this.destroy, this);
-			this.model.collection.on('remove', this.handleNumberChange, this);
 			this.render();
+			this.model.collection.on('remove', this.handleNumberChange, this);
 		},
 		handleNumberChange : function() {
 			if (this.model != null){
