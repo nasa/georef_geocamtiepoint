@@ -216,17 +216,11 @@ $(function($) {
 			this.img = document.createElement('img');
 			this.img.id = this.marker_id;
 			this.img.src = "/static/geocamTiePoint/images/marker.png";
-//			this.img.onclick = function() {
-//				context.handleDeleteClick()
-//			};
 			var text_id = this.model.cid + "_text";
 			this.numberText = document.createElement('span');
 			this.numberText.id = text_id;
 			this.setNumberText(this.getIndex());
 			this.numberText.setAttribute('class', 'tiepoint_number');
-//			this.numberText.onclick = function() {
-//				context.handleDeleteClick()
-//			};
 			var osdPoint = new OpenSeadragon.Point(this.model
 					.get('imageCoords')[0], this.model.get('imageCoords')[1]);
 			var viewportPoint = this.viewer.viewport
@@ -237,14 +231,12 @@ $(function($) {
 				rotationMode : OpenSeadragon.OverlayRotationMode.NO_ROTATION,
 				placement : OpenSeadragon.Placement.BOTTOM
 			});
-			this.markerOverlay = this.viewer.getOverlayById(this.marker_id);
 			this.viewer.addOverlay({
 				element : this.numberText,
 				location : viewportPoint,
 				rotationMode : OpenSeadragon.OverlayRotationMode.NO_ROTATION,
 				placement : OpenSeadragon.Placement.TOP
 			});
-			this.textOverlay = this.viewer.getOverlayById(text_id);
 			
 			this.setupMouseControls();
 		},
@@ -321,16 +313,8 @@ $(function($) {
 			this.numberText.innerHTML = value;
 		},
 		hide : function() {
-//			if (!_.isUndefined(this.markerOverlay)) {
-				this.viewer.removeOverlay(this.markerOverlay);
-				this.viewer.removeOverlay(this.textOverlay);
-				this.markerOverlay.destroy();
-				this.textOverlay.destroy();
-				this.numberText.remove();
-				this.img.remove();
-//				this.markerOverlay = undefined;
-//				this.textOverlay = undefined;
-//			}
+			this.viewer.removeOverlay(this.img);
+			this.viewer.removeOverlay(this.numberText);
 		}
 	});
 
