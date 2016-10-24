@@ -159,7 +159,7 @@ $(function($) {
 				this.setNumberText(index);
 			}
 		},
-		handleClick : function() {
+		handleDeleteClick : function() {
 			if (app.mode == mode.DELETE_TIEPOINTS) {
 				if (this.model != undefined) {
 					actionPerformed();
@@ -201,6 +201,12 @@ $(function($) {
 	
 	// Handle rendering, moving and deleting the tie point in the image view.
 	app.views.ImageTiePointView = app.views.TiepointView.extend({
+//		initialize: function(options){
+//			app.views.TiepointView.prototype.initialize.apply(this, arguments);
+//			vent.on('navigate', this.navigateMode, this);
+//			vent.on('startAddTiepoint', this.editMode, this);
+//			vent.on('startDeleteTiepoint', this.deleteMode, this);
+//		},
 		processOptions : function(options) {
 			this.viewer = options.viewer;
 		},
@@ -211,7 +217,7 @@ $(function($) {
 			this.img.id = this.marker_id;
 			this.img.src = "/static/geocamTiePoint/images/marker.png";
 //			this.img.onclick = function() {
-//				context.handleClick()
+//				context.handleDeleteClick()
 //			};
 			var text_id = this.model.cid + "_text";
 			this.numberText = document.createElement('span');
@@ -219,7 +225,7 @@ $(function($) {
 			this.setNumberText(this.getIndex());
 			this.numberText.setAttribute('class', 'tiepoint_number');
 //			this.numberText.onclick = function() {
-//				context.handleClick()
+//				context.handleDeleteClick()
 //			};
 			var osdPoint = new OpenSeadragon.Point(this.model
 					.get('imageCoords')[0], this.model.get('imageCoords')[1]);
@@ -240,26 +246,45 @@ $(function($) {
 			});
 			this.textOverlay = this.viewer.getOverlayById(text_id);
 			
-			this.hookDragDrop();
+			this.setupMouseControls();
 		},
-		hookDragDrop: function() {
+		setupMouseControls: function() {
 			var context = this;
-			 this.tracker= new OpenSeadragon.MouseTracker({
+			this.tracker= new OpenSeadragon.MouseTracker({
 		            element: this.marker_id,
 		            clickTimeThreshold: 200,
 		            clickDistThreshold: 1,
 		            stopDelay: 50,
-		        })
+		        });
+//			this.addEditHooks = [{tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { context.onHookTaskDrag(event)}},
+//			                     {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.onHookTaskDragEnd(event)}}];
+//			this.deleteHooks = [{tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleClick(event)}];
 		        this.viewer.addViewerInputHook({hooks: [
-		          {tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { context.onHookTaskDrag(event)}},
+		          {tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { _.throttle(context.onHookTaskDrag(event), 50)}},
 		          {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.onHookTaskDragEnd(event)}},
-		          {tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleClick(event)}}
+		          {tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleDeleteClick(event)}}
 		        ]});
-
 		},
+//		clearInputHooks: function() {
+//			if (!_.isUndefined(this.inputHook)){
+//				
+//			}
+//		},
+//		navigateMode: function() {
+//			this.clearInputHooks();
+//		},
+//		editMode: function(){
+//			this.clearInputHooks();
+//			this.inputHook = this.viewer.addViewerInputHooks({hooks: this.addEditHooks});
+//		},
+//		deleteMode: function() {
+//			this.clearInputHooks();
+//			this.inputHook = this.viewer.addViewerInputHooks({hooks: this.deleteHooks});
+//		},
+		
 		
 		onHookTaskDrag: function(event){
-			//TODO there is a big rubberbanding slowdown effect maybe this needs a delay
+			//TODO there is a big rubberbanding slowdown effect maybe this needs a throttle
 		     var viewportPoint = this.viewer.viewport.pointFromPixel(event.position); 
 //		     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
 		     var windowCoords = this.viewer.viewport.viewportToWindowCoordinates(viewportPoint);
@@ -343,7 +368,7 @@ $(function($) {
 
 			this.marker.addListener('click', function(event) {
 				if (app.mode == mode.DELETE_TIEPOINTS) {
-					context.handleClick();
+					context.handleDeleteClick();
 				}
 			});
 		},
@@ -353,7 +378,6 @@ $(function($) {
 		},
 		handleSelect : function() {
 			this.marker.set('selected', true);
-			// this.initMarkerDragHandlers();
 		},
 		handleNumberChange : function() {
 			var index = this.getIndex();
@@ -436,7 +460,7 @@ $(function($) {
 		// return selected_idx;
 		// },
 
-		handleClick : function(event) {
+		handleAddClick : function(event) {
 			if (app.mode == mode.ADD_TIEPOINTS) {
 				if (!_.isUndefined(window.draggingG) && draggingG) {
 					return;
@@ -450,7 +474,7 @@ $(function($) {
 		initGmapUIHandlers : function() {
 			if (!this.options.readonly) {
 				google.maps.event.addListener(this.gmap, 'click', _.bind(
-						this.handleClick, this));
+						this.handleAddClick, this));
 			}
 		}
 
@@ -1158,12 +1182,12 @@ $(function($) {
 							overlay.set('readyToExport', true);
 							overlay.save({
 								'readyToExport' : 1
-							}, overlay.defaultSaveOptions);
+							});
 						} else {
 							overlay.set('readyToExport', false);
 							overlay.save({
 								'readyToExport' : 0
-							}, overlay.defaultSaveOptions);
+							});
 						}
 					});
 
