@@ -84,9 +84,6 @@ $(function($) {
         	points: [],
         },
         initialize: function(arguments) {
-            // Bind all the model's function properties to the instance,
-            // so they can be passed around as event handlers and such.
-            //_.bindAll(this);  //TODO does not seem to be necessary, remove
 //            this.on('change', this.warp);
 //            this.on('change:points', this.warp, this);
 //            this.on('add:points', this.warp, this);

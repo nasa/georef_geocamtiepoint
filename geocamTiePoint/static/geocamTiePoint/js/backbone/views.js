@@ -163,13 +163,7 @@ $(function($) {
 			if (app.mode == mode.DELETE_TIEPOINTS) {
 				if (this.model != undefined) {
 					actionPerformed();
-					// this.hide();
-					// this.stopListening();
-					// this.model.collection.off('remove',
-					// this.handleNumberChange, this);
 					this.model.destroy();
-					// this.model = undefined;
-					// this.hide();
 				}
 			}
 		},
@@ -276,29 +270,33 @@ $(function($) {
 		
 		
 		onHookTaskDrag: function(event){
-			//TODO there is a big rubberbanding slowdown effect maybe this needs a throttle
-		     var viewportPoint = this.viewer.viewport.pointFromPixel(event.position); 
-//		     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-		     var windowCoords = this.viewer.viewport.viewportToWindowCoordinates(viewportPoint);
-		     console.log(this.img.style.left + " " + this.img.style.top);
-//		     this.markerOverlay.adjust(viewportPoint, this.markerOverlay.size);
-//		     this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
-		     
-		     $(this.img).css({'top': windowCoords.y,
-		    	 			  'left': windowCoords.x});
-		     console.log(this.img.style.left + " " + this.img.style.top);
-
-		     $(this.numberText).css({'top': windowCoords.y + 25,
-	 			  					 'left': windowCoords.x + 8});
+			if (app.mode == mode.ADD_TIEPOINTS) {
+				//TODO there is a big rubberbanding slowdown effect maybe this needs a throttle
+			     var viewportPoint = this.viewer.viewport.pointFromPixel(event.position); 
+	//		     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+			     var windowCoords = this.viewer.viewport.viewportToWindowCoordinates(viewportPoint);
+			     console.log(this.img.style.left + " " + this.img.style.top);
+	//		     this.markerOverlay.adjust(viewportPoint, this.markerOverlay.size);
+	//		     this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
+			     
+			     $(this.img).css({'top': windowCoords.y,
+			    	 			  'left': windowCoords.x});
+			     console.log(this.img.style.left + " " + this.img.style.top);
+	
+			     $(this.numberText).css({'top': windowCoords.y + 25,
+		 			  					 'left': windowCoords.x + 8});
+			}
 
 		},
 		onHookTaskDragEnd: function(event){
-			 var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
-			 console.log(this.markerOverlay.location);
-			 this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
-			 console.log('after');
-			 console.log(this.markerOverlay.location);
-			 this.updateTiepointFromMarker(viewportPoint);
+			if (app.mode == mode.ADD_TIEPOINTS) {
+				 var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
+				 console.log(this.markerOverlay.location);
+				 this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
+				 console.log('after');
+				 console.log(this.markerOverlay.location);
+				 this.updateTiepointFromMarker(viewportPoint);
+			}
 		},
 		updateTiepointFromMarker : function(viewportPoint) {
 			// TODO somehow these positions are all just wrong wrong wrong
@@ -902,6 +900,9 @@ $(function($) {
 					this.renderHelp();
 					this.animatePrompt();
 					enableUndoButtons();
+					if (this.model.get('points').length < 2){
+						vent.trigger('startAddTiepoint', mode.ADD_TIEPOINTS);
+					}
 				},
 
 				renderHelp : function() {
