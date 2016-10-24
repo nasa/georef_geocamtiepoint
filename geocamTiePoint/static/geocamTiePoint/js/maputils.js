@@ -37,7 +37,7 @@ $(function($) {
 				+ 'GEOCAM_TIE_POINT_ZOOM_LEVELS_PAST_OVERLAY_RESOLUTION');
 		return new google.maps.ImageMapType({
 			getTileUrl : function(coord, zoom) {
-				overlayModel.getAlignedImageTileUrl(coord, zoom);
+				return overlayModel.getAlignedImageTileUrl(coord, zoom);
 			},
 			tileSize : new google.maps.Size(TILE_SIZE, TILE_SIZE),
 			maxZoom : (overlayModel.maxZoom() + levelsPast),
