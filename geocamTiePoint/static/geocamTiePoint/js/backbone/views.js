@@ -85,14 +85,6 @@ $(function($) {
 		template : $('#template-list-overlays').html(),
 		initialize : function() {
 			app.views.View.prototype.initialize.apply(this, arguments);
-			app.overlays.forEach(function(overlay) {
-				if (overlay.attributes.points) {
-					var numTiePts = overlay.attributes.points.length;
-					overlay.set('numTiePts', numTiePts);
-				} else {
-					overlay.set('numTiePts', 0);
-				}
-			});
 			this.context = {
 				overlays : app.overlays
 			};
