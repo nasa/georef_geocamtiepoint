@@ -606,6 +606,12 @@ $(function($) {
 			this.model.on('add:points', function(point) {
 				this.renderPoint(point);
 			}, this);
+			
+			//imageFilters stores the current values of the filters
+			imageFilters = {}; 
+			//set the default level for the brightness and contrast filters
+			imageFilters["brightness"] = 0;
+			imageFilters["contrast"] = 0;
 		},
 		renderPoint : function(point) {
 			var imageCoords = point.get('imageCoords');
@@ -676,6 +682,7 @@ $(function($) {
 			var viewer = this.viewer;
 			
 			// Using jQuery UI slider
+			// rotation slider
 			$("#rotation_slider").slider({
 				min : -180,
 				max : 180,
@@ -683,7 +690,44 @@ $(function($) {
 					viewer.viewport.setRotation(ui.value);
 				}
 			});
-
+			
+			// enhancement sliders
+			$("#brightness_slider").slider({
+				min: -100,
+				max: 100,
+				step: 25,			
+				slide: function(event, ui) {
+					imageFilters["brightness"] = ui.value;
+					viewer.setFilterOptions({
+						filters: {
+							processors: [					
+							OpenSeadragon.Filters.BRIGHTNESS(imageFilters["brightness"]),					
+							]
+						},
+						loadMode: 'sync'
+					});
+				}		
+			});
+			
+			$("#contrast_slider").slider({
+				//Using range -1.5 to 1.5 rather than 0 to 3 so the slider starts in the center
+				min: -2,
+				max: 2,
+				step: 0.25,
+				//change to stop?
+				slide: function(event, ui) {
+					imageFilters["contrast"] = (ui.value/2.0)+1.0;	
+					viewer.setFilterOptions({
+						filters: {
+							processors: [					
+							OpenSeadragon.Filters.CONTRAST(imageFilters["contrast"]),					
+							]
+						},
+						loadMode: 'sync'
+					});
+				}
+			});
+			
 			var model = this.model;
 			var context = this;
 			this.viewer.addHandler('open', function() {
