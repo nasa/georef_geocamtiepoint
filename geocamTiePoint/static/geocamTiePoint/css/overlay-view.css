@@ -60,14 +60,11 @@ div.top, div.bottom {
 	color: yellow;
 }
 
-#rotation_slider {
+ #rotation_slider {
 	margin-left: 25%;
 	margin-right: 25%;
 	margin-top: 10px;
 }
-
-
-body {font-family:helvetica,arial,sans-serif;font-size:10px;}
 
 .slider_parent_div {
 	margin-top: 20px;
@@ -89,4 +86,4 @@ body {font-family:helvetica,arial,sans-serif;font-size:10px;}
 .slider_div {
 	float:right;
 	width:80%;
-}
+} 
