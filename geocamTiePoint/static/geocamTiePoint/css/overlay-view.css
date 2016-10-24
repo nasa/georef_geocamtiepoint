@@ -59,3 +59,34 @@ div.top, div.bottom {
 .tiepoint_number {
 	color: yellow;
 }
+
+#rotation_slider {
+	margin-left: 25%;
+	margin-right: 25%;
+	margin-top: 10px;
+}
+
+
+body {font-family:helvetica,arial,sans-serif;font-size:10px;}
+
+.slider_parent_div {
+	margin-top: 20px;
+	background-color:#f9f9f9;
+	border:solid 1px #ddd;
+	padding:10px;
+	width: 40%;
+}
+
+#brightness_slider_div {
+	float:left;
+}
+
+#contrast_slider_div {
+	float:right;
+}
+
+.slider_parent_div span {}
+.slider_div {
+	float:right;
+	width:80%;
+}
