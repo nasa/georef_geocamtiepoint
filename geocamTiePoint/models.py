@@ -128,7 +128,6 @@ class ISSimage:
         return  rootUrl + "/" + self.mission + "/" + self.mission + "-" + self.roll + "-" + self.frame + ".jpg"
 
 
-
 class ImageData(models.Model):
     lastModifiedTime = models.DateTimeField()
     # image.max_length needs to be long enough to hold a blobstore key
@@ -199,10 +198,11 @@ class ImageData(models.Model):
         """
         try:
             deepzoomSlug = self.create_deepzoom_slug()
+            deepzoomPath = 'deepzoom/' + deepzoomSlug
             dz = DeepZoom.objects.create(associated_image=self.image.name, 
                                          name=deepzoomSlug,
                                          slug=deepzoomSlug,
-                                         deepzoom_path=deepzoomSlug)
+                                         deepzoom_path=deepzoomPath)
             dz.create_deepzoom_files()
             self.associated_deepzoom = dz
             self.create_deepzoom = False
@@ -252,8 +252,9 @@ class ImageData(models.Model):
             dz = self.associated_deepzoom
             dz.delete_deepzoom_files()
             dz.delete()
-        except: 
-            pass
+        except Exception as e: 
+            print "could not delete deepzoom files while deleting imagedata (see error below)"
+            print e
         super(ImageData, self).delete(*args, **kwargs)
 
 
