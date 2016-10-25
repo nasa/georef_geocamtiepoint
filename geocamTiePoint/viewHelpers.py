@@ -152,62 +152,7 @@ def saveImageToDatabase(PILimage, imageData, flags):
         imageData.image.save("dummy.png", ContentFile(convertedBits), save=False)
     imageData.contentType = 'image/png'
     imageData.save()
-
-
-"""
-Rotation
-"""
-def getRotatedImageData(overlayId, totalRotation):
-    """
-    For Re-using image data that already exists in the db. 
-     
-    Searches thru image data objects to find the one
-    that has the given rotation value. If that doesn't exist, 
-    returns None
-    """
-    imagedata = ImageData.objects.filter(overlay__key = overlayId).filter(rotationAngle = totalRotation)
-    if imagedata:
-        imagedata = imagedata[0]
-        return imagedata
-    else:
-        return None
-
-
-"""
-Autoregistration
-"""
-# def registerImage(overlay):
-#     """
-#     Runs automatic registration (c++ function) on the given ISS image.
-#     """
-#     imagePath = None
-#     focalLength = None
-#     imageData = overlay.imageData
-#     if imageData:
-#         imagePath = imageData.image.url.replace('/data/', settings.DATA_ROOT)
-#     else: 
-#         print "Error: Cannot get image path!"
-#         return None
-#     centerLat = overlay.centerLat
-#     centerLon = overlay.centerLon
-#     focalLength = overlay.extras.focalLength_unitless
-#     acq_date = overlay.extras.acquisitionDate
-#     acq_date = acq_date[:4] + '.' + acq_date[4:6] + '.' + acq_date[6:] # convert YYYYMMDD to this YYYY.MM.DD 
-#     try: 
-#         refImagePath = None
-#         referenceGeoTransform = None
-#         debug = True
-#         force = False
-#         slowMethod = True
-#         (imageToProjectedTransform, confidence, imageInliers, gdcInliers) = register_image.register_image(imagePath, centerLon, centerLat,
-#                                                                                                           focalLength, acq_date, refImagePath, 
-#                                                                                                           referenceGeoTransform, debug, force, slowMethod)
-#     except:
-#         return ErrorJSONResponse("Failed to compute transform. Please again try without the autoregister option.")
-#     overlay.extras.transform = imageToProjectedTransform.getJsonDict()
-#     overlay.generateAlignedQuadTree()
-#     overlay.save()
-
+    
 
 """
 Creators
@@ -279,7 +224,6 @@ def createOverlay(author, imageFile, issImage=None, sizeType=None):
     overlay.creator = author.first_name + ' ' + author.last_name
     # set overlay extras fields
     overlay.extras.points = []
-    overlay.extras.totalRotation = 0 # set initial rotation value to 0
     if issImage:
         try: 
             overlay.imageData.issMRF = issImage.mission + '-' + issImage.roll + '-' + str(issImage.frame)
@@ -341,32 +285,6 @@ def createOverlayFromID(mission, roll, frame, sizeType, author):
 """
 Image enhancement 
 """
-def getEnhancer(type):
-    """
-    Given image enhancement type, returns the PIL's enhancer.
-    """
-    if type == u'contrast':
-        return PIL.ImageEnhance.Contrast
-    elif type == u'brightness':
-        return PIL.ImageEnhance.Brightness
-    else: 
-        logging.error("invalid type provided for image enhancer")
-        return None
-    
-
-def enhanceImage(enhanceType, value, im):
-    """
-    Processes image thru an enhancer and returns an enhanced image.
-    enhanceType specifies whether it's 'contrast' or 'brightness' 
-    operation. value is input to the enhancer. im is the input image.
-    """
-    # enhance the image
-    enhancer = getEnhancer(enhanceType)
-    enhancer = enhancer(im)
-    enhancedIm = enhancer.enhance(value) 
-    return enhancedIm
-
-
 def autoenhance(im): 
     """
     Takes in PIL image and does histogram matching.
@@ -393,14 +311,6 @@ def applyEnhancement(imageData):
     originalImage = getImage(imageData, UNENHANCED)
     if imageData.autoenhance == True:
         enhancedIm = autoenhance(originalImage)
-    elif imageData.contrast or imageData.brightness:
-        enhancedIm = originalImage
-        if imageData.contrast != 0:
-            enhancedIm = enhanceImage("contrast", imageData.contrast, enhancedIm)
-        if imageData.brightness != 0:
-            enhancedIm = enhanceImage("brightness", imageData.brightness, enhancedIm)   
-    else:  # no enhancements 
-        enhancedIm = originalImage
     saveImageToDatabase(enhancedIm, imageData, [ENHANCED, DISPLAY])
 
 
@@ -413,14 +323,4 @@ def saveEnhancementValToDB(imageData, enhanceType, value):
         imageData.autoenhance = True
         imageData.contrast = 0
         imageData.brightness = 0
-    elif enhanceType == 'undo':
-        imageData.autoenhance = False
-        imageData.contrast = 0
-        imageData.brightness = 0
-    elif enhanceType == 'contrast':
-        imageData.contrast = value
-        imageData.autoenhance = False
-    elif enhanceType == 'brightness':
-        imageData.brightness = value
-        imageData.autoenhance = False
     imageData.save()
