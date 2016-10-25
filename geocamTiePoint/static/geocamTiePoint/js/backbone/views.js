@@ -701,9 +701,9 @@ $(function($) {
 			$("#contrast_slider").slider({ 
 				min: -50,
 				max: 100,
-				step: 10,
+				step: 5,
 				create: function() {
-					var displayVal = (model.get('contrast') -1) * 50;
+					var displayVal = (model.get('contrast') -1) * 100;
 					$(this).slider('value', displayVal);
 					cHandle.text(displayVal);
 
@@ -720,7 +720,7 @@ $(function($) {
 				slide: function(event, ui) {
 					var displayVal = ui.value;
 					cHandle.text(displayVal);
-					var osdFilterContrastVal = (ui.value /50) + 1; // convert slider value to value between 0 and 3 (filter value)
+					var osdFilterContrastVal = (ui.value / 100) + 1; // convert slider value to value between 0 and 3 (filter value)
 					model.set('contrast', osdFilterContrastVal);
 					viewer.setFilterOptions({
 						filters: {
