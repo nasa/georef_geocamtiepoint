@@ -204,12 +204,6 @@ $(function($) {
 	
 	// Handle rendering, moving and deleting the tie point in the image view.
 	app.views.ImageTiePointView = app.views.TiepointView.extend({
-//		initialize: function(options){
-//			app.views.TiepointView.prototype.initialize.apply(this, arguments);
-//			vent.on('navigate', this.navigateMode, this);
-//			vent.on('startAddTiepoint', this.editMode, this);
-//			vent.on('startDeleteTiepoint', this.deleteMode, this);
-//		},
 		processOptions : function(options) {
 			this.viewer = options.viewer;
 		},
@@ -251,48 +245,28 @@ $(function($) {
 		            clickDistThreshold: 1,
 		            stopDelay: 50,
 		        });
-//			this.addEditHooks = [{tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { context.onHookTaskDrag(event)}},
-//			                     {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.onHookTaskDragEnd(event)}}];
-//			this.deleteHooks = [{tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleClick(event)}];
-		        this.viewer.addViewerInputHook({hooks: [
-		          {tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { _.throttle(context.handleDrag(event), 50)}},
-		          {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.handleDragEnd(event)}},
-		          {tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleDeleteClick(event)}}
-		        ]});
+			
+			this.tracker= new OpenSeadragon.MouseTracker({
+	            element: this.marker_id,
+	            clickTimeThreshold: 200,
+	            clickDistThreshold: 1,
+	            clickHandler: function(event) {context.handleDeleteClick(event)},
+	            dragHandler: function(event) { _.throttle(context.handleDrag(event), 50)},
+	            dragEndHandler: function(event) {context.handleDragEnd(event)},
+	            stopDelay: 50,
+	        });
 		},
-//		clearInputHooks: function() {
-//			if (!_.isUndefined(this.inputHook)){
-//				
-//			}
-//		},
-//		navigateMode: function() {
-//			this.clearInputHooks();
-//		},
-//		editMode: function(){
-//			this.clearInputHooks();
-//			this.inputHook = this.viewer.addViewerInputHooks({hooks: this.addEditHooks});
-//		},
-//		deleteMode: function() {
-//			this.clearInputHooks();
-//			this.inputHook = this.viewer.addViewerInputHooks({hooks: this.deleteHooks});
-//		},
 		
-		
+		getWindowCoordinates: function(event){
+			var canvasOffset = OpenSeadragon.getElementOffset(this.viewer.canvas);
+			var windowPoint = new OpenSeadragon.Point(event.originalEvent.x - canvasOffset.x, event.originalEvent.y - canvasOffset.y);
+			return windowPoint;
+		},
 		handleDrag: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				//TODO there is a big rubberbanding slowdown effect maybe this needs a throttle
-				console.log("EVENT POSITION: " + event.position);
-			     var viewportPoint = this.viewer.viewport.pointFromPixel(event.position); 
-			     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-			     var windowCoords = this.viewer.viewport.viewportToWindowCoordinates(viewportPoint);
-			     console.log("OLD IMG STYLE " + this.img.style.left + " " + this.img.style.top);
-	//		     this.markerOverlay.adjust(viewportPoint, this.markerOverlay.size);
-	//		     this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
-			     
+				 var windowCoords = this.getWindowCoordinates(event);
 			     $(this.img).css({'top': windowCoords.y,
 			    	 			  'left': windowCoords.x});
-			     console.log("NEW IMG STYLE " + this.img.style.left + " " + this.img.style.top);
-	
 			     $(this.numberText).css({'top': windowCoords.y + 25,
 		 			  					 'left': windowCoords.x + 8});
 			}
@@ -300,31 +274,20 @@ $(function($) {
 		},
 		handleDragEnd: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				
-				var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
-//				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-//				this.addOrUpdateTiepoint('imageCoords', [ imagePoint.x, imagePoint.y ]);
-
-//				 console.log(this.markerOverlay.location);
-//				 this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
-//				 console.log('after');
-//				 console.log(this.markerOverlay.location);
-				// this.updateTiepointFromMarker(viewportPoint);
+				var windowCoords = this.getWindowCoordinates(event);
+			    var imagePoint = this.viewer.viewport.windowToImageCoordinates(windowCoords);
+			    console.log('handleDragEnd');
+			    console.log('WINDOW COORDS ' + JSON.stringify(windowCoords));
+			     console.log('IMAGE POINT ' + JSON.stringify(imagePoint));
+			     console.log('MODEL IMAGE COORDS ' + this.model.get('imageCoords'));
+//				 this.updateTiepointFromMarker(imagePoint);
 			}
 		},
-		updateTiepointFromMarker : function(viewportPoint) {
+		updateTiepointFromMarker : function(imagePoint) {
 			actionPerformed();
-//			var viewportPoint = this.markerOverlay.location;
-			var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-			
-			console.log('old Image Coords');
-			console.log(this.model.get('imageCoords'));
-			console.log('new imagepoint');
-			console.log(imagePoint);
-			//this.model.set('imageCoords', [imagePoint.x, imagePoint.y]);
-//			console.log('new Image Coords');
-//			console.log(this.model.get('imageCoords'));
-//			postActionPerformed(this.model.get('overlay'));
+			//var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+			this.model.set('imageCoords', [imagePoint.x, imagePoint.y]);
+			postActionPerformed(this.model.get('overlay'));
 		},
 		setNumberText : function(value) {
 			this.numberText.innerHTML = value;
