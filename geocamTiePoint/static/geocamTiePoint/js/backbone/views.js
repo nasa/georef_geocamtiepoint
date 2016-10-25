@@ -698,13 +698,12 @@ $(function($) {
 			});
 			
 			var cHandle = $( "#contrast-custom-handle" );
-			$("#contrast_slider").slider({
-				//Using range -2.0 to 2.0 rather than 0 to 3 so the slider starts in the center
-				min: -2,
-				max: 2,
-				step: 0.25,
+			$("#contrast_slider").slider({ 
+				min: -50,
+				max: 100,
+				step: 10,
 				create: function() {
-					var displayVal = (model.get('contrast') -1) * 2;
+					var displayVal = (model.get('contrast') -1) * 50;
 					$(this).slider('value', displayVal);
 					cHandle.text(displayVal);
 
@@ -721,7 +720,7 @@ $(function($) {
 				slide: function(event, ui) {
 					var displayVal = ui.value;
 					cHandle.text(displayVal);
-					var osdFilterContrastVal = (ui.value / 2.0) + 1.0; // convert slider's -2 to 2 to osd filter contrast val (0 to 3)
+					var osdFilterContrastVal = (ui.value /50) + 1; // convert slider value to value between 0 and 3 (filter value)
 					model.set('contrast', osdFilterContrastVal);
 					viewer.setFilterOptions({
 						filters: {
@@ -1253,8 +1252,7 @@ $(function($) {
 							success : function(data) {
 								// replace the spinner with a hyperlink to the
 								// url.
-								that
-										.createEditLink(index, data['url'],
+								that.createEditLink(index, data['url'],
 												imageId);
 								// replace the upload btn with upload more
 								if (index == 0) {

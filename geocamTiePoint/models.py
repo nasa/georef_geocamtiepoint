@@ -151,7 +151,7 @@ class ImageData(models.Model):
     # If certain angle is requested and image data is available in db, 
     # we can just pull up that image.
     rotationAngle = models.IntegerField(null=True, blank=True, default=0)
-    contrast = models.FloatField(null=True, blank=True, default=0)
+    contrast = models.FloatField(null=True, blank=True, default=1)
     brightness = models.FloatField(null=True, blank=True, default=0)
     autoenhance = models.BooleanField(default=False, blank=True)
     raw = models.BooleanField(default=False)
