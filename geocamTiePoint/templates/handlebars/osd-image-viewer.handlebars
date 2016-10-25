@@ -1,15 +1,17 @@
 <div id="toolbarDiv">
-	<button id="center_pt_button" type="button" style="float:right;">Center Pt</button>
+	<div class="slider_parent_div" id="rotation_slider_div" class="ui-widget ui-corner-all">
+	    <span>Rotation(&deg;):</span> <div id="rotation-custom-handle" class="widget_value"></div>
+	    <div class="slider_div" id="rotation_slider"></div>
+	</div>
 
-<div id="rotation_slider"></div>
 	
 	<div class="slider_parent_div" id="brightness_slider_div" class="ui-widget ui-corner-all">
-	    <span>Brightness:</span>
+	    <span>Brightness(-100,100): </span> <div id="brightness-custom-handle" class="widget_value"></div>
 	    <div class="slider_div" id="brightness_slider"></div>
 	</div>
 	
 	<div class="slider_parent_div" id="contrast_slider_div" class="ui-widget ui-corner-all">
-	    <span>Contrast:</span>
+	    <span>Contrast(-2,2):</span> <div id="contrast-custom-handle" class="widget_value"></div>
 	    <div class="slider_div" id="contrast_slider"></div>
 	</div> 
 	

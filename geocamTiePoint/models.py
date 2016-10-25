@@ -596,21 +596,15 @@ class Overlay(models.Model):
             result['alignedTilesUrl'] = self.getAlignedTilesUrl()
             # note: when exportZip has not been set, its value is not
             # None but <FieldFile: None>, which is False in bool() context
-            if self.alignedQuadTree.htmlExport: 
-                result['htmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
-                                                  args=[self.key, 
-                                                        'html',
-                                                        str(self.alignedQuadTree.htmlExportName)])
-            if self.alignedQuadTree.kmlExport: 
-                result['kmlExportUrl'] = reverse('geocamTiePoint_overlayExport',
-                                              args=[self.key,
-                                                    'kml',
-                                                    str(self.alignedQuadTree.kmlExportName)])
-            if self.alignedQuadTree.geotiffExport: 
-                result['geotiffExportUrl'] = reverse('geocamTiePoint_overlayExport',
-                                              args=[self.key,
-                                                    'geotiff',
-                                                    str(self.alignedQuadTree.geotiffExportName)])
+        # include image enhancement values as part of json. 
+        if self.imageData is not None:
+            try: 
+                result['rotationAngle'] = self.imageData.rotationAngle
+                result['brightness'] = self.imageData.brightness
+                result['contrast'] = self.imageData.contrast
+                result['autoenhance'] = self.imageData.autoenhance
+            except:
+                pass
         try:
             mission, roll, frame = self.name.split('-')
             result['mission'] = mission
@@ -618,14 +612,6 @@ class Overlay(models.Model):
             result['frame'] = frame[:-4]
         except:
             pass
-        
-#         if result['points']:
-#             newpoints = []
-#             for point in result['points']:
-#                 newpoints.append({'coords':point})
-#             result['points'] = newpoints
-#         else:
-#             del result['points']
         return result
 
     def setJsonDict(self, jsonDict):
@@ -642,6 +628,20 @@ class Overlay(models.Model):
             val = jsonDict.get(key, MISSING)
             if val is not MISSING:
                 self.extras[key] = val
+
+        # get the image enhancement values and save it to the overlay's imagedata.
+        imageDataDict = {}
+        imageDataDict['rotationAngle'] = jsonDict.get('rotationAngle', MISSING)
+        imageDataDict['contrast'] = jsonDict.get('contrast', MISSING)
+        imageDataDict['brightness'] = jsonDict.get('brightness', MISSING)
+        imageDataDict['autoenhance'] = jsonDict.get('autoenhance', MISSING)
+        for key, value in imageDataDict.items():
+            if value is not MISSING:
+                try:
+                    setattr(self.imageData, key, value)
+                except:
+                    print "failed to save image data values from the json dict returned from client"
+        self.imageData.save()
 
     jsonDict = property(getJsonDict, setJsonDict)
 

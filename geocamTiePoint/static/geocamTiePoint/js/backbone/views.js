@@ -609,12 +609,6 @@ $(function($) {
 			this.model.on('add:points', function(point) {
 				this.renderPoint(point);
 			}, this);
-			
-			//imageFilters stores the current values of the filters
-			imageFilters = {}; 
-			//set the default level for the brightness and contrast filters
-			imageFilters["brightness"] = 0;
-			imageFilters["contrast"] = 0;
 		},
 		renderPoint : function(point) {
 			var imageCoords = point.get('imageCoords');
@@ -683,28 +677,52 @@ $(function($) {
 			});
 
 			var viewer = this.viewer;
-			
+			var model = this.model
 			// Using jQuery UI slider
 			// rotation slider
+			var rotHandle = $( "#rotation-custom-handle" );
 			$("#rotation_slider").slider({
 				min : -180,
 				max : 180,
+				create: function() {
+					$(this).slider('value', model.get('rotationAngle'));
+					rotHandle.text($(this).slider('value'));
+					viewer.viewport.setRotation($(this).slider('value'));
+				},
 				slide : function(event, ui) {
 					viewer.viewport.setRotation(ui.value);
+					model.set('rotationAngle', ui.value);
+					rotHandle.text(ui.value);
 				}
 			});
 			
 			// enhancement sliders
+			var bHandle = $( "#brightness-custom-handle" );
 			$("#brightness_slider").slider({
 				min: -100,
 				max: 100,
 				step: 25,			
-				slide: function(event, ui) {
-					imageFilters["brightness"] = ui.value;
+				create: function() {
+					$(this).slider('value', model.get('brightness'));
+					bHandle.text($(this).slider('value'));
+					var brightnessVal = model.get('brightness');
 					viewer.setFilterOptions({
 						filters: {
 							processors: [					
-							OpenSeadragon.Filters.BRIGHTNESS(imageFilters["brightness"]),					
+							OpenSeadragon.Filters.BRIGHTNESS(brightnessVal),					
+							]
+						},
+						loadMode: 'sync'
+					});
+				},
+				slide: function(event, ui) {
+					var brightnessVal = ui.value;
+					bHandle.text(brightnessVal);
+					model.set('brightness', brightnessVal);
+					viewer.setFilterOptions({
+						filters: {
+							processors: [					
+							OpenSeadragon.Filters.BRIGHTNESS(brightnessVal),					
 							]
 						},
 						loadMode: 'sync'
@@ -712,18 +730,36 @@ $(function($) {
 				}		
 			});
 			
+			var cHandle = $( "#contrast-custom-handle" );
 			$("#contrast_slider").slider({
-				//Using range -1.5 to 1.5 rather than 0 to 3 so the slider starts in the center
+				//Using range -2.0 to 2.0 rather than 0 to 3 so the slider starts in the center
 				min: -2,
 				max: 2,
 				step: 0.25,
-				//change to stop?
-				slide: function(event, ui) {
-					imageFilters["contrast"] = (ui.value/2.0)+1.0;	
+				create: function() {
+					var displayVal = (model.get('contrast') -1) * 2;
+					$(this).slider('value', displayVal);
+					cHandle.text(displayVal);
+
 					viewer.setFilterOptions({
 						filters: {
 							processors: [					
-							OpenSeadragon.Filters.CONTRAST(imageFilters["contrast"]),					
+							OpenSeadragon.Filters.CONTRAST(model.get('contrast')),					
+							]
+						},
+						loadMode: 'sync'
+					});
+				},
+				//change to stop?
+				slide: function(event, ui) {
+					var displayVal = ui.value;
+					cHandle.text(displayVal);
+					var osdFilterContrastVal = (ui.value / 2.0) + 1.0; // convert slider's -2 to 2 to osd filter contrast val (0 to 3)
+					model.set('contrast', osdFilterContrastVal);
+					viewer.setFilterOptions({
+						filters: {
+							processors: [					
+							OpenSeadragon.Filters.CONTRAST(osdFilterContrastVal),					
 							]
 						},
 						loadMode: 'sync'
@@ -731,7 +767,6 @@ $(function($) {
 				}
 			});
 			
-			var model = this.model;
 			var context = this;
 			this.viewer.addHandler('open', function() {
 				// construct prior tiepoints
@@ -1059,16 +1094,16 @@ $(function($) {
 					var overlay = this.model;
 
 					$('button#save').click(
-							function() {
-								var button = $(this);
-								button.data('original-text', button.text());
-								overlay.warp({
-									success : function(model, response) {
-										$('input#show_preview').attr('checked',
-												true).change();
-									}
-								});
+						function() {
+							var button = $(this);
+							button.data('original-text', button.text());
+							overlay.warp({
+								success : function(model, response) {
+									$('input#show_preview').attr('checked',
+											true).change();
+								}
 							});
+					});
 
 					var saveStatus = $('#saveStatus');
 					this.model.on('before_warp',

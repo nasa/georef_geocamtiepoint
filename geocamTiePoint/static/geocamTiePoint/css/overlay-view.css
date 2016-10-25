@@ -60,18 +60,20 @@ div.top, div.bottom {
 	color: yellow;
 }
 
- #rotation_slider {
-	margin-left: 25%;
-	margin-right: 25%;
+#rotation_slider_div {
+	margin-left: 20%;
+	margin-right: 20%;
 	margin-top: 10px;
+	width: 60%;
 }
 
 .slider_parent_div {
-	margin-top: 20px;
+	margin-top: 5px;
+	margin-bottom: 10px;
 	background-color:#f9f9f9;
 	border:solid 1px #ddd;
 	padding:10px;
-	width: 40%;
+	width: 45%;
 }
 
 #brightness_slider_div {
@@ -85,5 +87,13 @@ div.top, div.bottom {
 .slider_parent_div span {}
 .slider_div {
 	float:right;
-	width:80%;
+	width:60%;
 } 
+
+#rotation_slider {
+	width: 70%;
+}
+
+.widget_value {
+	display: inline-block;
+}
