@@ -18,14 +18,22 @@
         <button class="btn" id="delete" disabled=true> 
         Delete</button> 
     </div> 
-    <div id="zoom_group" class="btn-group" style="margin-left:10px"> 
+<!--     <div id="zoom_group" class="btn-group" style="margin-left:10px"> 
         <button class="btn" id="zoom_100">Zoom Max</button> 
         <button class="btn" id="zoom_fit">Zoom Fit</button> 
-    </div> 
+    </div>  -->
     <button class="btn"><label for="show_preview"> 
        <input id="show_preview" type="checkbox"  
        checked="true"/>Show Preview</label> 
     </button> 
+    <button class="btn"><label for="done"> 
+       <input id="done" type="checkbox"/> Ready to export</label> 
+    </button> 
+    <div class="btn-group"> 
+        <button class="btn active" id="btn_navigate" >Navigate</button> 
+        <button class="btn" id="btn_add_tiepoint" >Add or Edit Tiepoints</button> 
+        <button class="btn" id="btn_delete_tiepoint">Delete Tiepoints</button> 
+    </div> 
     <div id="save-export" class="btn-group">
 	<!--<button class="btn" id="export">Share</button>-->  
         <button class="btn" id="save">Save</button> 
@@ -37,14 +45,6 @@
           data-server-unreachable="Server unreachable"> 
         </span> 
     </div>
-    <button class="btn"><label for="done"> 
-       <input id="done" type="checkbox"/>Done</label> 
-    </button> 
-    <div class="btn-group"> 
-        <button class="btn active" id="btn_navigate" >Navigate</button> 
-        <button class="btn" id="btn_add_tiepoint" >Add or Edit Tiepoints</button> 
-        <button class="btn" id="btn_delete_tiepoint">Delete Tiepoints</button> 
-    </div> 
 </div> 
 
 <div id="split_container"> 

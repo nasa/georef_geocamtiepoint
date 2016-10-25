@@ -201,11 +201,12 @@ class ImageData(models.Model):
             deepzoomSlug = self.create_deepzoom_slug()
             dz = DeepZoom.objects.create(associated_image=self.image.name, 
                                          name=deepzoomSlug,
-                                         slug=deepzoomSlug)
+                                         slug=deepzoomSlug,
+                                         deepzoom_path=deepzoomSlug)
             dz.create_deepzoom_files()
             self.associated_deepzoom = dz
             self.create_deepzoom = False
-            self.save()
+            self.save() 
         except (TypeError, ValueError, AttributeError) as err:
             print("Error: Incorrect deep zoom parameter(s) in settings.py: {0}".format(err))
             raise
@@ -213,7 +214,7 @@ class ImageData(models.Model):
             print("Unexpected error creating deep zoom: {0}".format(sys.exc_info()[1:2]))
             raise
         return dz
-    
+
     def __unicode__(self):
         if self.overlay:
             overlay_id = self.overlay.key
@@ -247,6 +248,12 @@ class ImageData(models.Model):
         self.image.delete()
         self.unenhancedImage.delete()
         self.enhancedImage.delete()
+        try: 
+            dz = self.associated_deepzoom
+            dz.delete_deepzoom_files()
+            dz.delete()
+        except: 
+            pass
         super(ImageData, self).delete(*args, **kwargs)
 
 
