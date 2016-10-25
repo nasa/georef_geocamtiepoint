@@ -47,11 +47,11 @@ $(function($) {
 		  parse: function(data, options){
 			  if (Array.isArray(data) && !_.isEmpty(data)){
 				  if (data.length == 4){
-					  if (data[0] != null){
+					  if (data[0] !== null){
 						  this.set('mapCoords',{x:data[0], 
 							  	   				y:data[1]});
 					  }
-					  if (data[2] != null){
+					  if (data[2] !== null){
 						  this.set('imageCoords', [data[2], data[3]]);
 					  }
 					  this.unset('0',['silent']);
@@ -126,6 +126,14 @@ $(function($) {
         	return Backbone.RelationalModel.prototype.set.apply(this, arguments);
         },
         
+        parse: function(resp, xhr) {
+            // Ensure server-side state never overwrites local points value
+            if (!_.isEmpty(this.get('points')) && 'points' in resp) {
+                delete resp['points'];
+            }
+            return resp;
+        },
+        
         getAlignedImageTileUrl: function(coord, zoom) {
             var normalizedCoord = getNormalizedCoord(coord, zoom);
             if (!normalizedCoord) {
@@ -178,7 +186,7 @@ $(function($) {
         		return found;
         	}
         	points.each(function(point){
-				    				if (found == null && _.isEmpty(point.get(coordKey))){
+				    				if (found === null && _.isEmpty(point.get(coordKey))){
 				    					found = point;
 				    					return;
 				    				}

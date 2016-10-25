@@ -133,7 +133,7 @@ $(function($) {
 
 		addOrUpdateTiepoint : function(key, value) {
 			var foundPoint = this.model.getFirstIncompleteTiepoint(key);
-			if (foundPoint != null) {
+			if (foundPoint !== null) {
 				foundPoint.set(key, value);
 				this.renderPoint(foundPoint);
 			} else {
@@ -151,23 +151,30 @@ $(function($) {
 			this.processOptions(options);
 			this.model.on('destroy', this.destroy, this);
 			this.render();
-			this.model.collection.on('remove', this.handleNumberChange, this);
+			vent.on('renumber', this.handleNumberChange, this);
 		},
 		handleNumberChange : function() {
-			if (this.model != null){
+			if (!_.isEmpty(this.model)){
 				var index = this.getIndex();
-				if (index >= 0) {
+				if (index > 0) {
 					this.setNumberText(index);
 				}
 			}
 		},
 		handleDeleteClick : function() {
 			if (app.mode == mode.DELETE_TIEPOINTS) {
-				if (this.model != undefined) {
+				if (!_.isEmpty(this.model)) {
 					actionPerformed();
 					var overlay = this.model.get('overlay');
+					var fireRenumber = false;
+					if (this.model.collection.indexOf(this.model) < this.model.collection.length){
+						fireRenumber = true;
+					}
 					this.model.destroy();
 					postActionPerformed(overlay);
+					if (fireRenumber){
+						vent.trigger('renumber');
+					}
 				}
 			}
 		},
@@ -178,15 +185,12 @@ $(function($) {
 			this.model = null;
 		},
 		stopListening : function() {
-			if (this.model.collection != undefined) {
-				this.model.collection.off('remove', this.handleNumberChange,
-						this);
-			}
+			vent.off('renumber', this.handleNumberChange, this);
 			app.views.View.prototype.stopListening.apply(this, arguments);
 		},
 		getIndex : function() {
 			var result = -1;
-			if (!_.isUndefined(this.model.collection)) {
+			if (!_.isEmpty(this.model) && !_.isUndefined(this.model.collection)) {
 				result = this.model.collection.indexOf(this.model);
 				if (result >= 0) {
 					return result + 1;
@@ -251,8 +255,8 @@ $(function($) {
 //			                     {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.onHookTaskDragEnd(event)}}];
 //			this.deleteHooks = [{tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleClick(event)}];
 		        this.viewer.addViewerInputHook({hooks: [
-		          {tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { _.throttle(context.onHookTaskDrag(event), 50)}},
-		          {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.onHookTaskDragEnd(event)}},
+		          {tracker: this.tracker, handler: 'dragHandler',   hookHandler: function(event) { _.throttle(context.handleDrag(event), 50)}},
+		          {tracker: this.tracker, handler: 'dragEndHandler',   hookHandler: function(event) {context.handleDragEnd(event)}},
 		          {tracker: this.tracker, handler: 'clickHandler',   hookHandler: function(event) { context.handleDeleteClick(event)}}
 		        ]});
 		},
@@ -274,44 +278,53 @@ $(function($) {
 //		},
 		
 		
-		onHookTaskDrag: function(event){
+		handleDrag: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
 				//TODO there is a big rubberbanding slowdown effect maybe this needs a throttle
+				console.log("EVENT POSITION: " + event.position);
 			     var viewportPoint = this.viewer.viewport.pointFromPixel(event.position); 
-	//		     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+			     var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
 			     var windowCoords = this.viewer.viewport.viewportToWindowCoordinates(viewportPoint);
-			     console.log(this.img.style.left + " " + this.img.style.top);
+			     console.log("OLD IMG STYLE " + this.img.style.left + " " + this.img.style.top);
 	//		     this.markerOverlay.adjust(viewportPoint, this.markerOverlay.size);
 	//		     this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
 			     
 			     $(this.img).css({'top': windowCoords.y,
 			    	 			  'left': windowCoords.x});
-			     console.log(this.img.style.left + " " + this.img.style.top);
+			     console.log("NEW IMG STYLE " + this.img.style.left + " " + this.img.style.top);
 	
 			     $(this.numberText).css({'top': windowCoords.y + 25,
 		 			  					 'left': windowCoords.x + 8});
 			}
 
 		},
-		onHookTaskDragEnd: function(event){
+		handleDragEnd: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				 var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
-				 console.log(this.markerOverlay.location);
-				 this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
-				 console.log('after');
-				 console.log(this.markerOverlay.location);
-				 this.updateTiepointFromMarker(viewportPoint);
+				
+				var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
+//				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+//				this.addOrUpdateTiepoint('imageCoords', [ imagePoint.x, imagePoint.y ]);
+
+//				 console.log(this.markerOverlay.location);
+//				 this.markerOverlay.update(viewportPoint, OpenSeadragon.Placement.BOTTOM);
+//				 console.log('after');
+//				 console.log(this.markerOverlay.location);
+				// this.updateTiepointFromMarker(viewportPoint);
 			}
 		},
 		updateTiepointFromMarker : function(viewportPoint) {
-			// TODO somehow these positions are all just wrong wrong wrong
 			actionPerformed();
-			var viewportPoint = this.markerOverlay.location;
+//			var viewportPoint = this.markerOverlay.location;
 			var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
-			console.log('imagepoint');
+			
+			console.log('old Image Coords');
+			console.log(this.model.get('imageCoords'));
+			console.log('new imagepoint');
 			console.log(imagePoint);
-			this.model.set('imageCoords', imagePoint);
-			postActionPerformed(this.model.get('overlay'));
+			//this.model.set('imageCoords', [imagePoint.x, imagePoint.y]);
+//			console.log('new Image Coords');
+//			console.log(this.model.get('imageCoords'));
+//			postActionPerformed(this.model.get('overlay'));
 		},
 		setNumberText : function(value) {
 			this.numberText.innerHTML = value;
@@ -354,7 +367,7 @@ $(function($) {
 				this.dragEndListener = google.maps.event.addListener(this.marker, 'dragend', function(event){context.handleDragEnd(event)});
 			} else {
 				this.marker.setDraggable(false);
-				if (this.dragStartListener != undefined) {
+				if (_.isUndefined(this.dragStartListener)) {
 					google.maps.event.clearListeners(this.marker, 'dragstart');
 					google.maps.event.clearListeners(this.marker, 'dragend');
 					this.dragStartListener = undefined;
@@ -437,14 +450,10 @@ $(function($) {
 					this.model.on('add:points', function(point) {
 						this.renderPoint(point)
 					}, this);
-					this.model.on('change:points',
-							this.destroyAlignedImageQtree, this);
-					this.model.on('add:points', this.destroyAlignedImageQtree,
-							this);
-					this.model.on('remove:points',
-							this.destroyAlignedImageQtree, this);
-					this.model.on('warp_success',
-							this.refreshAlignedImageQtree, this);
+					this.model.on('change:points', this.destroyAlignedImageQtree, this);
+					this.model.on('add:points', this.destroyAlignedImageQtree, this);
+					this.model.on('remove:points', this.destroyAlignedImageQtree, this);
+					this.model.on('warp_success', this.refreshAlignedImageQtree, this);
 					this.on('dragstart', this.destroyAlignedImageQtree, this);
 				},
 				renderPoint : function(point) {
@@ -597,18 +606,10 @@ $(function($) {
 		template : $('#template-osd-image-viewer').html(),
 		initialize : function(options) {
 			app.views.OverlayView.prototype.initialize.apply(this, arguments);
-			vent.on('navigate', function() {
-				this.navigate();
-			}, this);
-			vent.on('startAddTiepoint', function() {
-				this.addTiepoints();
-			}, this);
-			vent.on('startDeleteTiepoint', function() {
-				this.deleteTiepoints();
-			}, this);
-			this.model.on('add:points', function(point) {
-				this.renderPoint(point);
-			}, this);
+			vent.on('navigate', this.navigate, this);
+			vent.on('startAddTiepoint', this.addTiepoints, this);
+			vent.on('startDeleteTiepoint', this.deleteTiepoints, this);
+			this.model.get('points').on('add', function(point) {this.renderPoint(point);}, this);
 			
 			//imageFilters stores the current values of the filters
 			imageFilters = {}; 
@@ -627,11 +628,10 @@ $(function($) {
 		},
 		addTiepoints : function() {
 			$("#osd_viewer").css('cursor', "pointer");
-			var context = this;
-			// Canvas-click event handler
-			this.viewer.addHandler('canvas-click', function(event) {
-				context.tiepointClickHandler(event);
-			});
+//			var context = this;
+//	        this.viewer.addViewerInputHook({hooks: [
+//	          {tracker: 'viewer', handler: 'clickHandler',   hookHandler: function(event) { context.tiepointClickHandler(event)}}
+//	        ]});
 		},
 		tiepointClickHandler : function(event) {
 			/*
@@ -648,14 +648,10 @@ $(function($) {
 			 */
 			if (app.mode == mode.ADD_TIEPOINTS) {
 				actionPerformed();
-				var viewportPoint = this.viewer.viewport
-						.pointFromPixel(event.position);
-				var imagePoint = this.viewer.viewport
-						.viewportToImageCoordinates(viewportPoint);
-				this.addOrUpdateTiepoint('imageCoords', [ imagePoint.x,
-						imagePoint.y ]);
+				var viewportPoint = this.viewer.viewport.pointFromPixel(event.position);
+				var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
+				this.addOrUpdateTiepoint('imageCoords', [ imagePoint.x, imagePoint.y ]);
 				postActionPerformed(this.model);
-
 			}
 		},
 		deleteTiepoints : function() {
@@ -737,12 +733,12 @@ $(function($) {
 				// construct prior tiepoints
 				model.get('points').each(function(point) {
 					context.renderPoint(point);
-//					new app.views.ImageTiePointView({
-//						model : point,
-//						viewer : viewer
-//					});
 				});
 
+			});
+			
+			this.viewer.addHandler('canvas-click', function(event) {
+				context.tiepointClickHandler(event);
 			});
 			// on center point click, display the lat lon script
 			$('#center_pt_button').click(function(){
@@ -832,9 +828,8 @@ $(function($) {
 				template : $('#template-overlay-dashboard').html(),
 
 				beforeRender : function() {
-					if (this.helpIndex == null) {
-						if (this.model == undefined
-								|| this.model.get('alignedTilesUrl')) {
+					if (_.isEmpty(this.helpIndex)) {
+						if (_.isUndefined(this.model) || this.model.get('alignedTilesUrl')) {
 							this.helpIndex = 1;
 						} else {
 							this.helpIndex = 0;
@@ -1355,7 +1350,7 @@ $(function($) {
 		},
 
 		submitSuccess : function(data) {
-			console.log('got data back');
+//			console.log('got data back');
 			app.router.navigate('overlays/');
 		}
 	}); // end DeleteOverlayView
