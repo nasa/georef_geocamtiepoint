@@ -195,20 +195,24 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     """
     API for creating an overlay via hitting a URL. For integration with Catalog.
     """
-    imageUrl = None
-    overlay = None
-    issImage = ISSimage(mission, roll, frame, sizeType)
-    imageUrl = issImage.imageUrl
-    imageFile = imageInfo.getImageFile(imageUrl)
-    if checkIfErrorJSONResponse(imageFile):
-        return imageFile
-    overlay = createOverlay(request.user, imageFile, issImage)
-    # check if createOverlay returned a ErrorJSONResponse (if so, return right away)
+    try: 
+        issID = mission + "-" + roll + "-" + frame
+    except: 
+        issID = "undefined ISS ID "    
+    try: 
+        overlay, issImage = createOverlayFromID(mission, roll, frame, sizeType, request.user)
+        dz = overlay.imageData.create_deepzoom_image()
+    except Exception as e: 
+        message = 'Exception in creating overlay: %s. %s' % (issID, e)
+        messages.add_message(request, messages.ERROR, message)
+        return HttpResponseRedirect(reverse('georef_error'))
     if checkIfErrorJSONResponse(overlay):
-        return retval
+        message = 'Exception in creating overlay: %s. %s' % (issID, overlay)
+        messages.add_message(request, messages.ERROR, message)
+        return HttpResponseRedirect(reverse('georef_error'))
     overlay.generateUnalignedQuadTree()
     redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
-    return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
+    return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl) 
 
 
 @csrf_exempt 
@@ -230,11 +234,11 @@ def overlayNewJSON(request):
             overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
             dz = overlay.imageData.create_deepzoom_image()
         except Exception as e: 
-            message = 'Exception in creating overlay: %s. %s' % (issID, e)
+            message = 'Exception in creating overlay: %s. %s.' % (issID, e)
             messages.add_message(request, messages.ERROR, message)
             return HttpResponseRedirect(reverse('georef_error'))
         if checkIfErrorJSONResponse(overlay):
-            message = 'Exception in creating overlay: %s. %s' % (issID, overlay)
+            message = 'Exception in creating overlay: %s. %s.' % (issID, overlay)
             messages.add_message(request, messages.ERROR, message)
             return HttpResponseRedirect(reverse('georef_error'))
         overlay.generateUnalignedQuadTree()
