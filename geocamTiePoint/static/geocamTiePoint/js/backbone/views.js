@@ -213,9 +213,9 @@ $(function($) {
 			this.img = document.createElement('img');
 			this.img.id = this.marker_id;
 			this.img.src = "/static/geocamTiePoint/images/marker.png";
-			var text_id = this.model.cid + "_text";
+			this.text_id = this.model.cid + "_text";
 			this.numberText = document.createElement('span');
-			this.numberText.id = text_id;
+			this.numberText.id = this.text_id;
 			this.setNumberText(this.getIndex());
 			this.numberText.setAttribute('class', 'tiepoint_number');
 			var osdPoint = new OpenSeadragon.Point(this.model
@@ -228,13 +228,14 @@ $(function($) {
 				rotationMode : OpenSeadragon.OverlayRotationMode.NO_ROTATION,
 				placement : OpenSeadragon.Placement.BOTTOM
 			});
+			this.markerOverlay = this.viewer.getOverlayById(this.marker_id);
 			this.viewer.addOverlay({
 				element : this.numberText,
 				location : viewportPoint,
 				rotationMode : OpenSeadragon.OverlayRotationMode.NO_ROTATION,
 				placement : OpenSeadragon.Placement.TOP
 			});
-			
+			this.textOverlay = this.viewer.getOverlayById(this.text_id);
 			this.setupMouseControls();
 		},
 		setupMouseControls: function() {
@@ -257,35 +258,29 @@ $(function($) {
 	        });
 		},
 		
-		getWindowCoordinates: function(event){
-			var canvasOffset = OpenSeadragon.getElementOffset(this.viewer.canvas);
-			var windowPoint = new OpenSeadragon.Point(event.originalEvent.x - canvasOffset.x, event.originalEvent.y - canvasOffset.y);
-			return windowPoint;
+		updateMarkerFromEvent: function(event){
+			var windowCoords = new OpenSeadragon.Point(event.originalEvent.x + 12.5, event.originalEvent.y - 50.0);
+			var viewportCoords = this.viewer.viewport.windowToViewportCoordinates(windowCoords);
+			this.markerOverlay.update(viewportCoords, OpenSeadragon.Placement.BOTTOM);
+			this.textOverlay.update(viewportCoords, OpenSeadragon.Placement.TOP);
+			this.markerOverlay.drawHTML(this.markerOverlay.element.parentNode,this.viewer.viewport);
+			this.textOverlay.drawHTML(this.markerOverlay.element.parentNode,this.viewer.viewport);
+			return windowCoords;
 		},
 		handleDrag: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				 var windowCoords = this.getWindowCoordinates(event);
-			     $(this.img).css({'top': windowCoords.y,
-			    	 			  'left': windowCoords.x});
-			     $(this.numberText).css({'top': windowCoords.y + 25,
-		 			  					 'left': windowCoords.x + 8});
+				this.updateMarkerFromEvent(event);
 			}
-
 		},
 		handleDragEnd: function(event){
 			if (app.mode == mode.ADD_TIEPOINTS) {
-				var windowCoords = this.getWindowCoordinates(event);
-			    var imagePoint = this.viewer.viewport.windowToImageCoordinates(windowCoords);
-			    console.log('handleDragEnd');
-			    console.log('WINDOW COORDS ' + JSON.stringify(windowCoords));
-			     console.log('IMAGE POINT ' + JSON.stringify(imagePoint));
-			     console.log('MODEL IMAGE COORDS ' + this.model.get('imageCoords'));
-//				 this.updateTiepointFromMarker(imagePoint);
+				var windowCoords = this.updateMarkerFromEvent(event);
+				var imageCoords = this.viewer.viewport.windowToImageCoordinates(windowCoords);
+				this.updateTiepointFromMarker(imageCoords);
 			}
 		},
 		updateTiepointFromMarker : function(imagePoint) {
 			actionPerformed();
-			//var imagePoint = this.viewer.viewport.viewportToImageCoordinates(viewportPoint);
 			this.model.set('imageCoords', [imagePoint.x, imagePoint.y]);
 			postActionPerformed(this.model.get('overlay'));
 		},
