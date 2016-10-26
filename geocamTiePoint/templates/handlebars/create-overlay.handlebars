@@ -1,21 +1,15 @@
-<div id="new_overlay_view">
+<form class="new_overlay_form" id="new_overlay_form_id" action="/overlays/new.json" method="post" enctype="multipart/form-data">
 	<h3> Create New Overlays</h3>
 	
-	<ul class="nav nav-tabs" id="formTabs">
-		<li data-target="#imageIdSubmit"><a href="#imageIdSubmit"> From an ID </a></li>
-	</ul>
 	<div class="tab-content">
 		<div class="tab-pane active" id="imageIdSubmit">
 			<table id="create_overlays">
 				<tr>
-					<td class="columnSpacer"><input class="imageId" name="imageId" type="text" placeholder="i.e. ISS039-E-12345"/> </td>
-					<td class="columnSpacer"> <button class="btn" id="id_add" type="button">Add</button></td>
-				</tr>
-
-				<tr>
-					<td> <button class="btn btn-primary" id="createOverlaysButton" type="button"> Create </button></td>
+					<th><label for="id_imageId">ISS Image ID:</label></th>
+					<td><input id="id_imageId" name="imageId" type="text" placeholder="i.e. ISS039-E-12345"/> </td>
 				</tr>
 			</table>
 		</div>
 	<div id="formErrorContainer"></div>
-</div>
+	<input id="createOverlaysButton" type="submit" class="btn btn-primary"  value="Open"/> 
+</form>

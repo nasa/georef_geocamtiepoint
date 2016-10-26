@@ -668,7 +668,7 @@ $(function($) {
 			$("#brightness_slider").slider({
 				min: -100,
 				max: 100,
-				step: 25,			
+				step: 5,			
 				create: function() {
 					$(this).slider('value', model.get('brightness'));
 					bHandle.text($(this).slider('value'));
@@ -703,7 +703,7 @@ $(function($) {
 				max: 100,
 				step: 5,
 				create: function() {
-					var displayVal = (model.get('contrast') -1) * 100;
+					var displayVal = Math.round((model.get('contrast') -1) * 100);
 					$(this).slider('value', displayVal);
 					cHandle.text(displayVal);
 
@@ -716,7 +716,6 @@ $(function($) {
 						loadMode: 'sync'
 					});
 				},
-				//change to stop?
 				slide: function(event, ui) {
 					var displayVal = ui.value;
 					cHandle.text(displayVal);
@@ -1202,93 +1201,21 @@ $(function($) {
 						token : window.csrf_token,
 					};
 				},
-
-				startSpinner : function(index, imageId) {
-					var childNum = index + 1;
-					$("#create_overlays tr:nth-child(" + childNum + ")").html(
+				
+				startSpinner : function(imageId) {
+					$("#create_overlays tr:nth-child(1)").html(
 							'<img src="/static/geocamTiePoint/images/loading.gif">'
-									+ '&nbsp;' + 'Creating overlay ' + imageId
-									+ '...');
-				},
-
-				createEditLink : function(index, url, imageId) {
-					var childNum = index + 1;
-					$("#create_overlays tr:nth-child(" + childNum + ")").html(
-							'<a href="' + url + '" target="_blank">' + imageId
-									+ '</a>');
-
-				},
-
-				showCreateMoreBtn : function(createBtn) {
-					// once the overlays are created, show create more -> routes
-					// back to location reload.
-					createBtn.prop("disabled", false);
-					createBtn
-							.replaceWith($('<input type="button" value = "Create more" onclick="location.reload()";/>'));
-				},
-
-				submitForm : function() {
-					// send the create overlay request to the server.
-					var imageIdJson = {};
-					var $inputs = $('input.imageId');
-
-					// send ajax request for each image id to create a new
-					// overlay
-					$inputs.each(function(index) {
-						var imageId = $(this).val();
-						imageIdJson[index] = imageId;
-						// start the spinner
-						that.startSpinner(index, imageId);
-
-						var createBtn = $('#createOverlaysButton');
-						createBtn.prop("disabled", true);
-
-						// send this to the server
-						$.ajax({
-							url : '/overlays/new.json',
-							type : 'POST',
-							data : imageIdJson,
-							dataType : 'json',
-							success : function(data) {
-								// replace the spinner with a hyperlink to the
-								// url.
-								that.createEditLink(index, data['url'],
-												imageId);
-								// replace the upload btn with upload more
-								if (index == 0) {
-									that.showCreateMoreBtn(createBtn);
-								}
-							},
-							error : function(xhr, status, error) {
-								console.log("xhr", xhr);
-								console.log("status", status);
-								alert("error in NewOverlayView: ", error);
-							}
-						});
-					});
+									+ '&nbsp;' + 'Creating overlay ' + imageId);
 				},
 
 				afterRender : function() {
-					that = this;
-					this.$('#createOverlaysButton').click(this.submitForm);
-					$('#formTabs a:first').tab('show');
-					this.$('ul#formTabs a').click(function(e) {
-						e.preventDefault();
-						$(this).tab('show');
-					});
-
-					$('#id_add')
-							.click(
-									function() {
-										// insert a new image ID row
-										$('#create_overlays tr:last')
-												.before(
-														'<tr> \
-            			<td class="columnSpacer"><input class="imageId" \
-            			name="imageId" type="text" \
-            			placeholder="i.e. ISS039-E-12345"/> </td> \
-            			</tr>');
-									});
+					var that = this;
+					var imageId = $('input.imageId').val();
+//					$( "#createOverlaysButton" ).submit(function( event ) {
+//					    e.preventDefault();
+//					    that.startSpinner(imageId);
+//					    this.submit()
+//					});
 				},
 
 				getCookie : function(name) {

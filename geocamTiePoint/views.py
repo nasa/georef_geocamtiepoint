@@ -211,32 +211,36 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
     return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl)
 
 
-@csrf_exempt
+@csrf_exempt 
 def overlayNewJSON(request):
     if request.method == 'POST':
+        # create new overlay and redirect to edit.
         author = request.user
-        index, issID = request.POST.items()[0]
+        size = 'large'
+        data = request.POST
+        issID = request.POST['imageId']
+        
         try: 
             mission, roll, frame = issID.split('-') 
         except: 
-            redirectUrl = reverse('geocamTiePoint_overlayNew')
-            messages.add_message(request, messages.error, 'Invalid ISS Image ID')  # ASK TAMAR
-            return render_to_response(redirectUrl, {}, context_instance=RequestContext(request))
-        size = 'large'
+            message = '%s is invalid. ISS ID must be of the form [MISSION]-[ROLL]-[FRAME]' % issID
+            messages.add_message(request, messages.ERROR, message)
+            return HttpResponseRedirect(reverse('georef_error'))
         try: 
             overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
             dz = overlay.imageData.create_deepzoom_image()
         except Exception as e: 
-            print "exception is %s" % e
-            return JsonResponse({issID: "error"})
-        # check for error.
+            message = 'Exception in creating overlay: %s. %s' % (issID, e)
+            messages.add_message(request, messages.ERROR, message)
+            return HttpResponseRedirect(reverse('georef_error'))
         if checkIfErrorJSONResponse(overlay):
-            return JsonResponse({issID: "error"})
-        # generate initial quad tree
+            message = 'Exception in creating overlay: %s. %s' % (issID, overlay)
+            messages.add_message(request, messages.ERROR, message)
+            return HttpResponseRedirect(reverse('georef_error'))
         overlay.generateUnalignedQuadTree()
-        redirectUrl = "#overlay/" + str(overlay.key) + "/edit"
-        return JsonResponse({issID: "success", "url": redirectUrl})
-    else:
+        redirectUrl = "b/#overlay/" + str(overlay.key) + "/edit"
+        return HttpResponseRedirect(settings.SCRIPT_NAME + redirectUrl) 
+    else: 
         return HttpResponseNotAllowed(('POST'))
 
 
