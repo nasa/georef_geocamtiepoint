@@ -252,6 +252,8 @@ class ImageData(models.Model):
             dz = self.associated_deepzoom
             dz.delete_deepzoom_files()
             dz.delete()
+            self.associated_deepzoom = None
+            self.save()
         except Exception as e: 
             print "could not delete deepzoom files while deleting imagedata (see error below)"
             print e

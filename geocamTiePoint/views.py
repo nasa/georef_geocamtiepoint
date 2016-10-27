@@ -201,7 +201,8 @@ def createOverlayAPI(request, mission, roll, frame, sizeType):
         issID = "undefined ISS ID "    
     try: 
         overlay, issImage = createOverlayFromID(mission, roll, frame, sizeType, request.user)
-        dz = overlay.imageData.create_deepzoom_image()
+        if overlay.imageData.associated_deepzoom is None: 
+            dz = overlay.imageData.create_deepzoom_image()
     except Exception as e: 
         message = 'Exception in creating overlay: %s. %s' % (issID, e)
         messages.add_message(request, messages.ERROR, message)
@@ -223,7 +224,6 @@ def overlayNewJSON(request):
         size = 'large'
         data = request.POST
         issID = request.POST['imageId']
-        
         try: 
             mission, roll, frame = issID.split('-') 
         except: 
@@ -232,7 +232,8 @@ def overlayNewJSON(request):
             return HttpResponseRedirect(reverse('georef_error'))
         try: 
             overlay, issImage = createOverlayFromID(mission, roll, frame, size, author)
-            dz = overlay.imageData.create_deepzoom_image()
+            if overlay.imageData.associated_deepzoom is None: 
+                dz = overlay.imageData.create_deepzoom_image()
         except Exception as e: 
             message = 'Exception in creating overlay: %s. %s.' % (issID, e)
             messages.add_message(request, messages.ERROR, message)
