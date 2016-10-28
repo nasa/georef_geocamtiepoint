@@ -632,7 +632,6 @@ $(function($) {
 				prefixUrl : "/static/external/js/openseadragon/images/",
 				tileSources : deepzoomTileSource,
 				toolbar: "toolbarDiv",
-				zoomPerScroll:      1.1,
 				gestureSettingsMouse : {
 					clickToZoom : false,
 					dblClickToZoom : false
