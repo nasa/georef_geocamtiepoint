@@ -185,96 +185,90 @@ $(function($) {
      * Camera Model Transform
      **********************************************************************/
   
-    function CameraModelTransform(params, imageId) {
-    	this.params = params;
-    	this.imageId = imageId;
-    }
-    
-    CameraModelTransform.prototype = $.extend(true,
-            {},
-            Transform.prototype);
-
-    CameraModelTransform.fromParams = function(params, imageId) {
-    	return new CameraModelTransform(params, imageId);
-    };
-
-    //TODO look at this code and remove if unused.  Should save through overlay.warp.
-    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId, overlay) {
-    	/**
-    	 * Sends a request to the server and retrieves 
-    	 * optimized params (iss pose, orientation, focal len, etc)
-    	 * for registration in JSON.
-    	 */
-    	if (imageId === 'undefined') {
-    		// for now, raise an exception. Later use another form of transform 
-    		// that doens't depend on the iss image id.
-    		alert("CameraModelTransform.fit: imageId is undefined! ", imageId);
-    		return;
-    	}
-    	var pts = {"imageId": imageId, "toPts": toPts.values, "fromPts": fromPts.values};
-    	// make a call to the server with toPts, fromPts, and imageId.
-    	$.ajax({
-    		type: 'POST', 
-    		url: cameraModelTransformFitUrl,
-    		data: pts, 
-    		success: function(data){
-    			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
-    			// need to save again to backbone so that overlayIdJson post is triggered with new transform.
-                saveOptions = {
-                    error: function(model, response) {
-                        if (response.readyState < 4) {
-                            model.trigger('warp_server_unreachable');
-                        } else {
-                            model.trigger('warp_server_error');
-                        }
-                    },
-                    success: function(model, response) {
-                        model.trigger('warp_success');
-                    }
-                };
-                overlay.save(saveOptions);
-//    			Backbone.Model.prototype.save.call(overlay, {},
-//    												saveOptions);
-    		},
-    		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
-    		dataType: "json"
-    	});
-    };
-    
-    CameraModelTransform.prototype.forward = function(pt, updateCenter) {
-    	// set updateCenter to false if it is not defined.
-    	updateCenter = typeof updateCenter !== 'undefined' ? updateCenter : false;
-    	var data = {'pt': [pt.x, pt.y], 'params': this.params, 'imageId': this.imageId}
-    	$.ajax({
-    		type: 'POST',
-    		url: cameraModelTransformForwardUrl,
-    		data: data,
-    		success: function(data) {
-    			var ptInMeters = data['meters'];
-    			if (updateCenter = true) {
-    				ptInMeters.x = ptInMeters[0];
-    				ptInMeters.y = ptInMeters[1];
-    				var pt = metersToLatLon(ptInMeters);
-    				var centerPtLabel = maputils.createCenterPointLabelText(pt.lat(), pt.lng());
-    				centerPointMarker.title = centerPtLabel;
-    				return;
-    			}
-    			return ptInMeters;
-    		},
-    		error: function() { 
-    			console.log("CameraModelTransform: could not convert pixel coords to meters!"); 
-    		},
-    		dataType: "json"
-    	});
-    };
-    
-    CameraModelTransform.prototype.toDict = function() {
-        return {
-            type: 'CameraModelTransform',
-            params: this.params,
-            imageId: this.imageId
-        };
-    };
+//    function CameraModelTransform(params, imageId) {
+//    	this.params = params;
+//    	this.imageId = imageId;
+//    }
+//    
+//    CameraModelTransform.prototype = $.extend(true,
+//            {},
+//            Transform.prototype);
+//
+//    CameraModelTransform.fromParams = function(params, imageId) {
+//    	return new CameraModelTransform(params, imageId);
+//    };
+//
+//    //TODO look at this code and remove if unused.  Should save through overlay.warp.
+//    CameraModelTransform.fit = function(cls, toPts, fromPts, imageId, overlay) {
+//    	/**
+//    	 * Sends a request to the server and retrieves 
+//    	 * optimized params (iss pose, orientation, focal len, etc)
+//    	 * for registration in JSON.
+//    	 */
+//    	if (imageId === 'undefined') {
+//    		// for now, raise an exception. Later use another form of transform 
+//    		// that doens't depend on the iss image id.
+//    		alert("CameraModelTransform.fit: imageId is undefined! ", imageId);
+//    		return;
+//    	}
+//    	var pts = {"imageId": imageId, "toPts": toPts.values, "fromPts": fromPts.values};
+//    	// make a call to the server with toPts, fromPts, and imageId.
+//    	$.ajax({
+//    		type: 'POST', 
+//    		url: cameraModelTransformFitUrl,
+//    		data: pts, 
+//    		success: function(data){
+//    			overlay.set('transform', {type: 'CameraModelTransform', params: data['params'], imageId: imageId});
+//    			// need to save again to backbone so that overlayIdJson post is triggered with new transform.
+//                saveOptions = {
+//                    error: function(model, response) {
+//                        if (response.readyState < 4) {
+//                            model.trigger('warp_server_unreachable');
+//                        } else {
+//                            model.trigger('warp_server_error');
+//                        }
+//                    },
+//                    success: function(model, response) {
+//                        model.trigger('warp_success');
+//                    }
+//                };
+//                overlay.save(saveOptions);
+////    			Backbone.Model.prototype.save.call(overlay, {},
+////    												saveOptions);
+//    		},
+//    		error: function() { alert("CameraModelTransform: could not return transform from fit "); }, 
+//    		dataType: "json"
+//    	});
+//    };
+//    
+//    CameraModelTransform.prototype.forward = function(pt) {
+//    	// set updateCenter to false if it is not defined.
+//    	var data = {'pt': [pt.x, pt.y], 'params': this.params, 'imageId': this.imageId}
+//    	$.ajax({
+//    		type: 'POST',
+//    		url: cameraModelTransformForwardUrl,
+//    		data: data,
+//    		success: function(data) {
+//    			var ptInMeters = data['meters'];
+//				ptInMeters.x = ptInMeters[0];
+//				ptInMeters.y = ptInMeters[1];
+//				var pt = metersToLatLon(ptInMeters);
+//    			return ptInMeters;
+//    		},
+//    		error: function() { 
+//    			console.log("CameraModelTransform: could not convert pixel coords to meters!"); 
+//    		},
+//    		dataType: "json"
+//    	});
+//    };
+//    
+//    CameraModelTransform.prototype.toDict = function() {
+//        return {
+//            type: 'CameraModelTransform',
+//            params: this.params,
+//            imageId: this.imageId
+//        };
+//    };
     
     
     /**********************************************************************
@@ -535,14 +529,14 @@ $(function($) {
         var n = toPts.w;
         var cls = getTransformClass(n);
         var params = null;
-        if (((cls == CameraModelTransform) && (typeof issMRF != 'undefined'))
-        		&& (typeof overlay != 'undefined')){
-        	//only pass the issMRF field if it is a cameraModelTransform
-        	cls.fit(cls, toPts, fromPts, issMRF, overlay); 
-        } else {
-            params = cls.fit(cls, toPts, fromPts);
-            return cls.fromParams(params);
-        }
+//        if (((cls == CameraModelTransform) && (typeof issMRF != 'undefined'))
+//        		&& (typeof overlay != 'undefined')){
+//        	//only pass the issMRF field if it is a cameraModelTransform
+//        	cls.fit(cls, toPts, fromPts, issMRF, overlay); 
+//        } else {
+        params = cls.fit(cls, toPts, fromPts);
+        return cls.fromParams(params);
+//        }
     }
     
 
@@ -550,8 +544,8 @@ $(function($) {
         var classmap = {
             'projective': ProjectiveTransform,
             'quadratic': QuadraticTransform,
-            'quadratic2': QuadraticTransform2,
-            'CameraModelTransform': CameraModelTransform
+            'quadratic2': QuadraticTransform2//,
+//            'CameraModelTransform': CameraModelTransform
         };
         if (! transformJSON.type in classmap) {
             throw 'Unexpected transform type';
@@ -561,8 +555,8 @@ $(function($) {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix),
                                       transformJSON.quadraticTerms);
-        } else if (transformClass === CameraModelTransform) {
-        	return new transformClass(transformJSON.params, transformJSON.imageId);
+//        } else if (transformClass === CameraModelTransform) {
+//        	return new transformClass(transformJSON.params, transformJSON.imageId);
         } else {
             return new transformClass(matrixFromNestedList
                                       (transformJSON.matrix));

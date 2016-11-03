@@ -2,7 +2,6 @@ assert(!_.isUndefined(window.actionPerformed),
 		'Missing global actionPerformed().  Check for undo.js');
 app.views = {};
 app.map = app.map || {}; // namespace for map helper stuff
-var centerPointMarker = null;
 
 vent = _.extend({}, Backbone.Events);
 
@@ -741,10 +740,14 @@ $(function($) {
 			});
 			// on center point click, display the lat lon script
 			$('#center_pt_button').click(function(){
-				var lat = model.get('centerLat');
-				var lon = model.get('centerLon');
-				var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
-				maputils.copyToClipboard(lat, lon, bingMapScript);
+	            model.fetch({ 'success': function(model) {
+	            	model.updateCenterPoint();
+					// update the marker title
+	            	var lat = model.get('centerLat');
+	            	var lon = model.get('centerLon');
+					var bingMapScript = maputils.latLonToCatalogBingMapsClipboardScript(lat,lon);
+					maputils.copyToClipboard(lat, lon, bingMapScript);
+	        	}});
 			});
 		}
 	});

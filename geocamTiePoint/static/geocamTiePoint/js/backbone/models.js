@@ -204,29 +204,23 @@ $(function($) {
     			var imageSize = model.get('imageSize');
     			var w = imageSize[0];
     			var h = imageSize[1];
-    			if (transform && centerPointMarker) {
-    				var updateCenter = false;
-    				if (transform.toDict().type == 'CameraModelTransform') {
-    					// if it is a cameraModelTransform, center will be updated in the 
-    					// forward function.
-    					updateCenter = true; 
-    				}
-					// calculate the new center
-					var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2}, updateCenter);
-					if (updateCenter == false) {
-						var lat = transformedCenter.lat();
-						var lon = transformedCenter.lng();
-						lat = lat.toFixed(2);
-						lon = lon.toFixed(2);
-						// update the overlay model's center pt in db
-						model.set('centerLat', lat);
-						model.set('centerLon', lon);
-						model.save(model.attributes);
-					}
+    			if (transform) {
+					// calculate the new center lat lon
+					var transformedCenter = forwardTransformPixel(transform, {x: w/2, y: h/2});
+					var lat = transformedCenter.lat();
+					var lon = transformedCenter.lng();
+					lat = lat.toFixed(2);
+					lon = lon.toFixed(2);
+					// update the overlay model's center pt in db
+					model.set('centerLat', lat);
+					model.set('centerLon', lon);
+					model.save(model.attributes);
     			} else {
     				console.log("Transformation matrix not available. Center point cannot be updated");
     			}
     		}
+    		
+    		
         },
 
         computeTransform: function() {
