@@ -89,7 +89,7 @@ class ISSimage:
         self.roll = roll
         self.frame = frame
         self.sizeType = sizeType
-        self.infoUrl = "http://eol.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
+        self.infoUrl = "http://eo-web.jsc.nasa.gov/GeoCam/PhotoInfo.pl?photo=%s-%s-%s" % (self.mission, self.roll, self.frame)
         self.imageUrl = self.__getImageUrl()
         self.width = None
         self.height = None
@@ -117,14 +117,14 @@ class ISSimage:
     def __getImageUrl(self):
         if self.sizeType == 'small':
             if (self.roll == "E") or (self.roll == "ESC"):
-                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/small" 
+                rootUrl = "http://eo-web.jsc.nasa.gov/DatabaseImages/ESC/small" 
             else: 
-                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ISD/lowres"
+                rootUrl = "http://eo-web.jsc.nasa.gov/DatabaseImages/ISD/lowres"
         else: 
             if (self.roll == "E") or (self.roll == "ESC"):
-                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ESC/large" 
+                rootUrl = "http://eo-web.jsc.nasa.gov/DatabaseImages/ESC/large" 
             else: 
-                rootUrl = "http://eol.jsc.nasa.gov/DatabaseImages/ISD/highres"
+                rootUrl = "http://eo-web.jsc.nasa.gov/DatabaseImages/ISD/highres"
         return  rootUrl + "/" + self.mission + "/" + self.mission + "-" + self.roll + "-" + self.frame + ".jpg"
 
 
