@@ -1,12 +1,7 @@
-Installation
-============
-
-Fill me in
-
 Coordinate Systems
 ==================
 
-MapFasten uses two main coordinate systems:
+GeoRef uses two main coordinate systems:
 
  * The image coordinate system measures position in pixels (x, y) where
    (0, 0) is the upper-left corner of the image, x increases to the
@@ -33,9 +28,40 @@ Export Format
 =============
 
 Exporting an overlay produces a gzip-compressed tar archive containing
-Google Maps image pyramid tiles from the aligned overlay along with
-additional meta-data files. *NOTE: We may change the format of these
-files going forward.*
+following files: 
+
+[imageid]-no_warp.tif
+
+-this is a GeoTIFF version of the photo that is unmodified (unwarped) in an image sense, but contains a bunch of metadata header fields indicating the list of 
+	control/tie/correspondence points found for alignment and some alignment fit uncertainty measures.  This version gives an end user all they'd need to create
+	their own aligned image from the embedded control points.
+
+[imageid]-warp.tif
+
+-this is a GeoTIFF version of the photo that is actually modified to be warped/aligned to a map, with transparency around the warped photo to fit inside a 
+	rectangular image as usual.  It does not contain a header with the list of tie points, but it contains fields with alignment fit measures.
+
+[imageid]-no_warp_metadata.txt
+
+-this is a text file containing a formatted dump of the header fields present in the -no_warp.tif version so that someone can get the important data without 
+	retrieving the image.
+
+[imageid]-warp_metadata.txt
+
+-same as no_warp_metadata.txt but instead corresponding to the -warp.tif version.
+
+[imageid]-uncertainty-no_warp.tif
+
+-This is a special synthetic image (single channel floating point) where the number at each pixel represents the uncertainty (standard deviation) in meters we 
+	estimate for our fit at that pixel.  This provides data to do automated analysis of the relative accuracy of our alignment at each pixel -- 
+	it will be more accurate near tie points, and worse further away.
+
+[imageid]-uncertainty-no_warp.tif
+
+-analogous to the -uncertainty-no_warp.tif file, this is a warped/aligned version of the uncertainty image.  It contains two floating point channels, the first 
+	is the uncertainty as in the unwarped version, and the second is a "mask" that is 0 where there is no uncertainty data (the warped image doesn't exist there) 
+	or 255 if there is.
+
 
 Meta-Data Format: meta.json
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
